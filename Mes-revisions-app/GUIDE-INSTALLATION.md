@@ -111,3 +111,18 @@ Les mises à jour de l'appli ne touchent pas à tes données.
 - L'appli fonctionne **hors ligne** une fois ouverte au moins une fois en ligne. Les changements faits hors ligne partent vers ton compte au retour du réseau.
 - L'offre gratuite de Firebase : 1 Go de stockage et 50 000 lectures par jour. Un usage d'étudiant reste très loin de ces limites.
 - Si tu supprimes l'appli de l'iPhone, tes données restent dans ton compte et reviennent à la prochaine connexion.
+
+---
+
+## Sur iPad
+
+L'appli est la même que sur l'iPhone et le Mac : tes données se synchronisent.
+
+1. Ouvre l'adresse de l'appli dans **Safari** sur l'iPad.
+2. Touche **Partager** (le carré avec une flèche vers le haut), puis **Sur l'écran d'accueil**, puis **Ajouter**.
+3. Ouvre l'icône « Révisions » : l'appli s'affiche en plein écran, en portrait comme en paysage.
+4. Connecte-toi avec le même e-mail et le même mot de passe que sur tes autres appareils.
+
+Astuces :
+- Les schémas se déplacent au doigt ou à l'Apple Pencil (bouton « Déplacer les flèches »).
+- Tu peux utiliser l'appli en **Split View** à côté de Notes+ : fais glisser l'icône depuis le Dock sur le côté de l'écran.
