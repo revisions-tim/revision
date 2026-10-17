@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.3.6">
+<meta name="app-version" content="3.3.7">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -480,6 +480,11 @@ main.quiz.wide{max-width:980px}
 .sband b{background:var(--bad);color:#fff;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;font-size:17px;line-height:1;box-shadow:0 0 0 3px rgba(255,255,255,.95)}
 .sband.prev{background:rgba(15,107,88,.14);border-color:rgba(15,107,88,.8)}
 .sline{position:absolute;left:0;right:0;border-top:2px dashed var(--accent);pointer-events:none}
+.leg-tbtns{display:flex;gap:8px;flex-wrap:wrap}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.leg-hint{margin:0 0 8px}
+.leg-handle{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:rgba(255,255,255,.55);border:2.5px solid var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.25);cursor:grab;touch-action:none;z-index:6;display:grid;place-items:center;font-size:11px;font-weight:700;color:#111}
+.leg-handle.drag{cursor:grabbing;background:var(--accent);color:#fff}
 .leg-band{fill-opacity:.14;stroke-opacity:.9;stroke-width:1.5;stroke-dasharray:6 4}
 .leg-brace{fill:none;stroke-width:2.2}
 .leg-bandn{position:absolute;left:0;right:0;border-top:2px dashed;border-bottom:2px dashed;box-sizing:border-box;pointer-events:none}
@@ -559,7 +564,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.3.6';
+const APP_VERSION = '3.3.7';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2655,7 +2660,8 @@ function schLegendHTML(it, z){
   const labels = it.payload.labels, data = state.imgCache[it.payload.image];
   if(!data) return '<p class="hint">Image indisponible sur cet appareil.</p>';
   const notes = labels.filter(l=>l.note);
-  return '<div class="leg-tools"><label class="checks-l"><input type="checkbox" id="legHide"'+(z.hide?' checked':'')+'> Masquer les noms (touche un nom pour le révéler)</label><button class="btn sm" data-act="leg-full">'+ICON.expand+'<span>Agrandir</span></button></div>'+
+  return '<div class="leg-tools"><label class="checks-l"><input type="checkbox" id="legHide"'+(z.hide?' checked':'')+'> Masquer les noms (touche un nom pour le révéler)</label><span class="leg-tbtns"><button class="btn sm'+(z.adjust?' on':'')+'" data-act="leg-adjust">'+ICON.move+'<span>'+(z.adjust?'Terminer le réglage':'Déplacer les flèches')+'</span></button><button class="btn sm" data-act="leg-full">'+ICON.expand+'<span>Agrandir</span></button></span></div>'+
+    (z.adjust ? '<p class="hint leg-hint">Fais glisser les ronds sur l\'image pour replacer le bout de chaque flèche. C\'est enregistré tout seul.</p>' : '')+
     '<div class="leg-wrap" id="legWrap"><div class="leg-cont" id="legCont"><img src="'+data+'" alt="Schéma légendé"></div></div>'+
     '<ol class="leg-list" id="legList"></ol>'+
     (notes.length ? '<details class="leg-notes" open><summary>À retenir</summary>'+notes.map(l=>'<p><b>'+esc(l.label)+'</b> : '+esc(l.note)+'</p>').join('')+'</details>' : '');
@@ -2676,7 +2682,7 @@ function schLegendLayout(){
   const img = $('img', cont); if(!img) return;
   const fs = full ? 1.15 : 1;
   const BAND = ['#3b82c4','#d9822b','#3f9b6d','#9b59b6','#c4527a'];
-  const draw = ()=>{
+  let draw = ()=>{
     if(!document.body.contains(cont)) return;
     const labels = z.item.payload.labels, Wc = wrap.clientWidth, nw = img.naturalWidth || 1, nh = img.naturalHeight || 1;
     const isZ = l => typeof l.y2 === 'number';
@@ -2753,10 +2759,10 @@ function schLegendLayout(){
         el.style.cssText = 'left:'+r.x+'px;top:'+Math.round(r.y)+'px;width:'+Math.round(it.w)+'px;height:'+it.h+'px;display:flex;align-items:center;justify-content:center;text-align:center';
         cont.appendChild(el);
         const ang = Math.atan2(r.ty - r.ay, r.tx - r.ax), hx = r.tx - Math.cos(ang)*6, hy = r.ty - Math.sin(ang)*6;
-        const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', r.ax); ln.setAttribute('y1', r.ay); ln.setAttribute('x2', hx); ln.setAttribute('y2', hy); ln.setAttribute('class','leg-line'); svg.appendChild(ln);
+        const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', r.ax); ln.setAttribute('y1', r.ay); ln.setAttribute('x2', hx); ln.setAttribute('y2', hy); ln.setAttribute('class','leg-line'); ln.setAttribute('data-i', it.i); svg.appendChild(ln);
         const a2 = 9, tri = document.createElementNS(NS, 'polygon');
         const q = [[r.tx, r.ty], [r.tx - Math.cos(ang-0.42)*a2, r.ty - Math.sin(ang-0.42)*a2], [r.tx - Math.cos(ang+0.42)*a2, r.ty - Math.sin(ang+0.42)*a2]];
-        tri.setAttribute('points', q.map(p=>p.join(',')).join(' ')); tri.setAttribute('class','leg-head'); svg.appendChild(tri);
+        tri.setAttribute('points', q.map(p=>p.join(',')).join(' ')); tri.setAttribute('class','leg-head'); tri.setAttribute('data-i', it.i); svg.appendChild(tri);
       });
       return;
     }
@@ -2824,14 +2830,15 @@ function schLegendLayout(){
           return;
         }
         const ang = Math.atan2(p.my - y, p.mx - ax), hx = p.mx - Math.cos(ang)*6, hy = p.my - Math.sin(ang)*6;
-        const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', ax); ln.setAttribute('y1', y); ln.setAttribute('x2', hx); ln.setAttribute('y2', hy); ln.setAttribute('class','leg-line'); svg.appendChild(ln);
+        const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', ax); ln.setAttribute('y1', y); ln.setAttribute('x2', hx); ln.setAttribute('y2', hy); ln.setAttribute('class','leg-line'); ln.setAttribute('data-i', p.i); svg.appendChild(ln);
         const a = 9, tri = document.createElementNS(NS, 'polygon');
         const q = [[p.mx, p.my], [p.mx - Math.cos(ang-0.42)*a, p.my - Math.sin(ang-0.42)*a], [p.mx - Math.cos(ang+0.42)*a, p.my - Math.sin(ang+0.42)*a]];
-        tri.setAttribute('points', q.map(r=>r.join(',')).join(' ')); tri.setAttribute('class','leg-head'); svg.appendChild(tri);
+        tri.setAttribute('points', q.map(r=>r.join(',')).join(' ')); tri.setAttribute('class','leg-head'); tri.setAttribute('data-i', p.i); svg.appendChild(tri);
       });
     });
     { let bot = imgH; $$('.leg-lab', cont).forEach(e=>{ bot = Math.max(bot, e.offsetTop + e.offsetHeight + 4); }); if(bot > imgH){ cont.style.height = bot+'px'; svg.setAttribute('height', bot); } }
   };
+  const draw0 = draw; draw = ()=>{ draw0(); schAdjustHandles(cont, img, z); };
   if(img.complete && img.naturalWidth) draw(); else img.onload = draw;
   if(!state.legResize){
     state.legResize = true; let tm;
@@ -2839,13 +2846,50 @@ function schLegendLayout(){
   }
 }
 
+/* ---------- Réglage manuel : déplacer le bout des flèches ---------- */
+function schAdjustHandles(cont, img, z){
+  $$('.leg-handle', cont).forEach(e=>e.remove());
+  if(!z.adjust || !document.body.contains(cont)) return;
+  const labels = z.item.payload.labels;
+  const place = (h, l)=>{ h.style.left = (img.offsetLeft + l.x*img.offsetWidth) + 'px'; h.style.top = (img.offsetTop + l.y*img.offsetHeight) + 'px'; };
+  labels.forEach((l, i)=>{
+    if(typeof l.y2 === 'number') return;
+    const h = document.createElement('span'); h.className = 'leg-handle'; h.dataset.i = i; h.title = l.label; h.textContent = String(i+1); place(h, l); cont.appendChild(h);
+    h.addEventListener('pointerdown', ev=>{
+      ev.preventDefault(); ev.stopPropagation(); try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+      h.classList.add('drag');
+      const mv = e2=>{
+        const r = img.getBoundingClientRect();
+        l.x = Math.round(Math.min(1, Math.max(0, (e2.clientX - r.left)/r.width))*1000)/1000;
+        l.y = Math.round(Math.min(1, Math.max(0, (e2.clientY - r.top)/r.height))*1000)/1000;
+        place(h, l);
+        const tx = img.offsetLeft + l.x*img.offsetWidth, ty = img.offsetTop + l.y*img.offsetHeight;
+        const ln = cont.querySelector('svg.leg-svg line[data-i="'+i+'"]'), tri = cont.querySelector('svg.leg-svg polygon[data-i="'+i+'"]');
+        if(ln && tri){
+          const x1 = +ln.getAttribute('x1'), y1 = +ln.getAttribute('y1'), ang = Math.atan2(ty - y1, tx - x1), a = 9;
+          ln.setAttribute('x2', tx - Math.cos(ang)*6); ln.setAttribute('y2', ty - Math.sin(ang)*6);
+          tri.setAttribute('points', [[tx, ty], [tx - Math.cos(ang-0.42)*a, ty - Math.sin(ang-0.42)*a], [tx - Math.cos(ang+0.42)*a, ty - Math.sin(ang+0.42)*a]].map(p=>p.join(',')).join(' '));
+        }
+        const pin = $$('.leg-pin', cont)[i]; if(pin){ pin.style.left = (l.x*100)+'%'; pin.style.top = (l.y*100)+'%'; }
+      };
+      const up = async ()=>{
+        h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+        h.classList.remove('drag');
+        try{ await updateItem(z.item.id, it=>{ it.payload.labels[i].x = l.x; it.payload.labels[i].y = l.y; return it; }); const cur = state.items.find(x=>x.id===z.item.id); if(cur) z.item = cur; }
+        catch(e){ toast('Enregistrement impossible pour le moment.'); }
+        schLegendLayout();
+      };
+      h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    });
+  });
+}
 /* ---------- Schéma en plein écran : le dessin et les noms, en grand ---------- */
 function schLegendOpenFull(){
   const z = state.schema; if(!z) return;
   const it = z.item, data = state.imgCache[it.payload.image]; if(!data) return;
   z.big = true;
   const ov = document.createElement('div'); ov.id = 'legFull'; ov.className = 'leg-full';
-  ov.innerHTML = '<div class="leg-full-bar"><b class="leg-full-title">'+esc(it.title)+'</b><label class="checks-l"><input type="checkbox" id="legHideF"'+(z.hide?' checked':'')+'> Masquer les noms</label><button class="btn sm" data-act="leg-close">'+ICON.close+'<span>Fermer</span></button></div>'+
+  ov.innerHTML = '<div class="leg-full-bar"><b class="leg-full-title">'+esc(it.title)+'</b><label class="checks-l"><input type="checkbox" id="legHideF"'+(z.hide?' checked':'')+'> Masquer les noms</label><button class="btn sm'+(z.adjust?' on':'')+'" data-act="leg-adjust">'+ICON.move+'<span>'+(z.adjust?'Terminer le réglage':'Déplacer les flèches')+'</span></button><button class="btn sm" data-act="leg-close">'+ICON.close+'<span>Fermer</span></button></div>'+
     '<div class="leg-full-body"><div class="leg-wrapF" id="legWrapF"><div class="leg-cont" id="legContF"><img src="'+data+'" alt="Schéma légendé"></div><ol class="leg-list" id="legListF"></ol></div></div>';
   document.body.appendChild(ov); document.body.style.overflow = 'hidden';
   schLegendLayout();
@@ -3621,6 +3665,7 @@ document.addEventListener('click', async e=>{
     case 'acc-logout': closeModal(); state.items = []; state.folders = []; state.imgCache = {}; state.fbAuth.signOut(); break;
     case 'sch-new': openSchemaNew(); break;
     case 'sch-mode': { const e2 = state.sedit; if(e2){ const t = $('#schTitle'), c = $('#schCourse'); if(t) e2.title = t.value; if(c) e2.course = c.value; schCommitPending(); e2.zoneMode = el.dataset.m==='zone'; e2.zoneStart = null; renderSchemaEdit(); } break; }
+    case 'leg-adjust': { const z = state.schema; if(z){ z.adjust = !z.adjust; if(z.big){ document.querySelectorAll('[data-act=leg-adjust]').forEach(b=>{ b.classList.toggle('on', !!z.adjust); const sp = b.querySelector('span'); if(sp) sp.textContent = z.adjust ? 'Terminer le réglage' : 'Déplacer les flèches'; }); schLegendLayout(); } else renderSchema(); } break; }
     case 'leg-full': schLegendOpenFull(); break;
     case 'leg-close': schLegendCloseFull(); break;
     case 'sch-tab': { const z = state.schema; if(z){ z.tab = el.dataset.tab; renderSchema(); window.scrollTo(0,0); } break; }
