@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.3.4">
+<meta name="app-version" content="3.3.5">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -248,6 +248,14 @@ pre.fmt{white-space:pre-wrap;font-size:12px;line-height:1.45;margin:10px 0;font-
 .gt-actions .icon-btn{width:34px;height:34px}
 .tools{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .tools .btn svg{width:16px;height:16px}
+.sel-count{align-self:center;font-weight:600;margin-right:4px}
+.btn.danger{border-color:#c0504d;color:#c0504d}
+.btn.danger:disabled{opacity:.45;cursor:not-allowed}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.sel-box{position:absolute;top:10px;right:10px;width:22px;height:22px;border:2px solid var(--line);border-radius:6px;background:var(--surface);z-index:2;pointer-events:none}
+.card.sel .sel-box{background:var(--accent);border-color:var(--accent)}
+.card.sel .sel-box::after{content:'';position:absolute;left:6px;top:2px;width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.sel-list{margin:8px 0 0;padding-left:20px;font-size:14px}
 .ca{display:flex;align-items:center}
 .card-foot .icon-btn{width:34px;height:34px}
 .none.small{padding:6px 0 0;text-align:left;font-size:13.5px}
@@ -551,7 +559,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.3.4';
+const APP_VERSION = '3.3.5';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1170,7 +1178,7 @@ function renderResults(){
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
   $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '');
   const nb = notebookCount();
-  $('#tools').innerHTML =
+  $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
@@ -1178,7 +1186,8 @@ function renderResults(){
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
     (nS > 0 ? '<button class="btn sm" data-act="print-open">'+ICON.print+'<span>Imprimer des synthèses</span></button>' : '')+
     (nQ + nF > 0 ? '<button class="btn sm" data-act="mix">'+ICON.mix+'<span>Mélanger des thèmes</span></button>' : '')+
-    (nb > 0 ? '<button class="btn sm" data-act="notebook">'+ICON.book+'<span>Carnet d\'erreurs · '+nb+'</span></button>' : '');
+    (nb > 0 ? '<button class="btn sm" data-act="notebook">'+ICON.book+'<span>Carnet d\'erreurs · '+nb+'</span></button>' : '')+
+    (all.length ? '<button class="btn sm" data-act="sel-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Sélectionner</span></button>' : '');
   const box = $('#results');
   if(!all.length && !state.folders.length){
     box.innerHTML =
@@ -1199,9 +1208,10 @@ function renderResults(){
   box.innerHTML = keys.map(k => {
     const g = groups.get(k);
     const m = folderMastery(g);
+    const selBtn = state.sel && g.length ? '<button class="btn sm ghost" data-act="sel-folder" data-name="'+esc(k)+'">Tout le dossier</button>' : '';
     const tools = k ? '<span class="gt-actions"><button class="icon-btn" data-act="folder-rename" data-name="'+esc(k)+'" aria-label="Renommer le dossier '+esc(k)+'">'+ICON.edit+'</button>'+
       '<button class="icon-btn" data-act="folder-delete" data-name="'+esc(k)+'" aria-label="Supprimer le dossier '+esc(k)+'">'+ICON.trash+'</button></span>' : '';
-    return '<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+g.length+'</span>'+
+    return '<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+g.length+'</span>'+selBtn+
       (m!=null ? '<span class="mastery">Maîtrise : <b>'+m+' %</b></span>' : '')+tools+'</h2>'+
       (g.length ? '<div class="grid">'+g.map(cardHTML).join('')+'</div>' : '<p class="none small">Dossier vide. Ajoute du contenu ou déplace-y des éléments.</p>')+'</section>';
   }).join('');
@@ -1244,18 +1254,43 @@ function cardHTML(it){
   if(isG && it.stats && it.stats.attempts) parts.push('meilleur score '+it.stats.best+' %');
   if(!isG && imageIds(it).length) parts.push('avec images');
   const d = it.createdAt ? new Date(it.createdAt).toLocaleDateString('fr',{day:'numeric',month:'short'}) : '';
-  const foot = state.confirmId===it.id
+  const isSel = !!(state.sel && state.sel[it.id]);
+  const foot = state.sel ? '<span>'+esc(d)+'</span>' : state.confirmId===it.id
     ? '<div class="confirm"><b>Supprimer ?</b><button class="btn sm" data-act="delete-yes" data-id="'+esc(it.id)+'">Oui</button><button class="btn sm ghost" data-act="delete-no">Non</button></div>'
     : '<span>'+esc(d)+'</span><span class="ca">'+
         '<button class="icon-btn" data-act="edit" data-id="'+esc(it.id)+'" aria-label="Modifier '+esc(it.title)+'" title="Modifier">'+ICON.edit+'</button>'+
         '<button class="icon-btn" data-act="move" data-id="'+esc(it.id)+'" aria-label="Déplacer '+esc(it.title)+' vers un dossier" title="Déplacer vers un dossier">'+ICON.move+'</button>'+
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
-  return '<article class="card"><button class="card-main" data-act="open" data-id="'+esc(it.id)+'">'+
+  return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
     '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
+/* ---------- Sélection multiple (suppression en une fois) ---------- */
+function visibleItems(){
+  const q = state.q.trim().toLowerCase();
+  return state.items.filter(i => (state.filter==='all' || i.type===state.filter) && (!q || searchMatches(i, q)));
+}
+function selIds(){ return state.sel ? Object.keys(state.sel).filter(k=>state.sel[k] && state.items.some(i=>i.id===k)) : []; }
+function selBarHTML(){
+  const n = selIds().length;
+  return '<span class="sel-count">'+n+' sélectionné'+(n>1?'s':'')+'</span>'+
+    '<button class="btn sm" data-act="sel-all">Tout sélectionner</button>'+
+    '<button class="btn sm ghost" data-act="sel-none">Tout désélectionner</button>'+
+    '<button class="btn sm danger" data-act="sel-del"'+(n?'':' disabled')+'>'+ICON.trash+'<span>Supprimer'+(n?' ('+n+')':'')+'</span></button>'+
+    '<button class="btn sm ghost" data-act="sel-done">Terminer</button>';
+}
+function openSelDelete(){
+  const ids = selIds(); if(!ids.length) return;
+  const titles = ids.slice(0, 6).map(id=>{ const it = state.items.find(i=>i.id===id); return '<li>'+esc(it ? it.title : '')+'</li>'; }).join('') + (ids.length > 6 ? '<li>… et '+(ids.length-6)+' autre'+(ids.length-6>1?'s':'')+'</li>' : '');
+  openModal('Supprimer '+plural(ids.length,'élément')+' ?',
+    '<p>Cette action est définitive.</p><ul class="sel-list">'+titles+'</ul>',
+    'Supprimer', async ()=>{
+      try{ for(const id of ids) await removeItem(id); state.sel = null; closeModal(); toast(plural(ids.length,'élément')+' supprimé'+(ids.length>1?'s':'')+'.'); renderResults(); }
+      catch(e){ modalError('Suppression impossible pour le moment.'); }
+    });
+}
 /* ---------- Fenêtres (modales) ---------- */
 function openModal(title, body, primaryLabel, submit){
   state.modalSubmit = submit || null;
@@ -2732,15 +2767,31 @@ function schLegendLayout(){
       r.setAttribute('class','leg-band'); r.style.fill = colorOf[p.i]; r.style.stroke = colorOf[p.i]; svg.appendChild(r);
     });
     ['L','R'].forEach(side=>{
-      const g = pts.filter(p=>p.side===side).sort((a,b)=>a.my-b.my), inner = colW - 44;
-      const hs = g.map(p=>{ const t = nameOf(p.i); const lines = Math.max(1, Math.ceil(t.length * 7.6 * fs * 1.2 / inner)); return Math.round((30 + 16*(lines-1)) * fs); });
-      const need = k => (hs[k-1] + hs[k]) / 2 + 4;
-      let ys = g.map(p=>p.my);
-      for(let k=1;k<ys.length;k++) ys[k] = Math.max(ys[k], ys[k-1] + need(k));
-      const over = ys.length ? ys[ys.length-1] + hs[ys.length-1]/2 - (imgH - 4) : 0;
-      if(over > 0) ys = ys.map(y=>y-over);
-      for(let k=ys.length-2;k>=0;k--) ys[k] = Math.min(ys[k], ys[k+1] - need(k+1));
-      for(let k=0;k<ys.length;k++) ys[k] = Math.max(ys[k], k ? ys[k-1] + need(k) : hs[0]/2 + 2);
+      let g = pts.filter(p=>p.side===side).sort((a,b)=>a.my-b.my);
+      const inner = colW - 44, axs = side==='L' ? colW - 34 : Wc - colW + 34;
+      const hOf = p=>{ const t = nameOf(p.i); const lines = Math.max(1, Math.ceil(t.length * 7.6 * fs * 1.2 / inner)); return Math.round((30 + 16*(lines-1)) * fs); };
+      let hs = [], ys = [];
+      const layout = want=>{
+        hs = g.map(hOf); const need = k => (hs[k-1] + hs[k]) / 2 + 4;
+        ys = want.slice();
+        for(let k=1;k<ys.length;k++) ys[k] = Math.max(ys[k], ys[k-1] + need(k));
+        const over = ys.length ? ys[ys.length-1] + hs[ys.length-1]/2 - (imgH - 4) : 0;
+        if(over > 0) ys = ys.map(y=>y-over);
+        for(let k=ys.length-2;k>=0;k--) ys[k] = Math.min(ys[k], ys[k+1] - need(k+1));
+        for(let k=0;k<ys.length;k++) ys[k] = Math.max(ys[k], k ? ys[k-1] + need(k) : hs[0]/2 + 2);
+      };
+      layout(g.map(p=>p.my));
+      if(g.length > 2 && !g.some(p=>p.zone)){
+        const dist = (p,y)=>Math.hypot(p.mx - axs, p.my - y);
+        for(let pass=0; pass<8; pass++){
+          let sw = false;
+          for(let i=0;i<g.length-1;i++) for(let j=i+1;j<g.length;j++){
+            if(dist(g[i],ys[i]) + dist(g[j],ys[j]) > dist(g[i],ys[j]) + dist(g[j],ys[i]) + 1){ const t = g[i]; g[i] = g[j]; g[j] = t; sw = true; }
+          }
+          if(!sw) break;
+          layout(ys.slice());
+        }
+      }
       g.forEach((p,k)=>{
         const y = ys[k], ax = side==='L' ? colW - 34 : Wc - colW + 34, col = p.zone ? colorOf[p.i] : null;
         const el = document.createElement('button'); el.type = 'button';
@@ -3521,6 +3572,13 @@ document.addEventListener('click', async e=>{
     case 'folder-delete': openFolderDelete(el.dataset.name); break;
     case 'mix': openMix(); break;
     case 'notebook': openNotebook(); break;
+    case 'sel-toggle': state.sel = {}; state.confirmId = null; renderResults(); break;
+    case 'sel-done': state.sel = null; renderResults(); break;
+    case 'sel-item': if(state.sel){ state.sel[id] = !state.sel[id]; renderResults(); } break;
+    case 'sel-all': if(state.sel){ visibleItems().forEach(i=>{ state.sel[i.id] = true; }); renderResults(); } break;
+    case 'sel-none': if(state.sel){ state.sel = {}; renderResults(); } break;
+    case 'sel-folder': if(state.sel){ const nm = el.dataset.name || ''; const grp = visibleItems().filter(i=>(i.course||'')===nm); const all = grp.every(i=>state.sel[i.id]); grp.forEach(i=>{ state.sel[i.id] = !all; }); renderResults(); } break;
+    case 'sel-del': openSelDelete(); break;
     case 'delete-ask': state.confirmId = id; renderResults(); break;
     case 'delete-no': state.confirmId = null; renderResults(); break;
     case 'delete-yes':
