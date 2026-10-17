@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.3.3">
+<meta name="app-version" content="3.3.4">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -551,7 +551,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.3.3';
+const APP_VERSION = '3.3.4';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2716,7 +2716,8 @@ function schLegendLayout(){
     if(full){
       const body = $('.leg-full-body'), Hav = (body ? body.clientHeight : window.innerHeight - 70) - 8;
       imgH = Hav; imgW = Math.round(imgH*nw/nh); colW = Math.round((Wc - imgW)/2);
-      if(colW < 150){ colW = 150; imgW = Wc - 2*colW; imgH = Math.round(imgW*nh/nw); }
+      const minCol = Math.min(230, Math.round(Wc*0.24));
+      if(colW < minCol){ colW = minCol; imgW = Wc - 2*colW; imgH = Math.round(imgW*nh/nw); }
       topPad = Math.max(0, Math.round((Hav - imgH)/2));
     }
     cont.style.cssText = 'position:relative;width:'+Wc+'px;height:'+imgH+'px;margin:'+topPad+'px auto 0';
@@ -2732,7 +2733,7 @@ function schLegendLayout(){
     });
     ['L','R'].forEach(side=>{
       const g = pts.filter(p=>p.side===side).sort((a,b)=>a.my-b.my), inner = colW - 44;
-      const hs = g.map(p=>{ const t = nameOf(p.i); const lines = Math.max(1, Math.ceil(t.length * 7.6 * fs / inner)); return Math.round((30 + 16*(lines-1)) * fs); });
+      const hs = g.map(p=>{ const t = nameOf(p.i); const lines = Math.max(1, Math.ceil(t.length * 7.6 * fs * 1.2 / inner)); return Math.round((30 + 16*(lines-1)) * fs); });
       const need = k => (hs[k-1] + hs[k]) / 2 + 4;
       let ys = g.map(p=>p.my);
       for(let k=1;k<ys.length;k++) ys[k] = Math.max(ys[k], ys[k-1] + need(k));
@@ -2764,6 +2765,7 @@ function schLegendLayout(){
         tri.setAttribute('points', q.map(r=>r.join(',')).join(' ')); tri.setAttribute('class','leg-head'); svg.appendChild(tri);
       });
     });
+    { let bot = imgH; $$('.leg-lab', cont).forEach(e=>{ bot = Math.max(bot, e.offsetTop + e.offsetHeight + 4); }); if(bot > imgH){ cont.style.height = bot+'px'; svg.setAttribute('height', bot); } }
   };
   if(img.complete && img.naturalWidth) draw(); else img.onload = draw;
   if(!state.legResize){
