@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.5.2">
+<meta name="app-version" content="3.6.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -482,7 +482,7 @@ main.quiz.wide{max-width:980px}
 .checks-l input{width:18px;height:18px;accent-color:var(--accent)}
 .leg-wrap{width:100%}
 .leg-cont img{border-radius:10px;background:#fff;border:1.5px solid var(--line);max-width:100%;height:auto;box-sizing:border-box}
-.leg-lab{position:absolute;box-sizing:border-box;font:inherit;font-size:13px;font-weight:600;line-height:1.2;padding:5px 9px;border-radius:7px;cursor:default;background:var(--surface2);color:var(--ink);border:1.5px solid var(--line)}
+.leg-lab{position:absolute;box-sizing:border-box;font:inherit;font-size:13px;font-weight:600;line-height:1.2;padding:5px 9px;border-radius:7px;cursor:default;background:var(--surface2);color:var(--ink);border:2.5px solid var(--line)}
 .leg-lab.hid{color:var(--muted);cursor:pointer;letter-spacing:3px;text-align:center!important}
 .leg-svg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .leg-line{stroke:var(--accent);stroke-width:1.7}
@@ -505,6 +505,10 @@ main.quiz.wide{max-width:980px}
 .leg-poly.on{fill:var(--bad)!important;stroke:var(--bad)!important;fill-opacity:.2}
 .leg-polysvg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .leg-handle.extra{border-style:dashed;background:rgba(255,205,90,.7)}
+.leg-swatches{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap}
+.leg-sw{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px var(--line);padding:0;cursor:pointer;font-size:11px;font-weight:700;color:var(--ink)}
+.leg-sw.auto{background:var(--surface2)}
+@media (pointer:coarse){.leg-sw{width:32px;height:32px}}
 .leg-addrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px;font-size:13px}
 .leg-addbar{display:inline-flex;gap:6px;align-items:center}
 .leg-addbar select{max-width:230px;padding:5px 8px;font-size:13px}
@@ -612,7 +616,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.5.2';
+const APP_VERSION = '3.6.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2132,7 +2136,7 @@ function normSchema(o, course){
   const labels = src.map((l,i)=>{
     l = l || {}; const label = clip(l.label || l.nom || l.text, 120), mk = cleanMark(l);
     if(!label || !mk) throw new Error('Légende '+(i+1)+' : il faut un "label" et des positions "x" et "y" entre 0 et 1.');
-    const out = { label, x:mk.x, y:mk.y }; const y2 = Number(l.y2); if(l.y2 != null && y2 > mk.y && y2 <= 1) out.y2 = Math.round(y2*1000)/1000; const note = clip(l.note || '', 300); if(note) out.note = note; if(Array.isArray(l.poly)){ const po = l.poly.map(cleanMark).filter(Boolean).slice(0, 60); if(po.length >= 3) out.poly = po; } if(Array.isArray(l.more)){ const mo = l.more.map(cleanMark).filter(Boolean).slice(0, 8); if(mo.length) out.more = mo; } return out;
+    const out = { label, x:mk.x, y:mk.y }; const y2 = Number(l.y2); if(l.y2 != null && y2 > mk.y && y2 <= 1) out.y2 = Math.round(y2*1000)/1000; const note = clip(l.note || '', 300); if(note) out.note = note; if(/^#[0-9a-f]{6}$/i.test(String(l.color || ''))) out.color = String(l.color).toLowerCase(); if(Array.isArray(l.poly)){ const po = l.poly.map(cleanMark).filter(Boolean).slice(0, 60); if(po.length >= 3) out.poly = po; } if(Array.isArray(l.more)){ const mo = l.more.map(cleanMark).filter(Boolean).slice(0, 8); if(mo.length) out.more = mo; } return out;
   });
   if(!labels.length) throw new Error('Ce schéma ne contient aucune légende.');
   return { type:'schema', title: clip(o.title||o.titre||'Schéma sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ image:img, labels }, meta:{ count:labels.length } };
@@ -2405,7 +2409,7 @@ async function schSave(){
   if(!e.title){ fail('Donne un titre au schéma.'); return; }
   const labels = e.labels.filter(l=>String(l.label).trim());
   if(!labels.length){ fail('Pose au moins un repère et écris son nom.'); return; }
-  const payload = { image:e.image, labels:labels.map(l=>{ const o = { label:clip(l.label,120), x:l.x, y:l.y }; if(typeof l.y2==='number') o.y2 = l.y2; if(l.note) o.note = l.note; if(l.more && l.more.length) o.more = l.more; if(l.poly && l.poly.length >= 3) o.poly = l.poly; return o; }) };
+  const payload = { image:e.image, labels:labels.map(l=>{ const o = { label:clip(l.label,120), x:l.x, y:l.y }; if(typeof l.y2==='number') o.y2 = l.y2; if(l.note) o.note = l.note; if(l.more && l.more.length) o.more = l.more; if(l.poly && l.poly.length >= 3) o.poly = l.poly; if(l.color) o.color = l.color; return o; }) };
   try{
     if(e.id){ await updateItem(e.id, it=>{ it.title = clip(e.title,120); it.course = clip(e.course,80); it.payload = payload; it.meta = { count:payload.labels.length }; return it; }); }
     else{ await addNewItem({ type:'schema', title:clip(e.title,120), course:clip(e.course,80), payload, meta:{ count:payload.labels.length } }); }
@@ -2717,7 +2721,7 @@ function schLegendHTML(it, z){
   if(!data) return '<p class="hint">Image indisponible sur cet appareil.</p>';
   const notes = labels.filter(l=>l.note);
   return '<div class="leg-tools"><label class="checks-l"><input type="checkbox" id="legHide"'+(z.hide?' checked':'')+'> Masquer les noms (touche un nom pour le révéler)</label><span class="leg-tbtns"><button class="btn sm" data-act="sch-cards" title="Créer des cartes à retourner à partir de ce schéma">'+ICON.mix+'<span>Créer des cartes</span></button><button class="btn sm" data-act="sch-print">'+ICON.print+'<span>Imprimer</span></button><button class="btn sm'+(z.adjust?' on':'')+'" data-act="leg-adjust">'+ICON.move+'<span>'+(z.adjust?'Terminer le réglage':'Déplacer les flèches')+'</span></button><button class="btn sm" data-act="leg-full">'+ICON.expand+'<span>Agrandir</span></button></span></div>'+
-    (z.adjust ? '<p class="hint leg-hint">Fais glisser les ronds sur l\'image pour replacer le bout de chaque flèche. C\'est enregistré tout seul.</p><div class="leg-addrow"><span>Plusieurs flèches pour un même nom :</span>'+schAddBarHTML(z,'legAddSel')+'</div>' : '')+
+    (z.adjust ? '<p class="hint leg-hint">Fais glisser les ronds sur l\'image pour replacer le bout de chaque flèche. C\'est enregistré tout seul.</p><div class="leg-addrow"><span>Pour le nom choisi : plusieurs flèches ou une couleur</span>'+schAddBarHTML(z,'legAddSel')+'</div>' : '')+
     '<div class="leg-wrap" id="legWrap"><div class="leg-cont" id="legCont"><img src="'+data+'" alt="Schéma légendé"></div></div>'+
     '<ol class="leg-list" id="legList"></ol>'+
     (notes.length ? '<details class="leg-notes" open><summary>À retenir</summary>'+notes.map(l=>'<p><b>'+esc(l.label)+'</b> : '+esc(l.note)+'</p>').join('')+'</details>' : '');
@@ -2739,15 +2743,17 @@ function schPolyDraw(svg, l, ox, oy, w, h, col){
   pg.setAttribute('class', 'leg-poly'); pg.style.stroke = col || '#c0261c'; pg.style.fill = col || '#c0261c';
   svg.insertBefore(pg, svg.firstChild);
 }
-function schArrow(svg, x1, y1, tx, ty, i, k){
+const SCH_PAL = ['#2f7fc1','#d9822b','#2e9d68','#9b59b6','#c4527a','#c0392b','#16a2a8','#8a6d1a','#5a6ad8','#7d9a1e'];
+const colorFor = (l, i)=> (l && /^#[0-9a-f]{6}$/i.test(l.color || '')) ? l.color : SCH_PAL[i % SCH_PAL.length];
+function schArrow(svg, x1, y1, tx, ty, i, k, col){
   const NS = 'http://www.w3.org/2000/svg', ang = Math.atan2(ty - y1, tx - x1), a = 9;
-  const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', x1); ln.setAttribute('y1', y1); ln.setAttribute('x2', tx - Math.cos(ang)*6); ln.setAttribute('y2', ty - Math.sin(ang)*6); ln.setAttribute('class', 'leg-line'); ln.setAttribute('data-i', i); if(k != null) ln.setAttribute('data-k', k); svg.appendChild(ln);
-  const tri = document.createElementNS(NS, 'polygon'); tri.setAttribute('points', [[tx, ty], [tx - Math.cos(ang-0.42)*a, ty - Math.sin(ang-0.42)*a], [tx - Math.cos(ang+0.42)*a, ty - Math.sin(ang+0.42)*a]].map(p=>p.join(',')).join(' ')); tri.setAttribute('class', 'leg-head'); tri.setAttribute('data-i', i); if(k != null) tri.setAttribute('data-k', k); svg.appendChild(tri);
+  const ln = document.createElementNS(NS, 'line'); ln.setAttribute('x1', x1); ln.setAttribute('y1', y1); ln.setAttribute('x2', tx - Math.cos(ang)*6); ln.setAttribute('y2', ty - Math.sin(ang)*6); ln.setAttribute('class', 'leg-line'); if(col) ln.style.stroke = col; ln.setAttribute('data-i', i); if(k != null) ln.setAttribute('data-k', k); svg.appendChild(ln);
+  const tri = document.createElementNS(NS, 'polygon'); tri.setAttribute('points', [[tx, ty], [tx - Math.cos(ang-0.42)*a, ty - Math.sin(ang-0.42)*a], [tx - Math.cos(ang+0.42)*a, ty - Math.sin(ang+0.42)*a]].map(p=>p.join(',')).join(' ')); tri.setAttribute('class', 'leg-head'); if(col) tri.style.fill = col; tri.setAttribute('data-i', i); if(k != null) tri.setAttribute('data-k', k); svg.appendChild(tri);
 }
 function schAddBarHTML(z, id){
   const labels = z.item.payload.labels, cur = z.addSel || 0;
   const opts = labels.map((l,i)=> typeof l.y2==='number' ? '' : '<option value="'+i+'"'+(i===cur?' selected':'')+'>'+(i+1)+'. '+esc(l.label)+((l.more||[]).length ? ' (+'+l.more.length+')' : '')+'</option>').join('');
-  return '<span class="leg-addbar"><select class="txt" id="'+id+'" aria-label="Nom à relier">'+opts+'</select><button class="btn sm" data-act="leg-addarrow">＋ Flèche</button><button class="btn sm ghost" data-act="leg-delarrow">− Retirer</button></span>';
+  return '<span class="leg-addbar"><select class="txt" id="'+id+'" aria-label="Nom à relier">'+opts+'</select><button class="btn sm" data-act="leg-addarrow">＋ Flèche</button><button class="btn sm ghost" data-act="leg-delarrow">− Retirer</button></span><span class="leg-swatches" aria-label="Couleur du nom choisi">'+SCH_PAL.map(c=>'<button class="leg-sw" data-act="leg-color" data-c="'+c+'" style="background:'+c+'" aria-label="Couleur '+c+'"></button>').join('')+'<button class="leg-sw auto" data-act="leg-color" data-c="" aria-label="Couleur automatique" title="Couleur automatique">A</button></span>';
 }
 function schLegendLayout(){
   const z = state.schema; if(!z || z.phase!=='start' || z.tab!=='view') return;
@@ -2763,7 +2769,7 @@ function schLegendLayout(){
     $$('.leg-lab,.leg-pin,.leg-bandn,svg.leg-svg', cont).forEach(e=>e.remove());
     const list = $(full ? '#legListF' : '#legList'); if(list) list.innerHTML = '';
     const nameOf = i => (z.hide && !z.rev[i]) ? '•••' : labels[i].label;
-    let zi = 0; const colorOf = labels.map(l=> isZ(l) ? BAND[(zi++) % BAND.length] : null);
+    const colorOf = labels.map((l,i)=>colorFor(l, i));
     if(Wc < 560){
       let nw0 = '100%';
       if(full){ const body = $('.leg-full-body'), Hav = (body ? body.clientHeight : window.innerHeight - 70) - 8; nw0 = Math.min(Wc, Math.round(Hav*nw/nh)) + 'px'; }
@@ -2773,13 +2779,13 @@ function schLegendLayout(){
         if(isZ(l)){ const b = document.createElement('span'); b.className = 'leg-bandn'; b.style.cssText = 'top:'+(l.y*100)+'%;height:'+((l.y2-l.y)*100)+'%;background:'+colorOf[i]+'22;border-color:'+colorOf[i]; cont.appendChild(b); }
         const p = document.createElement('span'); p.className = 'leg-pin';
         p.style.left = (l.x*100)+'%'; p.style.top = (isZ(l) ? (l.y+l.y2)/2*100 : l.y*100)+'%'; p.textContent = String(i+1);
-        if(isZ(l)) p.style.background = colorOf[i];
+        p.style.background = colorOf[i];
         p.dataset.i = i; p.dataset.k = -1;
-        if(l.poly && l.poly.length >= 3){ const NSn = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NSn, 'svg'); sv.setAttribute('class','leg-polysvg'); sv.setAttribute('viewBox','0 0 100 100'); sv.setAttribute('preserveAspectRatio','none'); const pg = document.createElementNS(NSn, 'polygon'); pg.setAttribute('points', l.poly.map(q=>(q.x*100).toFixed(2)+','+(q.y*100).toFixed(2)).join(' ')); pg.setAttribute('class','leg-poly'); pg.style.stroke = '#c0261c'; pg.style.fill = '#c0261c'; sv.appendChild(pg); cont.appendChild(sv); }
+        if(l.poly && l.poly.length >= 3){ const NSn = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NSn, 'svg'); sv.setAttribute('class','leg-polysvg'); sv.setAttribute('viewBox','0 0 100 100'); sv.setAttribute('preserveAspectRatio','none'); const pg = document.createElementNS(NSn, 'polygon'); pg.setAttribute('points', l.poly.map(q=>(q.x*100).toFixed(2)+','+(q.y*100).toFixed(2)).join(' ')); pg.setAttribute('class','leg-poly'); pg.style.stroke = colorOf[i]; pg.style.fill = colorOf[i]; sv.appendChild(pg); cont.appendChild(sv); }
         cont.appendChild(p);
-        (l.more || []).forEach((m,kk)=>{ const q = document.createElement('span'); q.className = 'leg-pin'; q.dataset.i = i; q.dataset.k = kk; q.style.left = (m.x*100)+'%'; q.style.top = (m.y*100)+'%'; q.textContent = String(i+1); cont.appendChild(q); });
+        (l.more || []).forEach((m,kk)=>{ const q = document.createElement('span'); q.className = 'leg-pin'; q.dataset.i = i; q.dataset.k = kk; q.style.left = (m.x*100)+'%'; q.style.top = (m.y*100)+'%'; q.style.background = colorOf[i]; q.textContent = String(i+1); cont.appendChild(q); });
       });
-      if(list) list.innerHTML = labels.map((l,i)=>'<li><button class="leg-item" data-act="leg-rev" data-i="'+i+'"><b'+(isZ(l)?' style="background:'+colorOf[i]+'"':'')+'>'+(i+1)+'</b>'+esc(nameOf(i))+(isZ(l)?' <small>(zone)</small>':'')+'</button></li>').join('');
+      if(list) list.innerHTML = labels.map((l,i)=>'<li><button class="leg-item" data-act="leg-rev" data-i="'+i+'"><b style="background:'+colorOf[i]+'">'+(i+1)+'</b>'+esc(nameOf(i))+(isZ(l)?' <small>(zone)</small>':'')+'</button></li>').join('');
       return;
     }
     if(nw/nh >= 1.5 && !labels.some(isZ)){
@@ -2802,7 +2808,7 @@ function schLegendLayout(){
       img.style.cssText = 'position:absolute;left:'+imgL+'px;top:'+bandTop+'px;width:'+imgW+'px;height:'+imgH+'px';
       const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
       svg.setAttribute('class','leg-svg'); svg.setAttribute('width', Wc); svg.setAttribute('height', totalH); cont.appendChild(svg);
-      labels.forEach(l=>schPolyDraw(svg, l, imgL, bandTop, imgW, imgH));
+      labels.forEach((l,i)=>schPolyDraw(svg, l, imgL, bandTop, imgW, imgH, colorOf[i]));
       const solveRow = (P, isTop)=>{
         const yLevel = []; let acc = isTop ? bandTop - GAP : bandTop + imgH + GAP;
         for(let j=0;j<P.nl;j++){ const hh = P.hl[j]; if(isTop){ acc -= hh; yLevel[j] = acc; acc -= LG; } else { yLevel[j] = acc; acc += hh + LG; } }
@@ -2836,8 +2842,9 @@ function schLegendLayout(){
         el.textContent = nameOf(it.i);
         el.style.cssText = 'left:'+r.x+'px;top:'+Math.round(r.y)+'px;width:'+Math.round(it.w)+'px;height:'+it.h+'px;display:flex;align-items:center;justify-content:center;text-align:center';
         cont.appendChild(el);
-        schArrow(svg, r.ax, r.ay, r.tx, r.ty, it.i, null);
-        r.ex.forEach((e,kk)=>schArrow(svg, r.ax, r.ay, e.tx, e.ty, it.i, kk));
+        el.style.borderColor = colorOf[it.i];
+        schArrow(svg, r.ax, r.ay, r.tx, r.ty, it.i, null, colorOf[it.i]);
+        r.ex.forEach((e,kk)=>schArrow(svg, r.ax, r.ay, e.tx, e.ty, it.i, kk, colorOf[it.i]));
       });
       return;
     }
@@ -2856,7 +2863,7 @@ function schLegendLayout(){
       if(pts.length >= 6 && Math.max(nL, nR) > Math.ceil(pts.length*0.6)){ const byX = pts.slice().sort((a,b)=>(labels[a.i].x - labels[b.i].x)); const cut = Math.floor(byX.length/2); byX.forEach((p,k)=>{ p.side = k < cut ? 'L' : 'R'; }); } }
     const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('class','leg-svg'); svg.setAttribute('width', Wc); svg.setAttribute('height', imgH); cont.appendChild(svg);
-    labels.forEach(l=>schPolyDraw(svg, l, colW, 0, imgW, imgH));
+    labels.forEach((l,i)=>schPolyDraw(svg, l, colW, 0, imgW, imgH, colorOf[i]));
     pts.filter(p=>p.zone).forEach(p=>{
       const r = document.createElementNS(NS, 'rect'); r.setAttribute('x', colW); r.setAttribute('y', p.y1); r.setAttribute('width', imgW); r.setAttribute('height', p.y2 - p.y1);
       r.setAttribute('class','leg-band'); r.style.fill = colorOf[p.i]; r.style.stroke = colorOf[p.i]; svg.appendChild(r);
@@ -2889,7 +2896,7 @@ function schLegendLayout(){
     ['L','R'].forEach(side=>{
       const g = arr[side]; const lo = lay(g); const hs = lo.hs, ys = lo.ys;
       g.forEach((p,k)=>{
-        const y = ys[k], ax = side==='L' ? colW - 34 : Wc - colW + 34, col = p.zone ? colorOf[p.i] : null;
+        const y = ys[k], ax = side==='L' ? colW - 34 : Wc - colW + 34, col = colorOf[p.i];
         const el = document.createElement('button'); el.type = 'button';
         el.className = 'leg-lab' + (z.hide && !z.rev[p.i] ? ' hid' : ''); el.dataset.act = 'leg-rev'; el.dataset.i = p.i;
         el.textContent = nameOf(p.i); el.style.top = (y - hs[k]/2)+'px';
@@ -2905,8 +2912,8 @@ function schLegendLayout(){
           const cn = document.createElementNS(NS, 'line'); cn.setAttribute('x1', e2); cn.setAttribute('y1', m); cn.setAttribute('x2', ax); cn.setAttribute('y2', y); cn.setAttribute('class','leg-line'); cn.style.stroke = col; svg.appendChild(cn);
           return;
         }
-        schArrow(svg, ax, y, p.mx, p.my, p.i, null);
-        (labels[p.i].more || []).forEach((m,kk)=>schArrow(svg, ax, y, colW + m.x*imgW, m.y*imgH, p.i, kk));
+        schArrow(svg, ax, y, p.mx, p.my, p.i, null, col);
+        (labels[p.i].more || []).forEach((m,kk)=>schArrow(svg, ax, y, colW + m.x*imgW, m.y*imgH, p.i, kk, col));
       });
     });
     { let bot = imgH; $$('.leg-lab', cont).forEach(e=>{ bot = Math.max(bot, e.offsetTop + e.offsetHeight + 4); }); if(bot > imgH){ cont.style.height = bot+'px'; svg.setAttribute('height', bot); } }
@@ -3250,7 +3257,7 @@ function schAdjustHandles(cont, img, z){
   const place = (h, p)=>{ h.style.left = (img.offsetLeft + p.x*img.offsetWidth) + 'px'; h.style.top = (img.offsetTop + p.y*img.offsetHeight) + 'px'; };
   const make = (i, k, p)=>{
     const l = labels[i];
-    const h = document.createElement('span'); h.className = 'leg-handle' + (k >= 0 ? ' extra' : ''); h.title = l.label; h.textContent = String(i+1) + (k >= 0 ? '+' : ''); place(h, p); cont.appendChild(h);
+    const h = document.createElement('span'); h.className = 'leg-handle' + (k >= 0 ? ' extra' : ''); h.title = l.label; h.textContent = String(i+1) + (k >= 0 ? '+' : ''); h.style.borderColor = colorFor(l, i); place(h, p); cont.appendChild(h);
     h.addEventListener('pointerdown', ev=>{
       ev.preventDefault(); ev.stopPropagation(); try{ h.setPointerCapture(ev.pointerId); }catch(e){}
       h.classList.add('drag');
@@ -4084,6 +4091,17 @@ document.addEventListener('click', async e=>{
     case 'sch-new': openSchemaNew(); break;
     case 'sch-mode': { const e2 = state.sedit; if(e2){ const t = $('#schTitle'), c = $('#schCourse'); if(t) e2.title = t.value; if(c) e2.course = c.value; schCommitPending(); e2.zoneMode = el.dataset.m==='zone'; e2.zoneStart = null; renderSchemaEdit(); } break; }
     case 'leg-adjust': { const z = state.schema; if(z){ z.adjust = !z.adjust; if(z.big){ const wf = document.getElementById('legAddWrapF'); if(wf) wf.hidden = !z.adjust; document.querySelectorAll('[data-act=leg-adjust]').forEach(b=>{ b.classList.toggle('on', !!z.adjust); const sp = b.querySelector('span'); if(sp) sp.textContent = z.adjust ? 'Terminer le réglage' : 'Déplacer les flèches'; }); schLegendLayout(); } else renderSchema(); } break; }
+    case 'leg-color': {
+      const z = state.schema; if(!z) break;
+      const sel = $(z.big ? '#legAddSelF' : '#legAddSel'), i = sel ? +sel.value : (z.addSel || 0); z.addSel = i;
+      const c = el.dataset.c || '';
+      try{
+        await updateItem(z.item.id, it=>{ const T = it.payload.labels[i]; if(T){ if(c) T.color = c; else delete T.color; } return it; });
+        const cur = state.items.find(x=>x.id===z.item.id); if(cur) z.item = cur;
+      }catch(e){ toast('Enregistrement impossible pour le moment.'); }
+      if(z.big) schLegendLayout(); else renderSchema();
+      break;
+    }
     case 'leg-addarrow': case 'leg-delarrow': {
       const z = state.schema; if(!z) break;
       const sel = $(z.big ? '#legAddSelF' : '#legAddSel'), i = sel ? +sel.value : (z.addSel || 0); z.addSel = i;
