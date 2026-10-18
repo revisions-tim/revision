@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.5.0">
+<meta name="app-version" content="3.5.1">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -281,6 +281,12 @@ html{-webkit-text-size-adjust:100%}
 .qimg[data-edit]{cursor:crosshair}
 .fc-face .qimg-wrap{margin:0}
 .fc-face .qimg img{max-height:150px}
+.fc-card.hasimg{height:clamp(480px,82vh,720px)}
+.fc-card.hasimg .fc-face{padding:18px 16px}
+.fc-card.hasimg .fc-face .qimg img{max-height:clamp(260px,58vh,520px)}
+.fc-card.hasimg .fc-big.xl,.fc-card.hasimg .fc-big.l{font-size:clamp(20px,4.8vw,28px)}
+.fc-card.hasimg .fc-mid{gap:10px}
+.fc-card.hasimg .qimg .mark{width:30px;height:30px;margin:-15px 0 0 -15px}
 .fc-big.withimg.xl{font-size:clamp(27px,7vw,42px)}
 .fc-big[hidden]{display:none}
 .rev-img{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;color:var(--muted)}
@@ -603,7 +609,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3438,7 +3444,7 @@ function startCardsRun(list){
 function fcSize(t){ const n = String(t).length; return n<=12 ? 'xl' : n<=40 ? 'l' : n<=110 ? 'm' : 's'; }
 function showFc(){
   const z = state.cards; if(!z) return; const c = z.queue[0]; if(!c) return finishFc();
-  const card = $('#fcCard'); card.classList.add('noanim'); card.classList.remove('turned'); z.flipped = false;
+  const card = $('#fcCard'); card.classList.add('noanim'); card.classList.remove('turned'); z.flipped = false; card.classList.toggle('hasimg', !!c.image);
   const col = c.group ? COLORS[Math.max(0,z.groups.indexOf(c.group)) % COLORS.length] : COLORS[0];
   [$('#fcFront'),$('#fcBack')].forEach(f=>f.style.setProperty('--c', col));
   const catTxt = (c.star ? '⭐ ' : '') + (c.group || ''); $('#fcFCat').textContent = catTxt; $('#fcBCat').textContent = catTxt;
