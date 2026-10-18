@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.4.0">
+<meta name="app-version" content="3.5.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -500,6 +500,30 @@ main.quiz.wide{max-width:980px}
 .leg-addbar{display:inline-flex;gap:6px;align-items:center}
 .leg-addbar select{max-width:230px;padding:5px 8px;font-size:13px}
 .leg-handle.drag{cursor:grabbing;background:var(--accent);color:#fff}
+/* ---- v3.5 : examens, lecture audio, impression de schéma ---- */
+.exam-wrap{margin-top:14px}
+.exam-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.exam-card{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.exam-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.exam-top span{font-weight:600;color:var(--accent)}
+.exam-card .st-bar{margin:8px 0 4px}
+.exam-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:6px 0}
+.exam-row small{display:block;color:var(--muted)}
+.exam-h{margin:16px 0 4px;font-size:15px}
+.listen{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--surface);border-top:2px solid var(--accent);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+.listen-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.listen-text{font-size:19px;font-weight:600;margin:8px 0;min-height:48px;text-align:center}
+.listen-ctl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.listen-opts{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:13px}
+.listen-opts select{width:auto;padding:4px 8px}
+.pr-fig{position:relative;display:inline-block;max-width:100%}
+.pr-fig img{max-width:100%;max-height:150mm;display:block}
+.pr-pin{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:#c0392b;color:#fff;font:700 10px/18px sans-serif;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pr-list{columns:2;column-gap:24px;list-style:none;padding:0;margin:14px 0 0;font-size:12.5px}
+.pr-list li{break-inside:avoid;display:flex;gap:8px;padding:3px 0;align-items:flex-end}
+.pr-list li b{min-width:20px}
+.pr-list small{color:#555}
+.pr-blank{flex:1;border-bottom:1px solid #444;height:16px}
 .leg-band{fill-opacity:.14;stroke-opacity:.9;stroke-width:1.5;stroke-dasharray:6 4}
 .leg-brace{fill:none;stroke-width:2.2}
 .leg-bandn{position:absolute;left:0;right:0;border-top:2px dashed;border-bottom:2px dashed;box-sizing:border-box;pointer-events:none}
@@ -527,7 +551,7 @@ main.quiz.wide{max-width:980px}
 <div id="modalRoot"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <input type="file" id="quickFiles" accept=".json,.txt,application/json" multiple hidden>
-<div id="dropHint" class="drophint" hidden>Dépose tes fichiers .json ici pour les importer</div>
+<div id="dropHint" class="drophint" hidden>Dépose tes fichiers .json (ou des images, pour créer des schémas) ici</div>
 <div id="printRoot"></div>
 <script src="firebase-config.js"></script>
 <script type="text/plain" id="pdfjsLib">/**
@@ -579,7 +603,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.4.0';
+const APP_VERSION = '3.5.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1115,6 +1139,7 @@ function render(){
   else renderMapShell();
 }
 function goLibrary(){
+  stopListen();
   if(state.pendingReload){ location.reload(); return; }
   const fo = document.getElementById('legFull'); if(fo){ fo.remove(); document.body.style.overflow = ''; }
   if(state.cards) fcFlush(state.cards);
@@ -1175,16 +1200,18 @@ function renderToday(){
   const dueCards = todayDueCards(), nb = notebookCount(), errC = errorCards(true).length;
   const starQ = state.items.reduce((n,i)=> i.type==='quiz' ? n + i.payload.questions.filter(q=>q.star).length : n, 0);
   const starC = state.items.reduce((n,i)=> i.type==='flashcards' ? n + i.payload.cards.filter(c=>c.star).length : n, 0);
-  if(!dueCards.length && !nb && !starQ && !starC){ box.innerHTML = ''; return; }
+  const schDue = schDueCount();
+  if(!dueCards.length && !nb && !starQ && !starC && !schDue && !examsUpcoming().length){ box.innerHTML = ''; return; }
   box.innerHTML = '<section class="today">'+
     '<h2 class="today-title">Aujourd\'hui</h2>'+
     '<div class="today-row">'+
-      (dueCards.length ? '<button class="today-card" data-act="today-cards"><b>'+dueCards.length+'</b><span>'+plural(dueCards.length,'carte')+' à revoir</span></button>' : '')+
-      (nb ? '<button class="today-card" data-act="notebook"><b>'+nb+'</b><span>'+plural(nb,'erreur')+' à corriger (quiz)</span></button>' : '')+
-      (errC ? '<button class="today-card" data-act="err-cards"><b>'+errC+'</b><span>'+plural(errC,'erreur')+' en cartes</span></button>' : '')+
-      (starQ ? '<button class="today-card" data-act="star-quiz"><b>⭐ '+starQ+'</b><span>'+plural(starQ,'question')+' prioritaire'+(starQ>1?'s':'')+'</span></button>' : '')+
-      (starC ? '<button class="today-card" data-act="star-cards"><b>⭐ '+starC+'</b><span>'+plural(starC,'carte')+' prioritaire'+(starC>1?'s':'')+'</span></button>' : '')+
-    '</div></section>';
+      (dueCards.length ? '<button class="today-card" data-act="today-cards"><b>'+dueCards.length+'</b><span>carte'+(dueCards.length>1?'s':'')+' à revoir</span></button>' : '')+
+      (schDue ? '<button class="today-card" data-act="today-schemas"><b>'+schDue+'</b><span>structure'+(schDue>1?'s':'')+' à revoir</span></button>' : '')+
+      (nb ? '<button class="today-card" data-act="notebook"><b>'+nb+'</b><span>erreur'+(nb>1?'s':'')+' à corriger (quiz)</span></button>' : '')+
+      (errC ? '<button class="today-card" data-act="err-cards"><b>'+errC+'</b><span>erreur'+(errC>1?'s':'')+' en cartes</span></button>' : '')+
+      (starQ ? '<button class="today-card" data-act="star-quiz"><b>⭐ '+starQ+'</b><span>question'+(starQ>1?'s':'')+' prioritaire'+(starQ>1?'s':'')+'</span></button>' : '')+
+      (starC ? '<button class="today-card" data-act="star-cards"><b>⭐ '+starC+'</b><span>carte'+(starC>1?'s':'')+' prioritaire'+(starC>1?'s':'')+'</span></button>' : '')+
+    '</div>'+examsHTML()+'</section>';
 }
 function startTodayCards(){
   const cards = todayDueCards(); if(!cards.length) return;
@@ -1207,6 +1234,7 @@ function renderResults(){
     (nS > 0 ? '<button class="btn sm" data-act="print-open">'+ICON.print+'<span>Imprimer des synthèses</span></button>' : '')+
     (nQ + nF > 0 ? '<button class="btn sm" data-act="mix">'+ICON.mix+'<span>Mélanger des thèmes</span></button>' : '')+
     (nb > 0 ? '<button class="btn sm" data-act="notebook">'+ICON.book+'<span>Carnet d\'erreurs · '+nb+'</span></button>' : '')+
+    '<button class="btn sm" data-act="exams-open">'+ICON.exam+'<span>Examens'+(examsUpcoming().length ? ' · '+examsUpcoming().length : '')+'</span></button>'+
     (all.length ? '<button class="btn sm" data-act="sel-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Sélectionner</span></button>' : '');
   const box = $('#results');
   if(!all.length && !state.folders.length){
@@ -1252,7 +1280,8 @@ function searchMatches(it, q){
 function folderMastery(items){
   const scored = [];
   items.forEach(it=>{
-    if((it.type==='quiz' || it.type==='schema') && it.stats && typeof it.stats.best==='number') scored.push(it.stats.best);
+    if(it.type==='schema'){ const mm = itemMastery(it); if(mm != null) scored.push(mm); }
+    else if(it.type==='quiz' && it.stats && typeof it.stats.best==='number') scored.push(it.stats.best);
     else if(it.type==='flashcards' && it.payload.cards.length){
       const pr = it.progress || {};
       const mastered = it.payload.cards.filter(c=>{ const p = pr[cardKey(c)]; return p && p.b>=3; }).length;
@@ -1696,6 +1725,10 @@ async function recordQuizResults(z){
       });
     }catch(e){}
   }
+  const schBy = {}, cardBy = {};
+  z.results.forEach(r=>{ if(r.q._sch) (schBy[r.q._sch.id] = schBy[r.q._sch.id] || []).push(r); if(r.q._card) (cardBy[r.q._card.id] = cardBy[r.q._card.id] || []).push(r); });
+  for(const sid of Object.keys(schBy)){ try{ await updateItem(sid, it=>{ const pr = Object.assign({}, it.progress || {}); schBy[sid].forEach(r=>{ pr[r.q._sch.key] = srStep(pr[r.q._sch.key], r.ok); }); it.progress = pr; return it; }); }catch(e){} }
+  for(const sid of Object.keys(cardBy)){ try{ await updateItem(sid, it=>{ const pr = Object.assign({}, it.progress || {}); cardBy[sid].forEach(r=>{ const k = r.q._card.key, o = pr[k], b = r.ok ? Math.min(4, (o ? o.b : 0) + 1) : 0; pr[k] = { b, d: r.ok ? Date.now() + INTERVALS[b]*DAY : Date.now() }; }); it.progress = pr; return it; }); }catch(e){} }
 }
 /* ================= v2.8 : priorités ⭐, mode examen, import multiple, statistiques, tableau périodique ================= */
 
@@ -1777,7 +1810,9 @@ document.addEventListener('drop', e=>{
   if(!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
   e.preventDefault();
   if(state.view!=='library'){ toast('Retourne à la bibliothèque pour importer des fichiers.'); return; }
-  importFiles(e.dataTransfer.files, '');
+  const all = Array.from(e.dataTransfer.files), imgs = all.filter(f=>/^image\//.test(f.type) || isPdfFile(f)), rest = all.filter(f=>imgs.indexOf(f) < 0);
+  if(rest.length) importFiles(rest, '');
+  if(imgs.length) schNewFromFiles(imgs);
 });
 
 /* ---------- Activité et statistiques ---------- */
@@ -1790,6 +1825,11 @@ function logActivity(n){
 function streakDays(a){ let n = 0; const d = new Date(); if(!a[dayKey(d)]) d.setDate(d.getDate()-1); while(a[dayKey(d)] > 0){ n++; d.setDate(d.getDate()-1); } return n; }
 function itemMastery(it){
   if(it.type==='quiz') return it.stats && typeof it.stats.best==='number' ? it.stats.best : null;
+  if(it.type==='schema'){
+    const pr = it.progress || {}, L = it.payload.labels, seenN = L.filter(l=>pr[schKey(l)]).length;
+    if(seenN) return Math.round(L.filter(l=>{ const p = pr[schKey(l)]; return p && p.b>=3; }).length / L.length * 100);
+    return it.stats && typeof it.stats.best==='number' ? it.stats.best : null;
+  }
   if(it.type==='flashcards' && it.payload.cards.length && seenCount(it)){
     const pr = it.progress || {};
     return Math.round(it.payload.cards.filter(c=>{ const p = pr[cardKey(c)]; return p && p.b>=3; }).length / it.payload.cards.length * 100);
@@ -1821,13 +1861,19 @@ function renderStats(){
     const g = groups.get(k), m = folderMastery(g);
     const qs = g.filter(i=>i.type==='quiz'), ds = g.filter(i=>i.type==='flashcards');
     const errs = qs.reduce((s,i)=>s+wrongQuestions(i).length,0), dd = ds.reduce((s,i)=>s+(seenCount(i)?dueCount(i):0),0);
-    const det = [ plural(g.length,'élément') ]; if(errs) det.push(plural(errs,'erreur')); if(dd) det.push(plural(dd,'carte')+' à revoir');
+    const det = [ plural(g.length,'élément') ]; if(errs) det.push(plural(errs,'erreur')); if(dd) det.push(plural(dd,'carte')+' à revoir'); const sdn = schStructs(g).reduce((n,x)=>n+x.idxs.length,0); if(sdn) det.push(plural(sdn,'structure')+' à revoir');
     return '<div class="st-row"><div class="st-name">'+esc(k || 'Sans dossier')+'</div><div class="st-bar"><i style="width:'+(m||0)+'%"></i></div><div class="st-num">'+(m==null?'—':m+' %')+'</div><div class="st-det">'+esc(det.join(' · '))+'</div></div>';
   }).join('') : '<p class="none small">Rien à afficher pour l\'instant.</p>') + '</section>';
   const weak = items.map(i=>({i, m:itemMastery(i)})).filter(x=>x.m!=null && x.m<80).sort((a,b)=>a.m-b.m).slice(0,6);
   const fresh = items.filter(i=>(i.type==='quiz' && !(i.stats && i.stats.attempts)) || (i.type==='flashcards' && !seenCount(i))).slice(0,6);
   h += '<section class="st-box"><h3>À travailler en priorité</h3>' + (weak.length ? '<div class="st-list">'+weak.map(x=>'<button class="st-item" data-act="open" data-id="'+esc(x.i.id)+'"><span>'+esc(x.i.title)+'<small>'+esc(x.i.course||'Sans dossier')+'</small></span><b>'+x.m+' %</b></button>').join('')+'</div>' : '<p class="none small">Rien de faible pour le moment. Continue comme ça !</p>') + '</section>';
   if(fresh.length) h += '<section class="st-box"><h3>Pas encore commencés</h3><div class="st-list">'+fresh.map(i=>'<button class="st-item" data-act="open" data-id="'+esc(i.id)+'"><span>'+esc(i.title)+'<small>'+esc(i.course||'Sans dossier')+'</small></span><b>→</b></button>').join('')+'</div></section>';
+  const exUp = examsUpcoming();
+  if(exUp.length) h += '<section class="st-box"><h3>Examens à venir</h3><div class="st-list">'+exUp.map(ex=>{ const L = examLoad(ex), d = examDays(ex); return '<div class="st-item"><span>'+esc(ex.name)+'<small>'+esc(fmtDay(ex.date))+(ex.folder ? ' · '+esc(ex.folder) : '')+' · '+(L.mastery==null ? 'pas commencé' : 'maîtrise '+L.mastery+' %')+'</small></span><b>'+(d===0?'Auj.':'J-'+d)+'</b></div>'; }).join('')+'</div></section>';
+  const wk = [];
+  items.filter(i=>i.type==='schema').forEach(it=>{ const pr = it.progress || {}; it.payload.labels.forEach(l=>{ const p = pr[schKey(l)]; if(p && p.m > 0) wk.push({ it, l, m:p.m, b:p.b }); }); });
+  wk.sort((a,b)=>b.m - a.m || a.b - b.b);
+  if(wk.length) h += '<section class="st-box"><h3>Structures les plus ratées</h3><div class="st-list">'+wk.slice(0,10).map(x=>'<button class="st-item" data-act="open" data-id="'+esc(x.it.id)+'"><span>'+esc(x.l.label)+'<small>'+esc(x.it.title.replace(/ : schéma à légender$/, ''))+'</small></span><b>'+x.m+' ✕</b></button>').join('')+'</div></section>';
   h += '<p class="hint" style="margin-top:14px">Le nombre de questions : '+nQ+' · cartes : '+nC+'.</p></main>';
   $('#app').innerHTML = h;
 }
@@ -2068,34 +2114,6 @@ async function startErrorCards(){
 }
 
 /* ---------- Examen blanc ---------- */
-function openMock(){
-  const items = state.items.filter(i=>i.type==='quiz');
-  if(!items.length){ toast('Ajoute d\'abord un quiz.'); return; }
-  state.mix = { type:'quiz', sel:{} }; items.forEach(i=>{ state.mix.sel[i.id] = true; });
-  openModal('Examen blanc',
-    '<p class="hint">Les questions des dossiers cochés sont mélangées et posées sans correction, avec un chronomètre. Note sur 20 à la fin.</p>'+
-    '<div id="mixList" class="mixlist"></div><p class="hint" id="mixInfo"></p>'+
-    '<div class="grid2"><div><label class="lbl" for="mockN">Nombre de questions</label><select class="txt" id="mockN"><option value="20">20</option><option value="30" selected>30</option><option value="40">40</option><option value="60">60</option><option value="0">Toutes</option></select></div>'+
-    '<div><label class="lbl" for="mockMin">Durée</label><select class="txt" id="mockMin"><option value="20">20 min</option><option value="30">30 min</option><option value="45" selected>45 min</option><option value="60">60 min</option><option value="90">90 min</option></select></div></div>'+
-    '<div class="checks"><label><input type="checkbox" id="mockStar"> ⭐ Seulement les questions prioritaires</label></div>',
-    'Commencer l\'examen', startMock);
-  renderMixList();
-}
-async function startMock(){
-  const m = state.mix; if(!m) return;
-  const chosen = state.items.filter(i=>i.type==='quiz' && m.sel[i.id]);
-  if(!chosen.length){ modalError('Coche au moins un quiz.'); return; }
-  const n = Number($('#mockN').value) || 0, min = Number($('#mockMin').value) || 45, starOnly = !!($('#mockStar') && $('#mockStar').checked);
-  let qs = []; chosen.forEach(it=>it.payload.questions.forEach(q=>{ if(!starOnly || q.star) qs.push(Object.assign({_s:it.id,_k:hkey(q.question)}, q)); }));
-  if(!qs.length){ modalError('Aucune question prioritaire dans ta sélection.'); return; }
-  shuffle(qs); if(n) qs = qs.slice(0,n);
-  closeModal();
-  await preloadImages([].concat.apply([], chosen.map(imageIds)));
-  startQuiz(virtualQuiz('Examen blanc', qs));
-  const z = state.quiz; z.exam = true; z.examMin = min; z.shuffleOpts = true; z.shuffle = false; z.reverse = false;
-  beginQuiz(qs, false); window.scrollTo(0,0);
-}
-
 /* ---------- Schémas à légender ---------- */
 function normSchema(o, course){
   const img = cleanImg(o.image);
@@ -2115,13 +2133,13 @@ function schemaImg(it, marksHTML, extra){
   if(!data) return '<div class="qimg-wrap"><p class="hint">Image indisponible sur cet appareil.</p></div>';
   return '<div class="qimg-wrap"><div class="qimg big"'+(extra||'')+'><img src="'+data+'" alt="Schéma à légender">'+marksHTML+'</div></div>';
 }
-function startSchema(it){ state.view = 'schema'; state.schema = { item:it, phase:'start', tab:'view', hide:false, rev:{}, typed:true, order:[], pos:0, results:[], answered:false, verdict:null, opts:[], full:true }; renderSchema(); }
+function startSchema(it){ state.view = 'schema'; state.schema = { item:it, phase:'start', tab:'view', hide:false, rev:{}, typed:schMode()==='typed', oral:schMode()==='oral', order:[], pos:0, results:[], answered:false, verdict:null, opts:[], full:true }; renderSchema(); }
 function schBegin(order, full){
   const z = state.schema; z.order = order.slice(); z.pos = 0; z.results = []; z.answered = false; z.verdict = null; z.phase = 'play'; z.full = full; z.t0 = Date.now();
   schPrepare(); renderSchema();
 }
 function schPrepare(){
-  const z = state.schema, labels = z.item.payload.labels, idx = z.order[z.pos];
+  const z = state.schema, labels = z.item.payload.labels, idx = z.order[z.pos]; z.shown = false;
   const others = shuffle(labels.map((l,i)=>i).filter(i=>i!==idx && normAns(labels[i].label)!==normAns(labels[idx].label)));
   z.opts = shuffle([idx].concat(others.slice(0,3)));
 }
@@ -2137,7 +2155,7 @@ function renderSchema(){
       (st.attempts ? '<div class="stat"><b>'+st.best+' %</b>meilleur score</div><div class="stat"><b>'+st.attempts+'</b>essai'+(st.attempts>1?'s':'')+'</div>' : '')+'</div>'+
       schemaImg(it, schMarksHTML(labels, -1))+
       '<p class="hint">Un repère rouge « ? » s\'allume sur le schéma : trouve le nom de la structure.</p>'+
-      '<div class="checks"><label><input type="checkbox" id="schTyped"'+(z.typed?' checked':'')+'> Écrire la réponse (sinon : choix multiples)</label></div>'+
+      '<label class="lbl" for="schMode">Façon de répondre</label><select class="txt" id="schMode"><option value="typed"'+(z.typed?' selected':'')+'>Écrire la réponse</option><option value="choice"'+(!z.typed && !z.oral?' selected':'')+'>Choix multiples</option><option value="oral"'+(z.oral?' selected':'')+'>Oral : je réponds dans ma tête et je me juge</option></select>'+
       '<div class="row" style="justify-content:flex-start"><button class="btn primary" data-act="sch-start">Commencer</button></div></div>';
     }
   }else if(z.phase==='play'){
@@ -2146,7 +2164,11 @@ function renderSchema(){
       schemaImg(it, schMarksHTML(labels, idx))+
       '<h2 class="qtext">Comment s\'appelle la structure repérée en rouge ?</h2>';
     if(!z.answered){
-      if(z.typed) h += '<input class="txt" id="schAns" placeholder="Ta réponse" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="row" style="margin-top:12px;justify-content:flex-start"><button class="btn primary" data-act="sch-check">Valider</button><button class="btn" data-act="sch-skip">Je ne sais pas</button></div>';
+      if(z.oral){
+        if(!z.shown) h += '<div class="row" style="justify-content:flex-start"><button class="btn primary" data-act="sch-show">Voir le nom</button></div>';
+        else h += '<div class="fb" role="status"><strong>'+esc(l.label)+'</strong>'+(l.note ? ' '+esc(l.note) : '')+'</div><div class="row" style="justify-content:flex-start"><button class="btn" data-act="sch-miss">À revoir</button><button class="btn primary" data-act="sch-know">Je savais</button></div>';
+      }
+      else if(z.typed) h += '<input class="txt" id="schAns" placeholder="Ta réponse" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="row" style="margin-top:12px;justify-content:flex-start"><button class="btn primary" data-act="sch-check">Valider</button><button class="btn" data-act="sch-skip">Je ne sais pas</button></div>';
       else h += '<div class="opts">'+z.opts.map((k,j)=>'<button class="opt" data-act="sch-pick" data-i="'+k+'"><span class="key">'+'ABCD'[j]+'</span><span>'+esc(labels[k].label)+'</span></button>').join('')+'<button class="btn ghost sm" data-act="sch-skip" style="justify-self:start">Je ne sais pas</button></div>';
     }else{
       const v = z.verdict;
@@ -2160,7 +2182,7 @@ function renderSchema(){
     h += '<div class="end"><div class="ring" style="--p:'+pct+'"><div>'+pct+' %</div></div><h2 class="view-title" style="margin-top:0">'+(pct>=90?'Excellent !':pct>=70?'Très bien.':pct>=50?'C\'est en bonne voie.':'À retravailler.')+'</h2>'+
       '<p class="meta">'+okN+' bonne'+(okN>1?'s':'')+' réponse'+(okN>1?'s':'')+' sur '+n+' · '+fmtDur(Date.now()-z.t0)+'</p>'+
       '<div class="row" style="margin-top:16px">'+(wrong.length?'<button class="btn primary" data-act="sch-retry">Refaire les ratés ('+wrong.length+')</button>':'')+
-      '<button class="btn" data-act="sch-again">Recommencer</button><button class="btn ghost" data-act="back">Bibliothèque</button></div>'+
+      (state.schQueue && state.schQueue.length ? '<button class="btn primary" data-act="sch-qnext">Schéma suivant ('+state.schQueue.length+')</button>' : '')+'<button class="btn" data-act="sch-again">Recommencer</button><button class="btn ghost" data-act="back">Bibliothèque</button></div>'+
       (wrong.length ? '<div class="review"><h3>À revoir</h3>'+wrong.map(r=>'<div class="rev"><b>'+esc(labels[r.i].label)+'</b>'+(labels[r.i].note?'<div class="meta">'+esc(labels[r.i].note)+'</div>':'')+(r.given?'<div class="no">Ta réponse : '+esc(r.given)+'</div>':'')+'</div>').join('')+'</div>' : '')+'</div>';
   }
   h += '</main>'; $('#app').innerHTML = h;
@@ -2181,9 +2203,17 @@ function schNext(){
   schPrepare(); renderSchema();
 }
 async function schRecord(z){
-  if(!z.full) return;
-  const pct = Math.round(z.results.filter(r=>r.ok).length / z.results.length * 100);
-  try{ await updateItem(z.item.id, it=>{ const old = it.stats || {}; it.stats = { attempts:(old.attempts||0)+1, best:Math.max(old.best||0,pct), last:pct }; return it; }); }catch(e){}
+  const res = z.results.slice(); if(!res.length) return;
+  const pct = Math.round(res.filter(r=>r.ok).length / res.length * 100);
+  try{
+    await updateItem(z.item.id, it=>{
+      if(z.full){ const old = it.stats || {}; it.stats = { attempts:(old.attempts||0)+1, best:Math.max(old.best||0,pct), last:pct }; }
+      const pr = Object.assign({}, it.progress || {});
+      res.forEach(r=>{ const l = it.payload.labels[r.i]; if(l){ const k = schKey(l); pr[k] = srStep(pr[k], r.ok); } });
+      it.progress = pr; return it;
+    });
+    const cur = state.items.find(x=>x.id===z.item.id); if(cur) z.item = cur;
+  }catch(e){}
 }
 
 /* Éditeur de schéma : on touche l'image pour poser un repère, puis on le nomme. */
@@ -2221,7 +2251,7 @@ function openSchemaNew(){
     '<p class="hint">Choisis une ou plusieurs images, ou un PDF (un cahier exporté de GoodNotes, par exemple). Chaque image ou page devient un schéma : tu poses les repères et tu écris les noms, un schéma après l\'autre.</p>'+
     '<label class="lbl" for="snTitle">Titre (une numérotation est ajoutée s\'il y en a plusieurs)</label><input class="txt" id="snTitle" maxlength="100" placeholder="Ex. Circulation sanguine" autocomplete="off">'+
     '<label class="lbl" for="snCourse">Dossier (facultatif)</label><input class="txt" id="snCourse" list="folderList" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList">'+opts+'</datalist>'+
-    '<div style="margin-top:12px"><label class="btn sm" for="snFiles">'+ICON.image+'<span>Choisir des images ou un PDF</span></label><input type="file" id="snFiles" accept="image/*,application/pdf" multiple hidden> <span class="hint" id="snName">Aucun fichier choisi</span></div>',
+    '<div style="margin-top:12px"><label class="btn sm" for="snFiles">'+ICON.image+'<span>Choisir des images ou un PDF</span></label><input type="file" id="snFiles" accept="image/*,application/pdf" multiple hidden> <button class="btn sm" type="button" data-act="sn-paste">Coller une image</button> <span class="hint" id="snName">Aucun fichier choisi</span></div>',
     'Continuer', submitSchemaNew);
 }
 async function submitSchemaNew(){
@@ -2542,6 +2572,7 @@ async function initStore(){
 }
 function stopCloud(){
   if(state.unsub){ try{ state.unsub(); }catch(e){} state.unsub = null; }
+  if(state.metaUnsub){ try{ state.metaUnsub(); }catch(e){} state.metaUnsub = null; }
   state.col = null; state.imgCol = null; state.user = null;
 }
 function startCloud(user){
@@ -2551,6 +2582,7 @@ function startCloud(user){
   state.col = db.collection('users/' + user.uid + '/data');
   state.imgCol = db.collection('users/' + user.uid + '/images');
   state.persist = 'cloud';
+  try{ state.metaUnsub = db.doc('users/' + user.uid + '/meta/exams').onSnapshot(sn=>{ if(sn.exists && Array.isArray(sn.data().list)){ state.exams = sn.data().list; try{ localStorage.setItem(EXAMS_KEY, JSON.stringify(state.exams)); }catch(e){} if(state.view==='library') renderToday(); } else if(state.exams.length) saveExams(); }, ()=>{}); }catch(e){}
   let first = true;
   state.unsub = state.col.onSnapshot(snap=>{
     const docs = snap.docs.map(d=>Object.assign({ id:d.id }, d.data()));
@@ -2675,7 +2707,7 @@ function schLegendHTML(it, z){
   const labels = it.payload.labels, data = state.imgCache[it.payload.image];
   if(!data) return '<p class="hint">Image indisponible sur cet appareil.</p>';
   const notes = labels.filter(l=>l.note);
-  return '<div class="leg-tools"><label class="checks-l"><input type="checkbox" id="legHide"'+(z.hide?' checked':'')+'> Masquer les noms (touche un nom pour le révéler)</label><span class="leg-tbtns"><button class="btn sm'+(z.adjust?' on':'')+'" data-act="leg-adjust">'+ICON.move+'<span>'+(z.adjust?'Terminer le réglage':'Déplacer les flèches')+'</span></button><button class="btn sm" data-act="leg-full">'+ICON.expand+'<span>Agrandir</span></button></span></div>'+
+  return '<div class="leg-tools"><label class="checks-l"><input type="checkbox" id="legHide"'+(z.hide?' checked':'')+'> Masquer les noms (touche un nom pour le révéler)</label><span class="leg-tbtns"><button class="btn sm" data-act="sch-cards" title="Créer des cartes à retourner à partir de ce schéma">'+ICON.mix+'<span>Créer des cartes</span></button><button class="btn sm" data-act="sch-print">'+ICON.print+'<span>Imprimer</span></button><button class="btn sm'+(z.adjust?' on':'')+'" data-act="leg-adjust">'+ICON.move+'<span>'+(z.adjust?'Terminer le réglage':'Déplacer les flèches')+'</span></button><button class="btn sm" data-act="leg-full">'+ICON.expand+'<span>Agrandir</span></button></span></div>'+
     (z.adjust ? '<p class="hint leg-hint">Fais glisser les ronds sur l\'image pour replacer le bout de chaque flèche. C\'est enregistré tout seul.</p><div class="leg-addrow"><span>Plusieurs flèches pour un même nom :</span>'+schAddBarHTML(z,'legAddSel')+'</div>' : '')+
     '<div class="leg-wrap" id="legWrap"><div class="leg-cont" id="legCont"><img src="'+data+'" alt="Schéma légendé"></div></div>'+
     '<ol class="leg-list" id="legList"></ol>'+
@@ -2687,7 +2719,7 @@ function schMarksHTML(labels, idx){
       if(i !== idx) return '';
       return '<span class="sband on" style="top:'+(l.y*100)+'%;height:'+((l.y2-l.y)*100)+'%"><b>?</b></span>';
     }
-    return '<span class="smark'+(i===idx?' on':'')+'" style="left:'+(l.x*100)+'%;top:'+(l.y*100)+'%">'+(i===idx?'?':'')+'</span>';
+    return '<span class="smark'+(i===idx?' on':'')+'" style="left:'+(l.x*100)+'%;top:'+(l.y*100)+'%">'+(i===idx?'?':'')+'</span>'+(l.more || []).map(m=>'<span class="smark'+(i===idx?' on':'')+'" style="left:'+(m.x*100)+'%;top:'+(m.y*100)+'%">'+(i===idx?'?':'')+'</span>').join('');
   }).join('');
 }
 function schArrow(svg, x1, y1, tx, ty, i, k){
@@ -2866,6 +2898,329 @@ function schLegendLayout(){
     window.addEventListener('resize', ()=>{ clearTimeout(tm); tm = setTimeout(()=>{ if(state.schema && state.schema.phase==='start' && state.schema.tab==='view') schLegendLayout(); }, 150); });
   }
 }
+
+/* ================= v3.5 : répétition des schémas, examens, cartes depuis un schéma, lecture audio, impression ================= */
+const EXAMS_KEY = 'revisions:exams';
+function schKey(l){ return hkey(l.label); }
+function srStep(old, good){
+  const b = good ? Math.min(4, (old ? old.b : 0) + 1) : 0;
+  return { b, d: good ? Date.now() + INTERVALS[b]*DAY : Date.now(), m: ((old && old.m) || 0) + (good ? 0 : 1) };
+}
+function schMode(){ try{ const m = localStorage.getItem('revisions:schmode'); return (m==='choice' || m==='oral') ? m : 'typed'; }catch(e){ return 'typed'; } }
+
+/* ----- Structures à revoir (répétition espacée des schémas) ----- */
+function schStructs(items){
+  const out = [], now = Date.now();
+  items.forEach(it=>{
+    if(it.type !== 'schema') return;
+    const pr = it.progress || {}, idxs = [];
+    it.payload.labels.forEach((l,i)=>{ const p = pr[schKey(l)]; if(p && p.d <= now) idxs.push(i); });
+    if(idxs.length) out.push({ id: it.id, idxs });
+  });
+  return out;
+}
+function schDueCount(){ return schStructs(state.items).reduce((n,x)=>n + x.idxs.length, 0); }
+async function startSchemaQueue(list){
+  if(!list || !list.length){ toast('Rien à réviser pour l\'instant.'); return; }
+  state.schQueue = list.slice();
+  await schQueueNext();
+}
+async function schQueueNext(){
+  const q = state.schQueue;
+  if(!q || !q.length){ state.schQueue = null; goLibrary(); return; }
+  const nx = q.shift(), it = state.items.find(i=>i.id===nx.id);
+  if(!it) return schQueueNext();
+  await preloadImages(imageIds(it));
+  startSchema(it);
+  const z = state.schema; z.tab = 'train';
+  schBegin(shuffle(nx.idxs.slice()), false);
+  window.scrollTo(0,0);
+}
+
+/* ----- Examens et plan du jour ----- */
+function loadExams(){
+  try{ const a = JSON.parse(localStorage.getItem(EXAMS_KEY) || '[]'); state.exams = Array.isArray(a) ? a.filter(x=>x && x.date && x.name) : []; }catch(e){ state.exams = []; }
+}
+function saveExams(){
+  try{ localStorage.setItem(EXAMS_KEY, JSON.stringify(state.exams)); }catch(e){}
+  if(state.fbDb && state.user){ try{ state.fbDb.doc('users/' + state.user.uid + '/meta/exams').set({ list: state.exams }).catch(cloudErr); }catch(e){} }
+}
+function fmtDay(iso){ try{ return new Date(iso + 'T12:00:00').toLocaleDateString('fr', { weekday:'long', day:'numeric', month:'long' }); }catch(e){ return iso; } }
+function examDays(ex){ const a = new Date(ex.date + 'T00:00:00'), b = new Date(); b.setHours(0,0,0,0); return Math.max(0, Math.round((a - b) / DAY)); }
+function examsUpcoming(){ const t = dayKey(); return (state.exams || []).filter(e=>e.date >= t).sort((a,b)=>a.date.localeCompare(b.date)); }
+function examScope(ex){ return state.items.filter(i=>!ex.folder || (i.course || '') === ex.folder); }
+function examLoad(ex){
+  const items = examScope(ex), now = Date.now();
+  let cards = 0, cardsLeft = 0, cardsDue = 0, st = 0, stLeft = 0, stDue = 0;
+  items.forEach(it=>{
+    if(it.type === 'flashcards'){ const pr = it.progress || {}; it.payload.cards.forEach(c=>{ cards++; const p = pr[cardKey(c)]; if(!p || p.b < 3) cardsLeft++; if(!p || p.d <= now) cardsDue++; }); }
+    else if(it.type === 'schema'){ const pr = it.progress || {}; it.payload.labels.forEach(l=>{ st++; const p = pr[schKey(l)]; if(!p || p.b < 3) stLeft++; if(p && p.d <= now) stDue++; }); }
+  });
+  const days = Math.max(1, examDays(ex));
+  return { items, cards, cardsLeft, cardsDue, st, stLeft, stDue, days, goalCards: Math.min(cardsLeft, Math.ceil(cardsLeft / days)), goalSt: Math.min(stLeft, Math.ceil(stLeft / days)), mastery: folderMastery(items) };
+}
+function examsHTML(){
+  const list = examsUpcoming().slice(0, 3);
+  if(!list.length) return '';
+  return '<div class="exam-wrap"><div class="exam-head"><b>Examens à venir</b><button class="btn sm ghost" data-act="exams-open">Gérer</button></div>' + list.map(ex=>{
+    const L = examLoad(ex), d = examDays(ex), m = L.mastery;
+    const when = d === 0 ? 'aujourd\'hui' : d === 1 ? 'demain' : 'dans ' + d + ' jours';
+    return '<div class="exam-card"><div class="exam-top"><b>'+esc(ex.name)+'</b><span>'+esc(when)+'</span></div>'+
+      '<p class="meta">'+esc(fmtDay(ex.date))+(ex.folder ? ' · '+esc(ex.folder) : '')+'</p>'+
+      '<div class="st-bar"><i style="width:'+(m||0)+'%"></i></div>'+
+      '<p class="meta">'+(m==null ? 'Pas encore commencé' : 'Maîtrise : '+m+' %')+' · Objectif du jour : '+(L.cards ? L.goalCards+' carte'+(L.goalCards>1?'s':'') : '')+(L.cards && L.st ? ' + ' : '')+(L.st ? L.goalSt+' structure'+(L.goalSt>1?'s':'') : '')+(!L.cards && !L.st ? 'aucun contenu dans ce dossier' : '')+'</p>'+
+      '<div class="row" style="justify-content:flex-start">'+(L.cards ? '<button class="btn sm primary" data-act="exam-cards" data-id="'+esc(ex.id)+'">Cartes du jour</button>' : '')+(L.st ? '<button class="btn sm" data-act="exam-struct" data-id="'+esc(ex.id)+'">Structures du jour</button>' : '')+'</div></div>';
+  }).join('') + '</div>';
+}
+function openExams(){
+  const folders = folderNames();
+  const rows = (state.exams || []).slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>
+    '<div class="exam-row"><span><b>'+esc(e.name)+'</b><small>'+esc(fmtDay(e.date))+(e.folder ? ' · '+esc(e.folder) : '')+(e.date < dayKey() ? ' · terminé' : '')+'</small></span><button class="icon-btn" data-act="exam-del" data-id="'+esc(e.id)+'" aria-label="Supprimer '+esc(e.name)+'">'+ICON.trash+'</button></div>').join('');
+  openModal('Mes examens',
+    '<p class="hint">Indique la date de tes examens : l\'appli te propose chaque jour un objectif de cartes et de structures à réviser.</p>'+
+    (rows || '<p class="hint">Aucun examen pour l\'instant.</p>')+
+    '<h3 class="exam-h">Ajouter un examen</h3><label class="lbl" for="exName">Nom</label><input class="txt" id="exName" maxlength="60" placeholder="Ex. Anatomie, janvier" autocomplete="off">'+
+    '<div class="grid2"><div><label class="lbl" for="exDate">Date</label><input class="txt" id="exDate" type="date"></div><div><label class="lbl" for="exFolder">Dossier à réviser</label><select class="txt" id="exFolder"><option value="">Tous mes dossiers</option>'+folders.map(f=>'<option value="'+esc(f)+'">'+esc(f)+'</option>').join('')+'</select></div></div>',
+    'Ajouter', addExam);
+}
+function addExam(){
+  const name = ($('#exName').value || '').trim(), date = $('#exDate').value, folder = $('#exFolder').value;
+  if(!name){ modalError('Donne un nom à l\'examen.'); return; }
+  if(!date){ modalError('Choisis la date de l\'examen.'); return; }
+  state.exams.push({ id: uid('x'), name, date, folder }); saveExams(); closeModal(); toast('Examen ajouté.'); refreshLibrary();
+}
+async function examGoCards(id){
+  const ex = state.exams.find(e=>e.id===id); if(!ex) return;
+  const L = examLoad(ex), now = Date.now(), pool = [];
+  L.items.filter(i=>i.type==='flashcards').forEach(it=>{ const pr = it.progress || {}; it.payload.cards.forEach(c=>{ const k = cardKey(c), p = pr[k]; if(!p || p.b < 3 || p.d <= now) pool.push(Object.assign({ _s: it.id, _k: k, _p: p ? (p.d <= now ? 0 : 2) : 1 }, c)); }); });
+  if(!pool.length){ toast('Toutes les cartes de ce dossier sont acquises.'); return; }
+  pool.sort((a,b)=>a._p - b._p || Math.random() - 0.5);
+  const sel = pool.slice(0, Math.min(60, Math.max(10, L.goalCards)));
+  await preloadImages([].concat.apply([], L.items.filter(i=>i.type==='flashcards').map(imageIds)));
+  startCards(virtualDeck(ex.name + ' : cartes du jour', sel));
+  state.cards.due = false; const cb = $('#fcDue'); if(cb) cb.checked = false; startCardsRun(fcPool());
+  window.scrollTo(0,0);
+}
+async function examGoStruct(id){
+  const ex = state.exams.find(e=>e.id===id); if(!ex) return;
+  const L = examLoad(ex), now = Date.now(), pool = [];
+  L.items.filter(i=>i.type==='schema').forEach(it=>{ const pr = it.progress || {}; it.payload.labels.forEach((l,i)=>{ const p = pr[schKey(l)]; if(!p || p.b < 3 || p.d <= now) pool.push({ id: it.id, i, p: p ? (p.d <= now ? 0 : 2) : 1 }); }); });
+  if(!pool.length){ toast('Toutes les structures de ce dossier sont acquises.'); return; }
+  pool.sort((a,b)=>a.p - b.p || Math.random() - 0.5);
+  const sel = pool.slice(0, Math.min(40, Math.max(8, L.goalSt))), by = new Map();
+  sel.forEach(x=>{ if(!by.has(x.id)) by.set(x.id, []); by.get(x.id).push(x.i); });
+  await startSchemaQueue(Array.from(by.entries()).map(([sid, idxs])=>({ id: sid, idxs })));
+}
+
+/* ----- Cartes créées à partir d'un schéma ----- */
+async function schMakeCards(){
+  const z = state.schema; if(!z) return;
+  const it = z.item, data = state.imgCache[it.payload.image];
+  if(!data){ toast('Image indisponible sur cet appareil.'); return; }
+  const base = it.title.replace(/ : schéma à légender$/, ''), title = base + ' : cartes (schéma)';
+  if(state.items.some(x=>x.type==='flashcards' && x.title===title && (x.course||'')===(it.course||''))){ toast('Ces cartes existent déjà.'); return; }
+  const imgId = uid('i'); await imgPut(imgId, data);
+  const cards = it.payload.labels.map(l=>{
+    const zone = typeof l.y2 === 'number';
+    const c = { front:'Comment s\'appelle la structure repérée en rouge ?', back:l.label, image:imgId, imageMark: zone ? { x:0.5, y:(l.y + l.y2)/2 } : { x:l.x, y:l.y }, group:base };
+    if(l.note) c.note = l.note; return c;
+  });
+  try{
+    const norm = normalizeItem({ type:'flashcards', title, course: it.course || '', cards }, it.course || '');
+    await addNewItem(norm, it.course || '');
+    toast(plural(cards.length,'carte')+' créées' + (it.course ? ' dans « '+it.course+' ».' : '.'));
+  }catch(e){ toast('Création impossible : ' + (e.message || 'erreur')); }
+}
+
+/* ----- Examen blanc : quiz, structures de schémas et cartes ----- */
+function mockScope(){
+  const f = new Map();
+  state.items.forEach(i=>{
+    if(i.type!=='quiz' && i.type!=='schema' && i.type!=='flashcards') return;
+    const k = i.course || ''; if(!f.has(k)) f.set(k, { q:0, s:0, c:0 });
+    const o = f.get(k);
+    if(i.type==='quiz') o.q += i.payload.questions.length;
+    else if(i.type==='schema') o.s += i.payload.labels.filter(l=>typeof l.y2 !== 'number').length;
+    else o.c += i.payload.cards.length;
+  });
+  return f;
+}
+function renderMockList(){
+  const box = $('#mockList'); if(!box || !state.mock) return;
+  const f = mockScope(), keys = Array.from(f.keys()).sort((a,b)=> a===''?1 : b===''?-1 : a.localeCompare(b,'fr'));
+  box.innerHTML = keys.map(k=>{ const o = f.get(k), det = []; if(o.q) det.push(plural(o.q,'question')); if(o.s) det.push(plural(o.s,'structure')); if(o.c) det.push(plural(o.c,'carte'));
+    return '<label class="mixfolder"><input type="checkbox" data-mockfolder="'+esc(k)+'"'+(state.mock.sel[k]?' checked':'')+'> <b>'+esc(k || 'Sans dossier')+'</b> <small>'+esc(det.join(' · '))+'</small></label>'; }).join('');
+}
+function openMock(){
+  const f = mockScope();
+  if(!f.size){ toast('Ajoute d\'abord un quiz, un schéma ou des cartes.'); return; }
+  state.mock = { sel:{} }; Array.from(f.keys()).forEach(k=>{ state.mock.sel[k] = true; });
+  openModal('Examen blanc',
+    '<p class="hint">Les questions des dossiers cochés sont mélangées et posées sans correction, avec un chronomètre. Note sur 20 à la fin.</p>'+
+    '<div id="mockList" class="mixlist"></div>'+
+    '<div class="checks"><label><input type="checkbox" id="mkQ" checked> Questions de quiz</label><label><input type="checkbox" id="mkS" checked> Structures des schémas</label><label><input type="checkbox" id="mkC"> Cartes (en choix multiples)</label></div>'+
+    '<div class="grid2"><div><label class="lbl" for="mockN">Nombre de questions</label><select class="txt" id="mockN"><option value="20">20</option><option value="30" selected>30</option><option value="40">40</option><option value="60">60</option><option value="0">Toutes</option></select></div>'+
+    '<div><label class="lbl" for="mockMin">Durée</label><select class="txt" id="mockMin"><option value="20">20 min</option><option value="30">30 min</option><option value="45" selected>45 min</option><option value="60">60 min</option><option value="90">90 min</option></select></div></div>'+
+    '<div class="checks"><label><input type="checkbox" id="mockStar"> ⭐ Seulement les questions et cartes prioritaires</label></div>',
+    'Commencer l\'examen', startMock);
+  renderMockList();
+}
+async function startMock(){
+  const m = state.mock; if(!m) return;
+  const folders = Object.keys(m.sel).filter(k=>m.sel[k]);
+  if(!folders.length){ modalError('Coche au moins un dossier.'); return; }
+  const useQ = !!$('#mkQ').checked, useS = !!$('#mkS').checked, useC = !!$('#mkC').checked;
+  const n = Number($('#mockN').value) || 0, min = Number($('#mockMin').value) || 45, starOnly = !!($('#mockStar') && $('#mockStar').checked);
+  const qs = [], imgs = [];
+  state.items.filter(i=>folders.indexOf(i.course || '') >= 0).forEach(it=>{
+    if(it.type==='quiz' && useQ){
+      it.payload.questions.forEach(q=>{ if(!starOnly || q.star) qs.push(Object.assign({ _s:it.id, _k:hkey(q.question) }, q)); });
+      imgs.push.apply(imgs, imageIds(it));
+    }else if(it.type==='schema' && useS){
+      const L = it.payload.labels;
+      L.forEach((l,i)=>{
+        if(typeof l.y2 === 'number') return;
+        const others = shuffle(L.map((x,k)=>k).filter(k=>k!==i && normAns(L[k].label)!==normAns(l.label))).slice(0,3);
+        if(!others.length) return;
+        const opts = shuffle([i].concat(others));
+        qs.push({ question:'Comment s\'appelle la structure repérée en rouge ?', options:opts.map(k=>L[k].label), answer:opts.indexOf(i), explanation:l.note || '', image:it.payload.image, imageMark:{ x:l.x, y:l.y }, _sch:{ id:it.id, key:schKey(l) } });
+      });
+      imgs.push.apply(imgs, imageIds(it));
+    }else if(it.type==='flashcards' && useC){
+      const C = it.payload.cards.filter(c=>c.back && c.back.length <= 140);
+      if(C.length < 2) return;
+      C.forEach(c=>{
+        if(starOnly && !c.star) return;
+        const seen = {}; seen[c.back] = true;
+        const others = shuffle(C.slice()).filter(o=>{ if(seen[o.back]) return false; seen[o.back] = true; return true; }).slice(0,3);
+        if(!others.length) return;
+        const opts = shuffle([c].concat(others));
+        const q = { question: c.front || 'Retrouve la bonne réponse', options:opts.map(o=>o.back), answer:opts.indexOf(c), explanation:c.note || '', _card:{ id:it.id, key:cardKey(c) } };
+        if(c.image){ q.image = c.image; if(c.imageMark) q.imageMark = c.imageMark; }
+        qs.push(q);
+      });
+      imgs.push.apply(imgs, imageIds(it));
+    }
+  });
+  if(!qs.length){ modalError('Aucune question disponible avec ces choix.'); return; }
+  shuffle(qs); const picked = n ? qs.slice(0, n) : qs;
+  closeModal();
+  await preloadImages(imgs);
+  startQuiz(virtualQuiz('Examen blanc', picked));
+  const z = state.quiz; z.exam = true; z.examMin = min; z.shuffleOpts = true; z.shuffle = false; z.reverse = false;
+  beginQuiz(picked, false); window.scrollTo(0,0);
+}
+
+/* ----- Lecture audio des cartes ----- */
+function listenSupported(){ return ('speechSynthesis' in window) && (typeof SpeechSynthesisUtterance !== 'undefined'); }
+function speakClean(t){ return String(t || '').replace(/⭐/g, '').replace(/[«»]/g, '"').replace(/\s+/g, ' ').trim(); }
+function listenVoice(){ try{ const vs = speechSynthesis.getVoices() || []; return vs.find(v=>/^fr[-_]FR/i.test(v.lang)) || vs.find(v=>/^fr/i.test(v.lang)) || null; }catch(e){ return null; } }
+function stopListen(){
+  const L = state.listen;
+  if(L){ L.stop = true; L.tok++; clearTimeout(L.timer); }
+  try{ if(listenSupported()) speechSynthesis.cancel(); }catch(e){}
+  state.listen = null; const b = $('#listenBox'); if(b) b.remove();
+}
+function listenSay(text, tok, done){
+  const L = state.listen; if(!L) return;
+  const u = new SpeechSynthesisUtterance(speakClean(text)); u.lang = 'fr-FR'; const v = listenVoice(); if(v) u.voice = v; u.rate = L.rate;
+  let fired = false; const fin = ()=>{ if(fired) return; fired = true; if(state.listen === L && L.tok === tok && !L.stop && !L.paused) done(); };
+  u.onend = fin; u.onerror = fin; L.utter = u;
+  try{ speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ fin(); }
+}
+function listenSpeak(){
+  const L = state.listen; if(!L || L.stop) return;
+  const c = L.list[L.i]; if(!c){ toast('Lecture terminée.'); stopListen(); return; }
+  const tok = ++L.tok; L.phase = 'front'; renderListen();
+  const front = L.swap ? c.back : c.front, back = L.swap ? (c.front || '') : c.back;
+  listenSay(front || 'Regarde l\'image.', tok, ()=>{
+    L.timer = setTimeout(()=>{
+      if(state.listen !== L || L.tok !== tok || L.stop || L.paused) return;
+      L.phase = 'back'; renderListen();
+      listenSay(back + (c.note ? '. ' + c.note : ''), tok, ()=>{
+        L.timer = setTimeout(()=>{ if(state.listen !== L || L.tok !== tok || L.stop || L.paused) return; L.i++; listenSpeak(); }, 1500);
+      });
+    }, L.pause * 1000);
+  });
+}
+function renderListen(){
+  const L = state.listen; if(!L) return;
+  let box = $('#listenBox');
+  if(!box){ box = document.createElement('div'); box.id = 'listenBox'; box.className = 'listen'; document.body.appendChild(box); }
+  const c = L.list[L.i]; if(!c) return;
+  const front = L.swap ? c.back : c.front, back = L.swap ? (c.front || '') : c.back;
+  box.innerHTML = '<div class="listen-top"><b>Lecture audio</b><span>Carte '+(L.i+1)+' sur '+L.list.length+'</span></div>'+
+    '<p class="listen-text">'+esc(L.phase==='front' ? (front || '(image)') : back)+'</p>'+
+    '<div class="listen-ctl"><button class="btn sm" data-act="ls-prev" aria-label="Carte précédente">⏮</button><button class="btn sm primary" data-act="ls-pause">'+(L.paused ? '▶ Reprendre' : '⏸ Pause')+'</button><button class="btn sm" data-act="ls-next" aria-label="Carte suivante">⏭</button><button class="btn sm ghost" data-act="ls-stop">Arrêter</button></div>'+
+    '<div class="listen-opts"><label>Vitesse <select id="listenRate" class="txt"><option value="0.8"'+(L.rate===0.8?' selected':'')+'>Lente</option><option value="1"'+(L.rate===1?' selected':'')+'>Normale</option><option value="1.2"'+(L.rate===1.2?' selected':'')+'>Rapide</option></select></label>'+
+    '<label>Pause avant la réponse <select id="listenPause" class="txt"><option value="2"'+(L.pause===2?' selected':'')+'>2 s</option><option value="4"'+(L.pause===4?' selected':'')+'>4 s</option><option value="7"'+(L.pause===7?' selected':'')+'>7 s</option></select></label></div>';
+}
+function startListen(){
+  const z = state.cards; if(!z) return;
+  if(!listenSupported()){ toast('La lecture audio n\'est pas disponible sur cet appareil.'); return; }
+  const list = fcPool().slice();
+  if(!list.length){ toast('Aucune carte dans cette série.'); return; }
+  if(z.shuf) shuffle(list);
+  stopListen();
+  state.listen = { list, i:0, rate:1, pause:4, paused:false, phase:'front', stop:false, swap:!!z.swap, tok:0 };
+  listenSpeak();
+}
+function listenMove(d){
+  const L = state.listen; if(!L) return;
+  clearTimeout(L.timer); L.tok++; try{ speechSynthesis.cancel(); }catch(e){}
+  L.i = Math.min(L.list.length, Math.max(0, L.i + d)); L.paused = false; listenSpeak();
+}
+function listenTogglePause(){
+  const L = state.listen; if(!L) return;
+  if(L.paused){ L.paused = false; listenSpeak(); }
+  else{ L.paused = true; L.tok++; clearTimeout(L.timer); try{ speechSynthesis.cancel(); }catch(e){} renderListen(); }
+}
+
+/* ----- Impression d'un schéma ----- */
+function openSchPrint(){
+  const z = state.schema; if(!z) return;
+  openModal('Imprimer ce schéma',
+    '<p class="hint">Le schéma est imprimé avec ses numéros. Tu peux l\'enregistrer en PDF ou l\'envoyer à une imprimante.</p>'+
+    '<div class="checks"><label><input type="radio" name="prMode" value="names" checked> Avec les noms (pour réviser)</label><label><input type="radio" name="prMode" value="blank"> Sans les noms (à compléter à la main)</label></div>',
+    'Imprimer', doSchPrint);
+}
+async function doSchPrint(){
+  const z = state.schema; if(!z) return;
+  const it = z.item, labels = it.payload.labels, mode = (document.querySelector('input[name=prMode]:checked') || {}).value || 'names';
+  closeModal();
+  await preloadImages(imageIds(it));
+  const data = state.imgCache[it.payload.image]; if(!data){ toast('Image indisponible.'); return; }
+  const pins = labels.map((l,i)=>{
+    const pts = typeof l.y2 === 'number' ? [{ x:l.x, y:(l.y + l.y2)/2 }] : [{ x:l.x, y:l.y }].concat(l.more || []);
+    return pts.map(p=>'<span class="pr-pin" style="left:'+(p.x*100)+'%;top:'+(p.y*100)+'%">'+(i+1)+'</span>').join('');
+  }).join('');
+  const list = labels.map((l,i)=>'<li><b>'+(i+1)+'</b>'+(mode==='names' ? '<span>'+esc(l.label)+(l.note ? '<small> — '+esc(l.note)+'</small>' : '')+'</span>' : '<span class="pr-blank"></span>')+'</li>').join('');
+  const root = $('#printRoot');
+  root.innerHTML = '<article class="print-sheet"><h2 class="view-title">'+esc(it.title)+'</h2>'+(it.course ? '<p class="meta">'+esc(it.course)+'</p>' : '')+'<div class="pr-fig"><img src="'+data+'" alt=""><div class="pr-pins">'+pins+'</div></div><ol class="pr-list">'+list+'</ol></article>';
+  document.body.classList.add('is-printing');
+  const done = ()=>{ document.body.classList.remove('is-printing'); root.innerHTML = ''; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(()=>window.print(), 200);
+}
+
+/* ----- Ajouter un schéma depuis une image collée ou déposée ----- */
+function schNewFromFiles(files){
+  files = Array.from(files || []).filter(f=>/^image\//.test(f.type) || isPdfFile(f));
+  if(!files.length) return false;
+  openSchemaNew(); state.snFiles = files;
+  const nm = $('#snName'); if(nm) nm.textContent = plural(files.length,'fichier')+' : '+clip(files.map(f=>f.name || 'image').join(', '), 60);
+  return true;
+}
+async function snPasteClipboard(){
+  try{
+    const items = await navigator.clipboard.read(), out = [];
+    for(const it of items){ const t = it.types.find(x=>/^image\//.test(x)); if(t){ const blob = await it.getType(t); out.push(new File([blob], 'collage.' + t.split('/')[1], { type:t })); } }
+    if(!out.length){ toast('Aucune image dans le presse-papiers.'); return; }
+    state.snFiles = (state.snFiles || []).concat(out);
+    const nm = $('#snName'); if(nm) nm.textContent = plural(state.snFiles.length,'fichier')+' prêt'+(state.snFiles.length>1?'s':'');
+  }catch(e){ toast('Collage impossible : autorise l\'accès au presse-papiers, ou utilise « Choisir ».'); }
+}
+loadExams();
 
 /* ---------- Réglage manuel : déplacer le bout des flèches ---------- */
 function schAdjustHandles(cont, img, z){
@@ -3054,6 +3409,7 @@ function renderCardsShell(){
     '<label><input type="checkbox" id="fcSwap"'+(z.swap?' checked':'')+'> Partir du verso, retrouver le recto</label>'+
     '<label><input type="checkbox" id="fcShuf"'+(z.shuf?' checked':'')+'> Mélanger</label>'+
     '<label><input type="checkbox" id="fcTyped"'+(z.typed?' checked':'')+'> Écrire la réponse (cartes courtes)</label></div>'+
+  '<div class="row" style="margin:4px 0 10px;justify-content:flex-start"><button class="btn sm" data-act="fc-listen">🔊 <span>Écouter les cartes</span></button></div>'+
   '<div id="fcStudy"><div class="progress" aria-hidden="true"><div id="fcFill" style="width:0"></div></div><p class="qcount" id="fcProg" aria-live="polite"></p>'+
   '<div class="fc-scene"><button class="fc-card" id="fcCard" type="button" data-act="fc-flip">'+
     '<span class="fc-face fc-front" id="fcFront"><span class="fc-cat" id="fcFCat"></span><span class="fc-mid"><span id="fcFImg"></span><span class="fc-big" id="fcFMain"></span></span><span class="fc-hint">Touche la carte pour la retourner</span></span>'+
@@ -3666,6 +4022,19 @@ document.addEventListener('click', async e=>{
     case 'sel-none': if(state.sel){ state.sel = {}; renderResults(); } break;
     case 'sel-folder': if(state.sel){ const nm = el.dataset.name || ''; const grp = visibleItems().filter(i=>(i.course||'')===nm); const all = grp.every(i=>state.sel[i.id]); grp.forEach(i=>{ state.sel[i.id] = !all; }); renderResults(); } break;
     case 'sel-del': openSelDelete(); break;
+    case 'today-schemas': startSchemaQueue(schStructs(state.items)); break;
+    case 'exams-open': openExams(); break;
+    case 'exam-del': { state.exams = state.exams.filter(e=>e.id!==id); saveExams(); openExams(); refreshLibrary(); break; }
+    case 'exam-cards': examGoCards(id); break;
+    case 'exam-struct': examGoStruct(id); break;
+    case 'sch-cards': schMakeCards(); break;
+    case 'sch-print': openSchPrint(); break;
+    case 'sn-paste': snPasteClipboard(); break;
+    case 'fc-listen': startListen(); break;
+    case 'ls-pause': listenTogglePause(); break;
+    case 'ls-next': listenMove(1); break;
+    case 'ls-prev': listenMove(-1); break;
+    case 'ls-stop': stopListen(); break;
     case 'delete-ask': state.confirmId = id; renderResults(); break;
     case 'delete-no': state.confirmId = null; renderResults(); break;
     case 'delete-yes':
@@ -3713,8 +4082,12 @@ document.addEventListener('click', async e=>{
     case 'leg-close': schLegendCloseFull(); break;
     case 'sch-tab': { const z = state.schema; if(z){ z.tab = el.dataset.tab; renderSchema(); window.scrollTo(0,0); } break; }
     case 'leg-rev': { const z = state.schema; if(z && z.hide){ z.rev[el.dataset.i] = !z.rev[el.dataset.i]; schLegendLayout(); } break; }
-    case 'sch-start': { const cb = $('#schTyped'); const z = state.schema; z.typed = !cb || cb.checked; schBegin(shuffle(z.item.payload.labels.map((l,k)=>k)), true); break; }
+    case 'sch-start': { const sm = $('#schMode'); const z = state.schema; const mode = sm ? sm.value : 'typed'; z.typed = mode==='typed'; z.oral = mode==='oral'; try{ localStorage.setItem('revisions:schmode', mode); }catch(e){} schBegin(shuffle(z.item.payload.labels.map((l,k)=>k)), true); break; }
     case 'sch-check': schCheck(); break;
+    case 'sch-show': { const z = state.schema; if(z){ z.shown = true; renderSchema(); } break; }
+    case 'sch-know': { const z = state.schema; if(z && z.oral && !z.answered){ schAnswer(true, true, '', false); schNext(); } break; }
+    case 'sch-miss': { const z = state.schema; if(z && z.oral && !z.answered){ schAnswer(false, false, '', true); schNext(); } break; }
+    case 'sch-qnext': schQueueNext(); break;
     case 'sch-skip': schAnswer(false, false, '', true); break;
     case 'sch-pick': schPick(i); break;
     case 'sch-right': { const z = state.schema; if(z && z.answered){ const r = z.results[z.results.length-1]; if(r){ r.ok = true; r.given = ''; } z.verdict = { ok:true, exact:true }; schNext(); } break; }
@@ -3790,6 +4163,9 @@ document.addEventListener('change', e=>{
     printItems().filter(i=>(i.course||'')===t.dataset.printfolder).forEach(i=>{ state.print.sel[i.id] = t.checked; }); renderPrintList(); return;
   }
   if(t.dataset && t.dataset.printitem && state.print){ state.print.sel[t.dataset.printitem] = t.checked; renderPrintList(); return; }
+  if(t.id==='listenRate' && state.listen){ state.listen.rate = Number(t.value) || 1; return; }
+  if(t.id==='listenPause' && state.listen){ state.listen.pause = Number(t.value) || 4; return; }
+  if(t.dataset && t.dataset.mockfolder !== undefined && state.mock){ state.mock.sel[t.dataset.mockfolder] = t.checked; return; }
   if((t.id==='legAddSel' || t.id==='legAddSelF') && state.schema){ state.schema.addSel = +t.value; return; }
   if((t.id==='legHide' || t.id==='legHideF') && state.schema){ state.schema.hide = t.checked; state.schema.rev = {}; schLegendLayout(); return; }
   if(t.id==='snFiles'){ state.snFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#snName'); if(nm) nm.textContent = state.snFiles.length ? plural(state.snFiles.length,'fichier')+' : '+clip(state.snFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
@@ -3816,6 +4192,7 @@ document.addEventListener('input', e=>{
   if(e.target && e.target.classList && (e.target.classList.contains('sch-lab') || e.target.classList.contains('sch-pop')) && state.sedit){ const k = Number(e.target.dataset.i); if(state.sedit.labels[k]) state.sedit.labels[k].label = e.target.value; }
 });
 document.addEventListener('paste', e=>{
+  if(state.view==='library'){ const tg = e.target; if(tg && (tg.tagName==='INPUT' || tg.tagName==='TEXTAREA')) return; const fl = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f=>/^image\//.test(f.type)); if(fl.length){ e.preventDefault(); if(schNewFromFiles(fl)) toast('Image collée : donne un titre et continue.'); } return; }
   if(state.view!=='edit' || !state.edit || state.edit.type==='mindmap') return;
   const items = (e.clipboardData && e.clipboardData.items) || [];
   for(const it of items){
