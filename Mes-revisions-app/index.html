@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.6.0">
+<meta name="app-version" content="3.6.1">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -616,7 +616,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.6.1';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1099,8 +1099,9 @@ function normalizeItem(o, course){
 async function materializeImages(item){
   if(item.type==='schema'){ const im = item.payload.image; if(im && /^data:/.test(im)){ const id = uid('i'); await imgPut(id, im); item.payload.image = id; } return item; }
   const list = item.type==='quiz' ? item.payload.questions : item.type==='flashcards' ? item.payload.cards : item.type==='synthese' ? [].concat.apply([], item.payload.sections.map(s=>s.items)) : [];
+  const seen = {};
   for(const x of list){
-    if(x.image && /^data:/.test(x.image)){ const id = uid('i'); await imgPut(id, x.image); x.image = id; }
+    if(x.image && /^data:/.test(x.image)){ if(!seen[x.image]){ const id = uid('i'); await imgPut(id, x.image); seen[x.image] = id; } x.image = seen[x.image]; }
   }
   return item;
 }
