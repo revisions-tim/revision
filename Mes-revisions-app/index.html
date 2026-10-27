@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.7.0">
+<meta name="app-version" content="3.8.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -501,6 +501,9 @@ main.quiz.wide{max-width:980px}
 .btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .leg-hint{margin:0 0 8px}
 .leg-handle{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:rgba(255,255,255,.55);border:2.5px solid var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.25);cursor:grab;touch-action:none;z-index:6;display:grid;place-items:center;font-size:11px;font-weight:700;color:#111}
+.folder-sel{width:auto;max-width:260px;padding:6px 10px;border-radius:999px;font-size:13.5px;font-weight:500}
+.bodylist details{margin:6px 0}
+.bodylist ul{margin:6px 0 0;padding-left:20px;font-size:13.5px}
 .leg-poly{fill-opacity:.2;stroke-opacity:1;stroke-width:3.2;stroke-dasharray:9 5;paint-order:stroke;vector-effect:non-scaling-stroke;pointer-events:none}
 .leg-poly.on{fill:var(--bad)!important;stroke:var(--bad)!important;fill-opacity:.2}
 .leg-polysvg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
@@ -581,7 +584,7 @@ main.quiz.wide{max-width:980px}
 <div id="modalRoot"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <input type="file" id="quickFiles" accept=".json,.txt,application/json" multiple hidden>
-<div id="dropHint" class="drophint" hidden>Dépose tes fichiers .json (ou des images, pour créer des schémas) ici</div>
+<div id="dropHint" class="drophint" hidden>Dépose un dossier ou des fichiers .json (ou des images) ici</div>
 <div id="printRoot"></div>
 <script src="firebase-config.js"></script>
 <script type="text/plain" id="pdfjsLib">/**
@@ -633,7 +636,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.7.0';
+const APP_VERSION = '3.8.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1211,6 +1214,7 @@ function renderLibrary(){
         (state.user ? '<button class="icon-btn" data-act="account" aria-label="Mon compte" title="Mon compte">'+ICON.user+'</button>' : (state.cloudCfg ? '<button class="btn ghost sm" data-act="fb-login">'+ICON.user+'<span>Se connecter</span></button>' : '<button class="icon-btn" data-act="fb-setup" aria-label="Synchroniser mes appareils" title="Synchroniser mes appareils">'+ICON.cloud+'</button>'))+
     '<button class="icon-btn" data-act="stats" aria-label="Statistiques" title="Statistiques">'+ICON.chart+'</button>'+
       '<label class="btn ghost" for="quickFiles" title="Choisir plusieurs fichiers .json d\'un coup">'+ICON.upload+'<span class="hide-s">Importer</span></label>'+
+      '<label class="btn ghost" for="folderPick" title="Choisir un dossier entier : tous ses fichiers sont importés">'+ICON.folder+'<span class="hide-s">Un dossier</span></label><input type="file" id="folderPick" webkitdirectory directory multiple hidden>'+
       (state.dl ? '<button class="btn ghost" data-act="export" title="Exporter toute ma bibliothèque">'+ICON.download+'<span class="hide-s">Exporter</span></button>' : '')+
       '<button class="btn primary" data-act="add">'+ICON.plus+'<span>Ajouter</span></button>'+
     '</div>'+
@@ -1254,18 +1258,20 @@ function startTodayCards(){
   const cards = todayDueCards(); if(!cards.length) return;
   shuffle(cards); startCards(virtualDeck('Aujourd\'hui : cartes à revoir', cards)); window.scrollTo(0,0);
 }
-function refreshLibrary(){ if($('#results')){ renderResults(); renderToday(); updatePersistLabel(); } else renderLibrary(); }
+function refreshLibrary(){
+  if(state.fold && state.fold!=='__none__' && !folderNames().some(n=>n===state.fold)) state.fold = ''; if($('#results')){ renderResults(); renderToday(); updatePersistLabel(); } else renderLibrary(); }
 
 function renderResults(){
   const all = state.items;
   const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length, nNt = all.filter(i=>i.type==='notes').length;
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
-  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Notes',nNt) : '');
+  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Notes',nNt) : '')+folderSelHTML();
   const nb = notebookCount();
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
     '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes notes</span></button>'+
+    '<button class="btn sm" data-act="body-sort">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
@@ -1283,8 +1289,9 @@ function renderResults(){
     '<div class="row"><button class="btn primary" data-act="add">Ajouter du contenu</button><button class="btn ghost" data-act="sample">Voir un exemple</button></div></div>';
     return;
   }
-  const q = state.q.trim().toLowerCase(), filtered = state.filter !== 'all' || !!q;
-  const list = all.filter(i => (state.filter==='all' || i.type===state.filter) && (!q || searchMatches(i, q)))
+  const q = state.q.trim().toLowerCase(), filtered = state.filter !== 'all' || !!q || !!state.fold;
+  const foldOk = i => !state.fold || (i.course||'') === (state.fold==='__none__' ? '' : state.fold);
+  const list = all.filter(i => (state.filter==='all' || i.type===state.filter) && foldOk(i) && (!q || searchMatches(i, q)))
                   .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const groups = new Map();
   list.forEach(i=>{ const k = i.course || ''; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(i); });
@@ -1357,7 +1364,7 @@ function cardHTML(it){
 /* ---------- Sélection multiple (suppression en une fois) ---------- */
 function visibleItems(){
   const q = state.q.trim().toLowerCase();
-  return state.items.filter(i => (state.filter==='all' || i.type===state.filter) && (!q || searchMatches(i, q)));
+  return state.items.filter(i => (state.filter==='all' || i.type===state.filter) && (!state.fold || (i.course||'') === (state.fold==='__none__' ? '' : state.fold)) && (!q || searchMatches(i, q)));
 }
 function selIds(){ return state.sel ? Object.keys(state.sel).filter(k=>state.sel[k] && state.items.some(i=>i.id===k)) : []; }
 function selBarHTML(){
@@ -1365,6 +1372,7 @@ function selBarHTML(){
   return '<span class="sel-count">'+n+' sélectionné'+(n>1?'s':'')+'</span>'+
     '<button class="btn sm" data-act="sel-all">Tout sélectionner</button>'+
     '<button class="btn sm ghost" data-act="sel-none">Tout désélectionner</button>'+
+    '<button class="btn sm" data-act="sel-move"'+(n?'':' disabled')+'>'+ICON.move+'<span>Déplacer'+(n?' ('+n+')':'')+'</span></button>'+
     '<button class="btn sm danger" data-act="sel-del"'+(n?'':' disabled')+'>'+ICON.trash+'<span>Supprimer'+(n?' ('+n+')':'')+'</span></button>'+
     '<button class="btn sm ghost" data-act="sel-done">Terminer</button>';
 }
@@ -1839,6 +1847,22 @@ async function importFiles(fileList, course){
       : '<div class="imp-row ko"><b>' + esc(r.name) + '</b> — non importé : ' + esc(r.msg) + '</div>').join('') + '</div>',
     'Fermer', closeModal);
 }
+/* ---------- Importer un dossier entier (choisi ou déposé) ---------- */
+function routeImportedFiles(all){
+  all = all.filter(f=>f && f.name && !/^\./.test(f.name));
+  const imgs = all.filter(f=>/^image\//.test(f.type) || isPdfFile(f)), rest = all.filter(f=>imgs.indexOf(f) < 0 && (/\.(json|txt)$/i.test(f.name) || /json/i.test(f.type||'')));
+  if(!rest.length && !imgs.length){ toast('Aucun fichier .json, image ou PDF dans ce dossier.'); return; }
+  if(rest.length) importFiles(rest, '');
+  if(imgs.length) schNewFromFiles(imgs);
+}
+function readAllEntries(reader){
+  return new Promise(res=>{ const out = []; const go = ()=>reader.readEntries(es=>{ if(!es.length) res(out); else { out.push.apply(out, es); go(); } }, ()=>res(out)); go(); });
+}
+async function collectEntryFiles(entry, out, depth){
+  if(!entry || depth > 6) return;
+  if(entry.isFile){ await new Promise(res=>entry.file(f=>{ out.push(f); res(); }, ()=>res())); }
+  else if(entry.isDirectory){ const es = await readAllEntries(entry.createReader()); for(const e of es) await collectEntryFiles(e, out, depth + 1); }
+}
 document.addEventListener('dragenter', e=>{
   if(state.view==='library' && e.dataTransfer && Array.from(e.dataTransfer.types||[]).indexOf('Files')>=0){ state.drag = (state.drag||0) + 1; const h = $('#dropHint'); if(h) h.hidden = false; }
 });
@@ -1849,6 +1873,12 @@ document.addEventListener('drop', e=>{
   if(!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
   e.preventDefault();
   if(state.view!=='library'){ toast('Retourne à la bibliothèque pour importer des fichiers.'); return; }
+  const its = Array.from(e.dataTransfer.items || []), entries = its.map(it=>it.webkitGetAsEntry ? it.webkitGetAsEntry() : null).filter(Boolean);
+  if(entries.some(en=>en.isDirectory)){
+    toast('Lecture du dossier…');
+    (async ()=>{ const out = []; for(const en of entries) await collectEntryFiles(en, out, 0); routeImportedFiles(out); })();
+    return;
+  }
   const all = Array.from(e.dataTransfer.files), imgs = all.filter(f=>/^image\//.test(f.type) || isPdfFile(f)), rest = all.filter(f=>imgs.indexOf(f) < 0);
   if(rest.length) importFiles(rest, '');
   if(imgs.length) schNewFromFiles(imgs);
@@ -3397,6 +3427,56 @@ document.addEventListener('keydown', e=>{
   if(e.key==='ArrowRight'){ notesGo(1); } else if(e.key==='ArrowLeft'){ notesGo(-1); } else if(e.key==='Escape'){ notesCloseFull(); }
 });
 
+/* ================= v3.8 : choisir un dossier directement, déplacer en groupe, classer par partie du corps ================= */
+const BODY_RULES = [
+  ['Main', /\bmain\b|poignet|carpe|metacarp/],
+  ['Avant-bras et coude', /avant-bras|coude/],
+  ['Épaule', /scapula|clavicule|epaule/],
+  ['Bras (humérus)', /humerus/],
+  ['Genou', /genou/],
+  ['Cuisse', /femur|patella|rotule|cuisse/],
+  ['Jambe', /jambe|tibia|fibula|cheville/],
+  ['Pied', /\bpied|arches/],
+  ['Bassin', /bassin|pelvis|coxal/],
+  ['Tissu osseux', /osteon|ossification|os long|os court|os plat|foetus|os compact/]
+];
+function plainTxt(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/œ/g,'oe'); }
+function bodyFolderFor(it){
+  if(!/^anatomie/i.test(it.course || '')) return null;
+  if(it.type==='folder') return null;
+  const t = plainTxt(it.title), hits = BODY_RULES.filter(([n, rx])=>rx.test(t));
+  if(it.type !== 'schema' && hits.length !== 1) return null;
+  return hits.length ? hits[0][0] : null;
+}
+function openBodySort(){
+  const moves = state.items.map(it=>({ it, to: bodyFolderFor(it) })).filter(x=>x.to && x.to !== x.it.course);
+  if(!moves.length){ toast('Rien à classer : tes éléments d\'anatomie sont déjà rangés.'); return; }
+  const by = {}; moves.forEach(m=>{ (by[m.to] = by[m.to] || []).push(m.it.title.replace(/ : schéma à légender$/, '')); });
+  state.bodyMoves = moves;
+  openModal('Classer par partie du corps',
+    '<p class="hint">'+plural(moves.length,'élément')+' d\'anatomie vont être rangés dans un dossier par partie du corps. Rien n\'est supprimé : tu peux toujours les redéplacer.</p>'+
+    '<div class="bodylist">'+Object.keys(by).map(k=>'<details><summary><b>'+esc(k)+'</b> <small>'+plural(by[k].length,'élément')+'</small></summary><ul>'+by[k].map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></details>').join('')+'</div>',
+    'Classer', async ()=>{
+      try{ let n = 0; for(const m of state.bodyMoves){ await moveItem(m.it.id, m.to); n++; } state.bodyMoves = null; closeModal(); toast(plural(n,'élément')+' rangé'+(n>1?'s':'')+'.'); refreshLibrary(); }
+      catch(e){ modalError('Classement impossible pour le moment.'); }
+    });
+}
+function openSelMove(){
+  const ids = selIds(); if(!ids.length) return;
+  const opts = ['<option value="">Sans dossier</option>'].concat(folderNames().map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>')).concat(['<option value="__new__">＋ Nouveau dossier…</option>']).join('');
+  openModal('Déplacer '+plural(ids.length,'élément'),
+    '<label class="lbl" for="mvSel">Dossier</label><select class="txt" id="mvSel">'+opts+'</select><div id="mvNewBox" hidden><label class="lbl" for="mvNew">Nom du nouveau dossier</label><input class="txt" id="mvNew" data-enter="1" maxlength="80" placeholder="Ex. Main" autocomplete="off"></div>',
+    'Déplacer', async ()=>{
+      let name = $('#mvSel').value;
+      if(name==='__new__'){ name = clip($('#mvNew').value, 80); if(!name){ modalError('Donne un nom au nouveau dossier.'); return; } }
+      try{ for(const id of ids) await moveItem(id, name); state.sel = null; closeModal(); toast(plural(ids.length,'élément')+' déplacé'+(ids.length>1?'s':'')+'.'); renderResults(); }
+      catch(e){ modalError('Déplacement impossible.'); }
+    });
+}
+function folderSelHTML(){
+  const names = folderNames(), cur = state.fold || '';
+  return '<select class="txt folder-sel" id="folderSel" aria-label="Choisir un dossier"><option value="">Tous les dossiers</option>'+names.map(n=>'<option value="'+esc(n)+'"'+(n===cur?' selected':'')+'>'+esc(n)+' ('+state.items.filter(i=>(i.course||'')===n).length+')</option>').join('')+(state.items.some(i=>!i.course) ? '<option value="__none__"'+(cur==='__none__'?' selected':'')+'>Sans dossier</option>' : '')+'</select>';
+}
 /* ---------- Réglage manuel : déplacer le bout des flèches ---------- */
 function schAdjustHandles(cont, img, z){
   $$('.leg-handle', cont).forEach(e=>e.remove());
@@ -4211,6 +4291,8 @@ document.addEventListener('click', async e=>{
     case 'ls-prev': listenMove(-1); break;
     case 'ls-stop': stopListen(); break;
     case 'notes-new': openNotesNew(); break;
+    case 'body-sort': openBodySort(); break;
+    case 'sel-move': openSelMove(); break;
     case 'nt-prev': notesGo(-1); break;
     case 'nt-next': notesGo(1); break;
     case 'nt-go': { const z = state.notes; if(z){ z.grid = false; z.pos = i; renderNotes(); window.scrollTo(0,0); } break; }
@@ -4374,6 +4456,8 @@ document.addEventListener('change', e=>{
   if(t.dataset && t.dataset.mockfolder !== undefined && state.mock){ state.mock.sel[t.dataset.mockfolder] = t.checked; return; }
   if((t.id==='legAddSel' || t.id==='legAddSelF') && state.schema){ state.schema.addSel = +t.value; return; }
   if((t.id==='legHide' || t.id==='legHideF') && state.schema){ state.schema.hide = t.checked; state.schema.rev = {}; schLegendLayout(); return; }
+  if(t.id==='folderPick'){ const fl = Array.from(t.files||[]); t.value = ''; routeImportedFiles(fl); return; }
+  if(t.id==='folderSel'){ state.fold = t.value; renderResults(); return; }
   if(t.id==='nnFiles'){ state.nnFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#nnName'); if(nm) nm.textContent = state.nnFiles.length ? plural(state.nnFiles.length,'fichier')+' : '+clip(state.nnFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
   if(t.id==='ntAddFiles'){ const fl = Array.from(t.files||[]); t.value = ''; if(fl.length) notesAddPages(fl); return; }
   if(t.id==='snFiles'){ state.snFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#snName'); if(nm) nm.textContent = state.snFiles.length ? plural(state.snFiles.length,'fichier')+' : '+clip(state.snFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
