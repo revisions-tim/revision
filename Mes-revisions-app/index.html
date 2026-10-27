@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.8.0">
+<meta name="app-version" content="3.8.1">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -636,7 +636,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.8.1';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1270,7 +1270,7 @@ function renderResults(){
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
-    '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes notes</span></button>'+
+    '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes synthÃ¨ses</span></button>'+
     '<button class="btn sm" data-act="body-sort">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
@@ -1357,7 +1357,7 @@ function cardHTML(it){
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
   return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
-    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Mes notes':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
+    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'SynthÃ¨se manuscrite':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
@@ -3327,16 +3327,16 @@ async function fitNotesPage(data){
 }
 function normNotes(o, course){
   const src = Array.isArray(o.pages) ? o.pages : (Array.isArray(o.images) ? o.images : []);
-  if(src.length > 120) throw new Error('Notes : 120 pages maximum.');
+  if(src.length > 120) throw new Error('SynthÃ¨se : 120 pages maximum.');
   const pages = src.map(p=>cleanImg(typeof p === 'string' ? p : (p && p.image))).filter(Boolean);
-  if(!pages.length) throw new Error('Ces notes ne contiennent aucune page (images en data URL).');
-  return { type:'notes', title: clip(o.title||o.titre||'Notes sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
+  if(!pages.length) throw new Error('Cette synthÃ¨se ne contient aucune page (images en data URL).');
+  return { type:'notes', title: clip(o.title||o.titre||'SynthÃ¨se sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
 }
 function openNotesNew(){
   state.nnFiles = [];
   const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
-  openModal('Importer mes notes manuscrites',
-    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras tes notes telles quelles, page par page, dans la bibliothèque.</p>'+
+  openModal('Importer mes synthÃ¨ses manuscrites',
+    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthÃ¨se telle quelle, page par page, dans la bibliothèque.</p>'+
     '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="Ex. Ma synthèse : l\'ostéologie" autocomplete="off">'+
     '<label class="lbl" for="nnCourse">Dossier (facultatif)</label><input class="txt" id="nnCourse" list="folderList2" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList2">'+opts+'</datalist>'+
     '<div style="margin-top:12px"><label class="btn sm" for="nnFiles">'+ICON.image+'<span>Choisir un PDF ou des images</span></label><input type="file" id="nnFiles" accept="image/*,application/pdf" multiple hidden> <span class="hint" id="nnName">Aucun fichier choisi</span></div>',
@@ -4302,7 +4302,7 @@ document.addEventListener('click', async e=>{
     case 'nt-full': notesOpenFull(); break;
     case 'nt-fclose': notesCloseFull(); break;
     case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
-    case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer mes notes', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
+    case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer ma synthÃ¨se', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
     case 'nt-delpage': {
       const z = state.notes; if(!z) break;
       if(z.item.payload.pages.length < 2){ toast('C\'est la seule page : supprime plutôt les notes depuis la bibliothèque.'); break; }
