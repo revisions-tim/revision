@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.6.1">
+<meta name="app-version" content="3.7.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -513,6 +513,23 @@ main.quiz.wide{max-width:980px}
 .leg-addbar{display:inline-flex;gap:6px;align-items:center}
 .leg-addbar select{max-width:230px;padding:5px 8px;font-size:13px}
 .leg-handle.drag{cursor:grabbing;background:var(--accent);color:#fff}
+/* ---- v3.7 : notes manuscrites ---- */
+.badge.notes{--c:var(--accent)}
+.notes{max-width:1100px;margin:0 auto}
+.notes-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px}
+.notes-pos{font-weight:600;min-width:110px;text-align:center}
+.notes-zoom{display:inline-flex;gap:6px}
+.notes-view{overflow:auto;border:1.5px solid var(--line);border-radius:12px;background:#fff;max-height:78vh;text-align:center}
+.notes-view img{display:block;margin:0 auto;max-width:none;height:auto}
+.notes-tools{justify-content:flex-start;margin-top:12px;flex-wrap:wrap}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.notes-th{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:6px}
+.notes-th.on{border-color:var(--accent)}
+.notes-th img{width:100%;height:auto;border-radius:6px;background:#fff}
+.notes-full{position:fixed;inset:0;z-index:80;background:#111;display:flex;flex-direction:column}
+.notes-full-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;color:#fff;flex:none}
+.notes-full-body{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:6px}
+.notes-full-body img{max-width:100%;max-height:100%;background:#fff;border-radius:6px;touch-action:pinch-zoom pan-x pan-y}
 /* ---- v3.5 : examens, lecture audio, impression de schéma ---- */
 .exam-wrap{margin-top:14px}
 .exam-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -616,7 +633,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.6.1';
+const APP_VERSION = '3.7.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -712,7 +729,8 @@ function validItem(i){
     (i.type==='mindmap' && i.payload.root) ||
     (i.type==='flashcards' && Array.isArray(i.payload.cards)) ||
     (i.type==='synthese' && Array.isArray(i.payload.sections)) ||
-    (i.type==='schema' && i.payload.image && Array.isArray(i.payload.labels))));
+    (i.type==='schema' && i.payload.image && Array.isArray(i.payload.labels)) ||
+    (i.type==='notes' && Array.isArray(i.payload.pages))));
 }
 function isFolder(i){ return !!(i && i.type==='folder' && typeof i.name==='string' && i.name); }
 function splitDocs(list){ state.items = list.filter(validItem); state.folders = list.filter(isFolder); }
@@ -784,6 +802,7 @@ async function imgDel(id){
 }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
 function imageIds(it){
+  if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p));
   if(it.type==='schema') return it.payload.image && !/^data:/.test(it.payload.image) ? [it.payload.image] : [];
   const list = it.type==='quiz' ? it.payload.questions : it.type==='flashcards' ? it.payload.cards : it.type==='synthese' ? [].concat.apply([], it.payload.sections.map(s=>s.items)) : [];
   const out = []; list.forEach(x=>{ if(x.image && !/^data:/.test(x.image) && out.indexOf(x.image)<0) out.push(x.image); });
@@ -1093,10 +1112,12 @@ function normalizeItem(o, course){
   if(['mindmap','map','carte','carte_mentale','carte-mentale'].indexOf(type) >= 0) return normMap(o, course);
   if(['synthese','synthèse','synthesis','fiche','summary'].indexOf(type) >= 0) return normSynth(o, course);
   if(['schema','schéma','diagram','diagramme','legend','legende','légende'].indexOf(type) >= 0) return normSchema(o, course);
+  if(['notes','note','carnet','manuscrit'].indexOf(type) >= 0) return normNotes(o, course);
   throw new Error('Type inconnu : utilise "quiz", "mindmap", "flashcards" ou "synthese".');
 }
 /* Les images collées en data URL sont rangées dans IndexedDB ; la fiche ne garde que leur identifiant. */
 async function materializeImages(item){
+  if(item.type==='notes'){ const ps = []; for(const p of item.payload.pages){ if(p && /^data:/.test(p)){ const id = uid('i'); await imgPut(id, p); ps.push(id); } else ps.push(p); } item.payload.pages = ps; return item; }
   if(item.type==='schema'){ const im = item.payload.image; if(im && /^data:/.test(im)){ const id = uid('i'); await imgPut(id, im); item.payload.image = id; } return item; }
   const list = item.type==='quiz' ? item.payload.questions : item.type==='flashcards' ? item.payload.cards : item.type==='synthese' ? [].concat.apply([], item.payload.sections.map(s=>s.items)) : [];
   const seen = {};
@@ -1132,6 +1153,7 @@ async function exportItem(it){
     return Object.assign(base, { sections });
   }
   if(it.type==='schema'){ const d = await imgGet(it.payload.image); return Object.assign(base, { image: d || '', labels: it.payload.labels }); }
+  if(it.type==='notes'){ const pages = []; for(const p of it.payload.pages){ pages.push(/^data:/.test(p) ? p : (await imgGet(p) || '')); } return Object.assign(base, { pages: pages.filter(Boolean) }); }
   return Object.assign(base, { root: it.payload.root });
 }
 function slug(s){ return String(s||'export').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'export'; }
@@ -1148,6 +1170,7 @@ function render(){
   else if(state.view==='stats') renderStats();
   else if(state.view==='ptable') renderPTable();
   else if(state.view==='schema') renderSchema();
+  else if(state.view==='notes') renderNotes();
   else if(state.view==='sedit') renderSchemaEdit();
   else if(state.view==='decoder') renderDecoder();
   else renderMapShell();
@@ -1158,7 +1181,7 @@ function goLibrary(){
   const fo = document.getElementById('legFull'); if(fo){ fo.remove(); document.body.style.overflow = ''; }
   if(state.cards) fcFlush(state.cards);
   stopExamTimer();
-  state.view = 'library'; state.quiz = null; state.map = null; state.cards = null; state.edit = null; state.synth = null; state.pt = null; state.schema = null; state.sedit = null; state.dec = null;
+  state.view = 'library'; state.quiz = null; state.map = null; state.cards = null; state.edit = null; state.synth = null; state.pt = null; state.schema = null; state.notes = null; notesCloseFull(); state.sedit = null; state.dec = null;
   render(); window.scrollTo(0,0);
 }
 function viewHeader(it, withEdit){
@@ -1235,13 +1258,14 @@ function refreshLibrary(){ if($('#results')){ renderResults(); renderToday(); up
 
 function renderResults(){
   const all = state.items;
-  const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length;
+  const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length, nNt = all.filter(i=>i.type==='notes').length;
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
-  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '');
+  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Notes',nNt) : '');
   const nb = notebookCount();
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
+    '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes notes</span></button>'+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
@@ -1305,28 +1329,28 @@ function folderMastery(items){
   return scored.length ? Math.round(scored.reduce((a,b)=>a+b,0)/scored.length) : null;
 }
 function cardHTML(it){
-  const isQ = it.type==='quiz', isF = it.type==='flashcards', isS = it.type==='synthese', isG = it.type==='schema';
+  const isQ = it.type==='quiz', isF = it.type==='flashcards', isS = it.type==='synthese', isG = it.type==='schema', isN = it.type==='notes';
   const n = (it.meta && it.meta.count) || (isQ ? it.payload.questions.length : isF ? it.payload.cards.length : isS ? it.payload.sections.length : 0);
   const pts = isS ? ((it.meta && it.meta.points) || it.payload.sections.reduce((s,x)=>s+x.items.length,0)) : 0;
-  const parts = [ isG ? plural(n,'légende') : isQ ? plural(n,'question') : isF ? plural(n,'carte') : isS ? plural(n,'section')+' · '+plural(pts,'point') : plural(n,'nœud') ];
+  const parts = [ isN ? plural(it.payload.pages.length,'page') : isG ? plural(n,'légende') : isQ ? plural(n,'question') : isF ? plural(n,'carte') : isS ? plural(n,'section')+' · '+plural(pts,'point') : plural(n,'nœud') ];
   if(isQ){
     if(it.stats && it.stats.attempts) parts.push('meilleur score '+it.stats.best+' %');
     const w = wrongQuestions(it).length; if(w) parts.push(w+' à retravailler');
   }
   if(isF && seenCount(it)){ const d = dueCount(it); parts.push(d ? d+' à revoir aujourd\'hui' : 'à jour'); }
   if(isG && it.stats && it.stats.attempts) parts.push('meilleur score '+it.stats.best+' %');
-  if(!isG && imageIds(it).length) parts.push('avec images');
+  if(!isG && !isN && imageIds(it).length) parts.push('avec images');
   const d = it.createdAt ? new Date(it.createdAt).toLocaleDateString('fr',{day:'numeric',month:'short'}) : '';
   const isSel = !!(state.sel && state.sel[it.id]);
   const foot = state.sel ? '<span>'+esc(d)+'</span>' : state.confirmId===it.id
     ? '<div class="confirm"><b>Supprimer ?</b><button class="btn sm" data-act="delete-yes" data-id="'+esc(it.id)+'">Oui</button><button class="btn sm ghost" data-act="delete-no">Non</button></div>'
     : '<span>'+esc(d)+'</span><span class="ca">'+
-        '<button class="icon-btn" data-act="edit" data-id="'+esc(it.id)+'" aria-label="Modifier '+esc(it.title)+'" title="Modifier">'+ICON.edit+'</button>'+
+        (isN ? '' : '<button class="icon-btn" data-act="edit" data-id="'+esc(it.id)+'" aria-label="Modifier '+esc(it.title)+'" title="Modifier">'+ICON.edit+'</button>')+
         '<button class="icon-btn" data-act="move" data-id="'+esc(it.id)+'" aria-label="Déplacer '+esc(it.title)+' vers un dossier" title="Déplacer vers un dossier">'+ICON.move+'</button>'+
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
   return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
-    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
+    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Mes notes':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
@@ -1650,6 +1674,7 @@ async function openItem(id){
   else if(it.type==='quiz') startQuiz(it);
   else if(it.type==='synthese') startSynth(it);
   else if(it.type==='schema') startSchema(it);
+  else if(it.type==='notes') startNotes(it);
   else startMap(it);
   window.scrollTo(0,0);
 }
@@ -2288,7 +2313,8 @@ async function submitSchemaNew(){
   state.sq = { data, base, course, pos:0, created:0 };
   await schQueueOpen();
 }
-function pickPdfPages(file){
+function pickPdfPages(file, opts){
+  opts = opts || {};
   return new Promise(async resolve=>{
     let pdf;
     try{
@@ -2296,10 +2322,10 @@ function pickPdfPages(file){
       pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
     }catch(err){ toast(err && err.name==='PasswordException' ? 'Ce PDF est protégé par un mot de passe.' : ((err && err.message) || 'PDF illisible.')); resolve([]); return; }
     const n = pdf.numPages;
-    state.pdfPick = { pdf, n, sel:{}, resolve, done:false, name:file.name };
+    state.pdfPick = { pdf, n, sel:{}, resolve, done:false, name:file.name, dim: opts.dim || 1400, max: opts.max || 40 };
     let cells = ''; for(let p=1;p<=n;p++) cells += '<label class="pgthumb"><input type="checkbox" data-pg="'+p+'"><span class="pgimg" id="pgi-'+p+'"></span><small>'+p+'</small></label>';
     openModal('Pages de « '+clip(file.name, 40)+' »',
-      '<p class="hint">Coche les pages à transformer en schémas ('+plural(n,'page')+', 40 maximum par fichier).</p>'+
+      '<p class="hint">Coche les pages à importer comme '+(opts.what || 'schémas')+' ('+plural(n,'page')+', '+(opts.max || 40)+' maximum par fichier).</p>'+
       '<div class="row" style="justify-content:flex-start;margin:6px 0"><button class="btn sm" data-act="pg-all">Tout cocher</button><button class="btn sm" data-act="pg-none">Tout décocher</button></div>'+
       '<div class="pggrid" id="pgGrid">'+cells+'</div><p class="hint" id="pgInfo">Aucune page cochée.</p>',
       'Importer les pages cochées', pdfPickSubmit);
@@ -2323,12 +2349,12 @@ function pdfPickAll(on){
 }
 async function pdfPickSubmit(){
   const pk = state.pdfPick; if(!pk) return;
-  const pages = Object.keys(pk.sel).filter(k=>pk.sel[k]).map(Number).sort((a,b)=>a-b).slice(0,40);
+  const pages = Object.keys(pk.sel).filter(k=>pk.sel[k]).map(Number).sort((a,b)=>a-b).slice(0, pk.max || 40);
   if(!pages.length){ modalError('Coche au moins une page.'); return; }
   pk.done = true; closeModal(); state.pdfPick = null;
   const out = [];
   try{
-    for(let i=0;i<pages.length;i++){ toast('Page '+(i+1)+' sur '+pages.length+'…'); out.push(await renderPdfPage(pk.pdf, pages[i], 1400, 0.85)); }
+    for(let i=0;i<pages.length;i++){ toast('Page '+(i+1)+' sur '+pages.length+'…'); out.push(await renderPdfPage(pk.pdf, pages[i], pk.dim || 1400, 0.85)); }
   }catch(err){ toast('Une page n\'a pas pu être lue.'); }
   pk.resolve(out);
 }
@@ -3250,6 +3276,127 @@ async function snPasteClipboard(){
 }
 loadExams();
 
+/* ================= v3.7 : notes manuscrites (Notes+, GoodNotes…) importées en pages ================= */
+const NOTES_MAXDIM = 1800;
+function recompressData(data, dim, q){
+  return new Promise(res=>{
+    const img = new Image(); img.onerror = ()=>res(data);
+    img.onload = ()=>{
+      const k = Math.min(1, dim / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth*k)); c.height = Math.max(1, Math.round(img.naturalHeight*k));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.src = data;
+  });
+}
+async function fitNotesPage(data){
+  let d = data, dim = NOTES_MAXDIM, q = 0.82;
+  for(let k = 0; k < 4 && d.length > 900000; k++){ dim = Math.round(dim * 0.85); q = Math.max(0.6, q - 0.06); d = await recompressData(d, dim, q); }
+  return d;
+}
+function normNotes(o, course){
+  const src = Array.isArray(o.pages) ? o.pages : (Array.isArray(o.images) ? o.images : []);
+  if(src.length > 120) throw new Error('Notes : 120 pages maximum.');
+  const pages = src.map(p=>cleanImg(typeof p === 'string' ? p : (p && p.image))).filter(Boolean);
+  if(!pages.length) throw new Error('Ces notes ne contiennent aucune page (images en data URL).');
+  return { type:'notes', title: clip(o.title||o.titre||'Notes sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
+}
+function openNotesNew(){
+  state.nnFiles = [];
+  const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
+  openModal('Importer mes notes manuscrites',
+    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras tes notes telles quelles, page par page, dans la bibliothèque.</p>'+
+    '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="Ex. Ma synthèse : l\'ostéologie" autocomplete="off">'+
+    '<label class="lbl" for="nnCourse">Dossier (facultatif)</label><input class="txt" id="nnCourse" list="folderList2" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList2">'+opts+'</datalist>'+
+    '<div style="margin-top:12px"><label class="btn sm" for="nnFiles">'+ICON.image+'<span>Choisir un PDF ou des images</span></label><input type="file" id="nnFiles" accept="image/*,application/pdf" multiple hidden> <span class="hint" id="nnName">Aucun fichier choisi</span></div>',
+    'Importer', submitNotesNew);
+}
+async function notesFilesToPages(files){
+  const data = [];
+  for(const f of files.filter(f=>!isPdfFile(f))){ toast('Image '+(data.length+1)+'…'); data.push(await fitNotesPage(await compressImage(f, NOTES_MAXDIM, 0.85))); }
+  for(const f of files.filter(isPdfFile)){
+    const pages = await pickPdfPages(f, { dim:NOTES_MAXDIM, what:'pages de notes', max:120 });
+    for(const d of pages) data.push(await fitNotesPage(d));
+  }
+  return data;
+}
+async function submitNotesNew(){
+  const title = ($('#nnTitle').value || '').trim(), course = ($('#nnCourse').value || '').trim();
+  const files = state.nnFiles || [];
+  if(!title){ modalError('Donne un titre à tes notes.'); return; }
+  if(!files.length){ modalError('Choisis un PDF ou au moins une image.'); return; }
+  const btn = $('#submitBtn'); if(btn) btn.disabled = true;
+  closeModal();
+  let data;
+  try{ data = await notesFilesToPages(files); }catch(err){ toast(err.message || 'Fichier illisible.'); return; }
+  if(!data.length){ toast('Aucune page à importer.'); return; }
+  if(data.length > 120){ data.length = 120; toast('120 pages au maximum par import.'); }
+  try{
+    const ids = []; for(const d of data){ const id = uid('i'); await imgPut(id, d); ids.push(id); }
+    const full = await addNewItem({ type:'notes', title, course, payload:{ pages:ids }, meta:{ count:ids.length } }, course);
+    toast(plural(ids.length,'page')+' importée'+(ids.length>1?'s':'')+'.');
+    refreshLibrary(); openItem(full.id);
+  }catch(err){ toast('Import impossible : ' + (err.message || 'erreur')); }
+}
+function startNotes(it){ state.view = 'notes'; state.notes = { item:it, pos:0, zoom:1, grid:false }; renderNotes(); }
+function renderNotes(){
+  const z = state.notes; if(!z) return; const it = z.item, pages = it.payload.pages, n = pages.length;
+  z.pos = Math.min(Math.max(0, z.pos), n - 1);
+  const data = state.imgCache[pages[z.pos]];
+  let h = '<header class="top slim"><button class="btn ghost sm" data-act="back">'+ICON.back+'<span>Bibliothèque</span></button><div class="top-actions"><span class="crumb">'+esc(it.course||'')+'</span></div></header>'+
+    '<main class="notes"><h2 class="view-title">'+esc(it.title)+'</h2>'+
+    '<div class="notes-bar"><button class="btn sm" data-act="nt-prev"'+(z.pos?'':' disabled')+' aria-label="Page précédente">‹ Précédente</button>'+
+    '<span class="notes-pos">Page '+(z.pos+1)+' sur '+n+'</span>'+
+    '<button class="btn sm" data-act="nt-next"'+(z.pos<n-1?'':' disabled')+' aria-label="Page suivante">Suivante ›</button>'+
+    '<span class="notes-zoom"><button class="btn sm" data-act="nt-zout" aria-label="Dézoomer">−</button><button class="btn sm" data-act="nt-zin" aria-label="Zoomer">＋</button></span>'+
+    '<button class="btn sm'+(z.grid?' on':'')+'" data-act="nt-grid">Toutes les pages</button></div>';
+  if(z.grid){
+    h += '<div class="notes-grid">'+pages.map((p,i)=>'<button class="notes-th'+(i===z.pos?' on':'')+'" data-act="nt-go" data-i="'+i+'">'+(state.imgCache[p] ? '<img src="'+state.imgCache[p]+'" alt="Page '+(i+1)+'">' : '')+'<small>'+(i+1)+'</small></button>').join('')+'</div>';
+  }else{
+    h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
+  }
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-add">＋ Ajouter des pages</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  $('#app').innerHTML = h;
+}
+async function notesAddPages(files){
+  const z = state.notes; if(!z) return;
+  let data; try{ data = await notesFilesToPages(Array.from(files)); }catch(err){ toast(err.message || 'Fichier illisible.'); return; }
+  if(!data.length){ toast('Aucune page ajoutée.'); return; }
+  const room = 120 - z.item.payload.pages.length; if(data.length > room){ data.length = Math.max(0, room); toast('120 pages au maximum.'); }
+  const ids = []; for(const d of data){ const id = uid('i'); await imgPut(id, d); ids.push(id); }
+  try{
+    await updateItem(z.item.id, it=>{ it.payload.pages = it.payload.pages.concat(ids); it.meta = { count: it.payload.pages.length }; return it; });
+    z.item = state.items.find(x=>x.id===z.item.id) || z.item; await preloadImages(ids);
+    toast(plural(ids.length,'page')+' ajoutée'+(ids.length>1?'s':'')+'.'); renderNotes();
+  }catch(e){ toast('Ajout impossible.'); }
+}
+function notesOpenFull(){
+  const z = state.notes; if(!z) return;
+  const ov = document.createElement('div'); ov.id = 'notesFull'; ov.className = 'notes-full';
+  const draw = ()=>{ const p = z.item.payload.pages[z.pos]; ov.innerHTML = '<div class="notes-full-bar"><b>'+esc(z.item.title)+'</b><span>Page '+(z.pos+1)+' sur '+z.item.payload.pages.length+'</span><span><button class="btn sm" data-act="nt-prev">‹</button><button class="btn sm" data-act="nt-next">›</button><button class="btn sm" data-act="nt-fclose">Fermer</button></span></div><div class="notes-full-body"><img src="'+(state.imgCache[p]||'')+'" alt=""></div>'; };
+  ov.dataset.draw = '1'; ov._draw = draw; draw(); document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+}
+function notesCloseFull(){ const o = document.getElementById('notesFull'); if(o) o.remove(); document.body.style.overflow = ''; }
+function notesGo(d, abs){
+  const z = state.notes; if(!z) return;
+  const n = z.item.payload.pages.length, np = abs ? d : z.pos + d;
+  if(np < 0 || np >= n) return; z.pos = np;
+  const o = document.getElementById('notesFull'); if(o && o._draw) o._draw(); else renderNotes();
+  if(!o) window.scrollTo(0, 0);
+}
+let notesTouchX = null;
+document.addEventListener('touchstart', e=>{ if(state.view==='notes' && !state.notes.grid && e.touches.length===1){ notesTouchX = e.touches[0].clientX; } else notesTouchX = null; }, { passive:true });
+document.addEventListener('touchend', e=>{
+  if(notesTouchX == null || state.view!=='notes') return;
+  const img = document.getElementById('notesImg'); const dx = (e.changedTouches[0].clientX) - notesTouchX; notesTouchX = null;
+  if(img && state.notes.zoom <= 1 && Math.abs(dx) > 90 && (window.visualViewport ? window.visualViewport.scale <= 1.02 : true)) notesGo(dx < 0 ? 1 : -1);
+}, { passive:true });
+document.addEventListener('keydown', e=>{
+  if(state.view!=='notes' || !state.notes) return; const tg = e.target && e.target.tagName; if(tg==='INPUT' || tg==='TEXTAREA' || document.querySelector('.modal')) return;
+  if(e.key==='ArrowRight'){ notesGo(1); } else if(e.key==='ArrowLeft'){ notesGo(-1); } else if(e.key==='Escape'){ notesCloseFull(); }
+});
+
 /* ---------- Réglage manuel : déplacer le bout des flèches ---------- */
 function schAdjustHandles(cont, img, z){
   $$('.leg-handle', cont).forEach(e=>e.remove());
@@ -4063,6 +4210,26 @@ document.addEventListener('click', async e=>{
     case 'ls-next': listenMove(1); break;
     case 'ls-prev': listenMove(-1); break;
     case 'ls-stop': stopListen(); break;
+    case 'notes-new': openNotesNew(); break;
+    case 'nt-prev': notesGo(-1); break;
+    case 'nt-next': notesGo(1); break;
+    case 'nt-go': { const z = state.notes; if(z){ z.grid = false; z.pos = i; renderNotes(); window.scrollTo(0,0); } break; }
+    case 'nt-grid': { const z = state.notes; if(z){ z.grid = !z.grid; renderNotes(); } break; }
+    case 'nt-zin': { const z = state.notes; if(z){ z.zoom = Math.min(3, Math.round((z.zoom + 0.25)*100)/100); renderNotes(); } break; }
+    case 'nt-zout': { const z = state.notes; if(z){ z.zoom = Math.max(0.5, Math.round((z.zoom - 0.25)*100)/100); renderNotes(); } break; }
+    case 'nt-full': notesOpenFull(); break;
+    case 'nt-fclose': notesCloseFull(); break;
+    case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
+    case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer mes notes', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
+    case 'nt-delpage': {
+      const z = state.notes; if(!z) break;
+      if(z.item.payload.pages.length < 2){ toast('C\'est la seule page : supprime plutôt les notes depuis la bibliothèque.'); break; }
+      openModal('Retirer la page '+(z.pos+1)+' ?', '<p>Cette page sera supprimée de tes notes.</p>', 'Retirer', async ()=>{
+        const pid = z.item.payload.pages[z.pos];
+        try{ await updateItem(z.item.id, it=>{ it.payload.pages.splice(z.pos, 1); it.meta = { count: it.payload.pages.length }; return it; }); imgDel(pid); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }
+        catch(e){ modalError('Suppression impossible.'); } });
+      break;
+    }
     case 'delete-ask': state.confirmId = id; renderResults(); break;
     case 'delete-no': state.confirmId = null; renderResults(); break;
     case 'delete-yes':
@@ -4207,6 +4374,8 @@ document.addEventListener('change', e=>{
   if(t.dataset && t.dataset.mockfolder !== undefined && state.mock){ state.mock.sel[t.dataset.mockfolder] = t.checked; return; }
   if((t.id==='legAddSel' || t.id==='legAddSelF') && state.schema){ state.schema.addSel = +t.value; return; }
   if((t.id==='legHide' || t.id==='legHideF') && state.schema){ state.schema.hide = t.checked; state.schema.rev = {}; schLegendLayout(); return; }
+  if(t.id==='nnFiles'){ state.nnFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#nnName'); if(nm) nm.textContent = state.nnFiles.length ? plural(state.nnFiles.length,'fichier')+' : '+clip(state.nnFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
+  if(t.id==='ntAddFiles'){ const fl = Array.from(t.files||[]); t.value = ''; if(fl.length) notesAddPages(fl); return; }
   if(t.id==='snFiles'){ state.snFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#snName'); if(nm) nm.textContent = state.snFiles.length ? plural(state.snFiles.length,'fichier')+' : '+clip(state.snFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
   if(t.dataset && t.dataset.pg && state.pdfPick){ state.pdfPick.sel[t.dataset.pg] = t.checked; pdfPickUpdate(); return; }
   if(t.id==='ptTest' && state.pt){ state.pt.test = t.checked; state.pt.reveal = false; renderPTable(); return; }
