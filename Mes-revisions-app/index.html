@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.9.0">
+<meta name="app-version" content="3.9.4">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -533,6 +533,27 @@ main.quiz.wide{max-width:980px}
 .notes-full-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;color:#fff;flex:none}
 .notes-full-body{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:6px}
 .notes-full-body img{max-width:100%;max-height:100%;background:#fff;border-radius:6px;touch-action:pinch-zoom pan-x pan-y}
+#tools .btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mtabs{display:flex;gap:6px;margin:2px 0 16px;border-bottom:1.5px solid var(--line)}
+.mtab{border:0;background:none;padding:11px 18px;font-weight:600;font-size:15.5px;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1.5px;cursor:pointer}
+.mtab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.nh-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:6px 0 18px}
+.nh-head h2{margin:0 0 4px}.nh-head .hint{margin:0;max-width:60ch}
+.notes-thwrap{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.notes-thctl{display:flex;justify-content:center;gap:4px}
+.notes-thctl .btn{min-height:34px;padding:2px 10px}
+.mtab.mhome{margin-left:auto}
+.home{max-width:820px;margin:8vh auto 0;text-align:center}
+.home-title{font-size:26px;margin:0 0 22px}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.home-card{height:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 20px;border:2px solid var(--line);border-radius:18px;background:var(--surface);text-align:center;cursor:pointer;min-height:230px;justify-content:center;transition:border-color .12s,transform .12s}
+.home-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.home-card b{font-size:21px}
+.home-card .home-sub{color:var(--muted);font-size:14.5px;max-width:30ch}
+.home-card small{color:var(--accent);font-weight:600;font-size:13.5px;margin-top:4px}
+.home-ico{width:54px;height:54px;border-radius:16px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.home-ico svg{width:28px;height:28px}
+@media (max-width:640px){.home{margin-top:3vh}.home-grid{grid-template-columns:1fr}.home-card{min-height:170px;padding:22px 16px}}
 /* ---- v3.9 : écrire sur les pages ---- */
 .ne{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .ne-top,.ne-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);flex:none;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
@@ -664,7 +685,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.9.0';
+const APP_VERSION = '3.9.4';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1212,7 +1233,7 @@ function goLibrary(){
   const fo = document.getElementById('legFull'); if(fo){ fo.remove(); document.body.style.overflow = ''; }
   if(state.cards) fcFlush(state.cards);
   stopExamTimer();
-  state.view = 'library'; state.quiz = null; state.map = null; state.cards = null; state.edit = null; state.synth = null; state.pt = null; state.schema = null; state.notes = null; notesCloseFull(); state.sedit = null; state.dec = null;
+  state.home = false; state.view = 'library'; state.quiz = null; state.map = null; state.cards = null; state.edit = null; state.synth = null; state.pt = null; state.schema = null; state.notes = null; notesCloseFull(); state.sedit = null; state.dec = null;
   render(); window.scrollTo(0,0);
 }
 function viewHeader(it, withEdit){
@@ -1234,9 +1255,10 @@ function dueCount(it){
 function seenCount(it){ const pr = it.progress || {}; return it.payload.cards.filter(c=>pr[cardKey(c)]).length; }
 
 function renderLibrary(){
+  if(state.home !== false){ renderHome(); return; }
   $('#app').innerHTML =
   '<header class="top">'+
-    '<div class="brand"><div class="logo" aria-hidden="true">'+MARK(22)+'</div><div><h1>Mes révisions</h1><p class="sub" id="persist"></p></div></div>'+
+    '<div class="brand" data-act="home" role="button" tabindex="0" title="Accueil" style="cursor:pointer"><div class="logo" aria-hidden="true">'+MARK(22)+'</div><div><h1>Mes révisions</h1><p class="sub" id="persist"></p></div></div>'+
     '<div class="top-actions">'+
       '<button class="icon-btn" data-act="theme" aria-label="'+esc(themeLabel())+'" title="'+esc(themeLabel())+'">'+ICON.theme+'</button>'+
         (state.user ? '<button class="icon-btn" data-act="account" aria-label="Mon compte" title="Mon compte">'+ICON.user+'</button>' : (state.cloudCfg ? '<button class="btn ghost sm" data-act="fb-login">'+ICON.user+'<span>Se connecter</span></button>' : '<button class="icon-btn" data-act="fb-setup" aria-label="Synchroniser mes appareils" title="Synchroniser mes appareils">'+ICON.cloud+'</button>'))+
@@ -1247,13 +1269,16 @@ function renderLibrary(){
       '<button class="btn primary" data-act="add">'+ICON.plus+'<span>Ajouter</span></button>'+
     '</div>'+
   '</header>'+
+  tabsHTML()+
+  (curTab() === 'notes' ? '<div id="notesHome">'+notesHomeHTML()+'</div>' :
   '<div id="today"></div>'+
   '<section class="toolbar"><div class="chips" id="chips"></div>'+
     '<input id="search" class="search" type="search" placeholder="Rechercher un titre, un dossier ou un contenu" aria-label="Rechercher" value="'+esc(state.q)+'"></section>'+
   '<section class="tools" id="tools"></section>'+
-  '<div id="results"></div>'+
+  '<div id="results"></div>')+
   '<p class="foot">Version '+APP_VERSION+'</p>';
   updatePersistLabel();
+  if(curTab() === 'notes') return;
   renderToday();
   renderResults();
   maybeAutoBackup();
@@ -1290,16 +1315,18 @@ function refreshLibrary(){
   if(state.fold && state.fold!=='__none__' && !folderNames().some(n=>n===state.fold)) state.fold = ''; if($('#results')){ renderResults(); renderToday(); updatePersistLabel(); } else renderLibrary(); }
 
 function renderResults(){
-  const all = state.items;
+  if(state.bodyView === undefined){ try{ state.bodyView = localStorage.getItem('revisions:bodyview') === '1'; }catch(e){ state.bodyView = false; } }
+  const all = state.items.filter(i=>!isCours(i));
   const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length, nNt = all.filter(i=>i.type==='notes').length;
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
-  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Notes',nNt) : '')+folderSelHTML();
+  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Manuscrit',nNt) : '')+folderSelHTML();
   const nb = notebookCount();
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
     '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes synthèses</span></button>'+
-    '<button class="btn sm" data-act="body-sort">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
+    '<button class="btn sm'+(state.bodyView ? ' on' : '')+'" data-act="body-sort" aria-pressed="'+(state.bodyView ? 'true' : 'false')+'">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
+    (bodyMovedCount() ? '<button class="btn sm" data-act="body-undo">'+ICON.folder+'<span>Annuler le classement</span></button>' : '')+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
@@ -1318,19 +1345,20 @@ function renderResults(){
     return;
   }
   const q = state.q.trim().toLowerCase(), filtered = state.filter !== 'all' || !!q || !!state.fold;
-  const foldOk = i => !state.fold || (i.course||'') === (state.fold==='__none__' ? '' : state.fold);
+  const courseOf = i => state.bodyView ? (bodyGroupFor(i) || (i.course||'')) : (i.course||'');
+  const foldOk = i => !state.fold || courseOf(i) === (state.fold==='__none__' ? '' : state.fold);
   const list = all.filter(i => (state.filter==='all' || i.type===state.filter) && foldOk(i) && (!q || searchMatches(i, q)))
                   .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const groups = new Map();
-  list.forEach(i=>{ const k = i.course || ''; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(i); });
-  if(!filtered) folderNames().forEach(n=>{ if(!groups.has(n)) groups.set(n,[]); });
+  list.forEach(i=>{ const k = courseOf(i); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(i); });
+  if(!filtered && !state.bodyView) folderNames().forEach(n=>{ if(!groups.has(n)) groups.set(n,[]); });
   if(!groups.size){ box.innerHTML = '<p class="none">Aucun résultat.</p>'; return; }
   const keys = Array.from(groups.keys()).sort((a,b)=> a===''?1 : b===''?-1 : a.localeCompare(b,'fr'));
   box.innerHTML = keys.map(k => {
     const g = groups.get(k);
     const m = folderMastery(g);
-    const selBtn = state.sel && g.length ? '<button class="btn sm ghost" data-act="sel-folder" data-name="'+esc(k)+'">Tout le dossier</button>' : '';
-    const tools = k ? '<span class="gt-actions"><button class="icon-btn" data-act="folder-rename" data-name="'+esc(k)+'" aria-label="Renommer le dossier '+esc(k)+'">'+ICON.edit+'</button>'+
+    const selBtn = state.sel && g.length && !state.bodyView ? '<button class="btn sm ghost" data-act="sel-folder" data-name="'+esc(k)+'">Tout le dossier</button>' : '';
+    const tools = k && !state.bodyView ? '<span class="gt-actions"><button class="icon-btn" data-act="folder-rename" data-name="'+esc(k)+'" aria-label="Renommer le dossier '+esc(k)+'">'+ICON.edit+'</button>'+
       '<button class="icon-btn" data-act="folder-delete" data-name="'+esc(k)+'" aria-label="Supprimer le dossier '+esc(k)+'">'+ICON.trash+'</button></span>' : '';
     return '<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+g.length+'</span>'+selBtn+
       (m!=null ? '<span class="mastery">Maîtrise : <b>'+m+' %</b></span>' : '')+tools+'</h2>'+
@@ -1385,7 +1413,7 @@ function cardHTML(it){
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
   return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
-    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Synthèse manuscrite':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
+    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Manuscrit':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
@@ -3360,12 +3388,13 @@ function normNotes(o, course){
   if(!pages.length) throw new Error('Cette synthèse ne contient aucune page (images en data URL).');
   return { type:'notes', title: clip(o.title||o.titre||'Synthèse sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
 }
-function openNotesNew(){
-  state.nnFiles = [];
+function openNotesNew(kind){
+  state.nnFiles = []; state.nnKind = kind || '';
   const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
-  openModal('Importer mes synthèses manuscrites',
-    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthèse telle quelle, page par page, dans la bibliothèque.</p>'+
-    '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="Ex. Ma synthèse : l\'ostéologie" autocomplete="off">'+
+  const cours = state.nnKind === 'cours';
+  openModal(cours ? 'Importer un cours' : 'Importer mes synthèses manuscrites',
+    '<p class="hint">'+(cours ? 'Choisis le PDF de ton cours (ou des images). Chaque page devient une page sur laquelle tu pourras écrire, et tu pourras en ajouter d\'autres plus tard.' : 'Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthèse telle quelle, page par page, dans la bibliothèque.')+'</p>'+
+    '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="'+(cours ? 'Ex. Chimie : chapitre 3' : 'Ex. Ma synthèse : l\'ostéologie')+'" autocomplete="off">'+
     '<label class="lbl" for="nnCourse">Dossier (facultatif)</label><input class="txt" id="nnCourse" list="folderList2" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList2">'+opts+'</datalist>'+
     '<div style="margin-top:12px"><label class="btn sm" for="nnFiles">'+ICON.image+'<span>Choisir un PDF ou des images</span></label><input type="file" id="nnFiles" accept="image/*,application/pdf" multiple hidden> <span class="hint" id="nnName">Aucun fichier choisi</span></div>',
     'Importer', submitNotesNew);
@@ -3392,9 +3421,11 @@ async function submitNotesNew(){
   if(data.length > 120){ data.length = 120; toast('120 pages au maximum par import.'); }
   try{
     const ids = []; for(const d of data){ const id = uid('i'); await imgPut(id, d); ids.push(id); }
-    const full = await addNewItem({ type:'notes', title, course, payload:{ pages:ids }, meta:{ count:ids.length } }, course);
+    const cours = state.nnKind === 'cours'; const item = { type:'notes', title, course, payload:{ pages:ids }, meta:{ count:ids.length } }; if(cours) item.kind = 'cours';
+    const full = await addNewItem(item, course);
     toast(plural(ids.length,'page')+' importée'+(ids.length>1?'s':'')+'.');
-    refreshLibrary(); openItem(full.id);
+    if(cours && curTab() !== 'notes') setTab('notes'); else refreshLibrary();
+    await openItem(full.id); if(cours) inkOpen();
   }catch(err){ toast('Import impossible : ' + (err.message || 'erreur')); }
 }
 function startNotes(it){ state.view = 'notes'; state.notes = { item:it, pos:0, zoom:1, grid:false }; renderNotes(); }
@@ -3410,11 +3441,11 @@ function renderNotes(){
     '<span class="notes-zoom"><button class="btn sm" data-act="nt-zout" aria-label="Dézoomer">−</button><button class="btn sm" data-act="nt-zin" aria-label="Zoomer">＋</button></span>'+
     '<button class="btn sm'+(z.grid?' on':'')+'" data-act="nt-grid">Toutes les pages</button></div>';
   if(z.grid){
-    h += '<div class="notes-grid">'+pages.map((p,i)=>'<button class="notes-th'+(i===z.pos?' on':'')+'" data-act="nt-go" data-i="'+i+'">'+(state.imgCache[p] ? '<img src="'+state.imgCache[p]+'" alt="Page '+(i+1)+'">' : '')+'<small>'+(i+1)+'</small></button>').join('')+'</div>';
+    h += '<div class="notes-grid">'+pages.map((p,i)=>'<div class="notes-thwrap"><button class="notes-th'+(i===z.pos?' on':'')+'" data-act="nt-go" data-i="'+i+'">'+(state.imgCache[p] ? '<img src="'+state.imgCache[p]+'" alt="Page '+(i+1)+'">' : '')+'<small>'+(i+1)+(((z.item.payload.ink||{})[p]) ? ' ✎' : '')+'</small></button><div class="notes-thctl"><button class="btn sm" data-act="nt-mv" data-i="'+i+'" data-d="-1" aria-label="Déplacer la page '+(i+1)+' avant"'+(i ? '' : ' disabled')+'>‹</button><button class="btn sm" data-act="nt-mv" data-i="'+i+'" data-d="1" aria-label="Déplacer la page '+(i+1)+' après"'+(i < n-1 ? '' : ' disabled')+'>›</button><button class="btn sm ghost" data-act="nt-rm" data-i="'+i+'" aria-label="Supprimer la page '+(i+1)+'">✕</button></div></div>').join('')+'</div>';
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-add">＋ Ajouter des pages</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3464,7 +3495,7 @@ const INK_TOOLS = ['hand','pen','pencil','marker','hl','eraser','select','shape'
 const INK_W = 1000;
 let ink = null;
 function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink') || '{}') || {}; }catch(e){ return {}; } }
-function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, finger:z.finger, recent:z.recent })); }catch(e){} }
+function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, finger:z.finger, smooth:z.smooth, snap:z.snap, recent:z.recent })); }catch(e){} }
 function inkKey(t){ return t==='hand' || t==='select' ? null : t; }
 function inkPageKey(z){ return z.item.payload.pages[z.pos]; }
 
@@ -3472,13 +3503,13 @@ async function inkOpen(){
   const zn = state.notes; if(!zn || document.getElementById('ne')) return;
   const pr = inkLoadPrefs(), tc = {};
   Object.keys(INK_DEF).forEach(k=>{ tc[k] = Object.assign({}, INK_DEF[k], (pr.tc || {})[k] || {}); });
-  ink = { item:zn.item, pos:zn.pos, tool: INK_TOOLS.indexOf(pr.tool) >= 0 ? pr.tool : 'pen', shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', finger: !!pr.finger, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
+  ink = { item:zn.item, pos:zn.pos, tool: INK_TOOLS.indexOf(pr.tool) >= 0 ? pr.tool : 'pen', shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', finger: !!pr.finger, smooth: pr.smooth !== false, snap: pr.snap !== false, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
     objs:[], undo:[], redo:[], sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, H:1414, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, dirty:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false };
   const ov = document.createElement('div'); ov.id = 'ne'; ov.className = 'ne';
   ov.innerHTML =
     '<div class="ne-top"><button class="btn sm" data-ne="close">‹ Fermer</button><b class="ne-title">'+esc(ink.item.title)+'</b>'+
     '<button class="btn sm" data-ne="prev" aria-label="Page précédente">‹</button><span class="ne-pos" id="nePos"></span><button class="btn sm" data-ne="next" aria-label="Page suivante">›</button>'+
-    '<button class="btn sm" data-ne="blank">＋ Page blanche</button>'+
+    '<button class="btn sm" data-ne="blank">＋ Page blanche</button><button class="btn sm" data-ne="addfiles">＋ PDF / images</button><input type="file" id="neFiles" accept="image/*,application/pdf" multiple hidden><button class="btn sm" data-ne="rmpage">Supprimer la page</button>'+
     '<button class="btn sm" data-ne="undo" id="neUndo" aria-label="Annuler">↶</button><button class="btn sm" data-ne="redo" id="neRedo" aria-label="Rétablir">↷</button>'+
     '<button class="btn sm" data-ne="zout" aria-label="Dézoomer">−</button><span class="ne-zoom" id="neZoom">100 %</span><button class="btn sm" data-ne="zin" aria-label="Zoomer">＋</button>'+
     '<button class="btn sm" data-ne="fitw">Largeur</button><button class="btn sm" data-ne="fitp">Page entière</button><span class="ne-save" id="neSave"></span></div>'+
@@ -3488,6 +3519,7 @@ async function inkOpen(){
     '<div class="ne-bar">'+
       [['hand','Main'],['pen','Stylo'],['pencil','Crayon'],['marker','Marqueur'],['hl','Fluo'],['eraser','Gomme'],['select','Sélection'],['shape','Formes'],['text','Texte']].map(t=>'<button class="btn sm" data-tool="'+t[0]+'">'+t[1]+'</button>').join('')+
       '<button class="btn sm" data-ne="dict" id="neDict">Dicter</button>'+
+      '<button class="btn sm" data-ne="smooth" id="neSmooth">Lisser</button><button class="btn sm" data-ne="snap" id="neSnap">Formes auto</button>'+
       '<span class="ne-sub" id="neShapes"><button class="btn sm" data-shape="r">▭</button><button class="btn sm" data-shape="o">◯</button><button class="btn sm" data-shape="l">╱</button><button class="btn sm" data-shape="a">➚</button></span>'+
       '<button class="btn sm" data-ne="selall" id="neSelAll">Tout sélectionner</button>'+
       '<button class="ne-sw" id="neSw" data-ne="pal" aria-label="Couleur"></button>'+
@@ -3499,6 +3531,7 @@ async function inkOpen(){
   z.cv = { hl:ov.querySelector('#neHl'), ink:ov.querySelector('#neInk'), live:ov.querySelector('#neLive') };
   z.ctx = { hl:z.cv.hl.getContext('2d'), ink:z.cv.ink.getContext('2d'), live:z.cv.live.getContext('2d') };
   ov.addEventListener('click', inkClick);
+  ov.querySelector('#neFiles').addEventListener('change', e=>{ const f = Array.from(e.target.files || []); e.target.value = ''; if(f.length) inkAddFiles(f); });
   const st = z.stage;
   st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp);
   st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
@@ -3708,7 +3741,7 @@ function inkLiveStyle(t){
 function inkToolDown(e){
   const z = ink, q = inkPt(e), t = z.tool;
   if(t === 'pen' || t === 'pencil' || t === 'marker' || t === 'hl'){
-    z.act = { id:e.pointerId, kind:'stroke', pts:[q.x, q.y], last:[q.x, q.y] };
+    z.act = { id:e.pointerId, kind:'stroke', pts:[q.x, q.y], last:[q.x, q.y], fx:q.x, fy:q.y, hp:[q.x, q.y], snapped:null };
     inkOverlay(); inkLiveStyle(t);
     const g = z.ctx.live, tc = z.tc[t]; g.setTransform(1,0,0,1,0,0); inkSetT(g); g.fillStyle = tc.c; g.beginPath(); g.arc(q.x, q.y, tc.w/2, 0, Math.PI*2); g.fill();
   }else if(t === 'eraser'){
@@ -3724,8 +3757,14 @@ function inkToolDown(e){
 function inkToolMove(e){
   const z = ink, a = z.act; if(!a) return; const q = inkPt(e);
   if(a.kind === 'stroke'){
-    const dx = q.x - a.last[0], dy = q.y - a.last[1]; if(dx*dx + dy*dy < Math.pow(1.1 / z.s, 2)) return;
-    a.pts.push(q.x, q.y); a.last = [q.x, q.y]; const p = a.pts, n = p.length / 2, g = z.ctx.live, tc = z.tc[z.tool];
+    if(a.snapped){
+      const sn = a.snapped; if(sn.k === 's'){ sn.p[2] = Math.round(q.x*10); sn.p[3] = Math.round(q.y*10); inkSnapPreview(a); } return;
+    }
+    if(z.snap && Math.hypot(q.x - a.hp[0], q.y - a.hp[1]) * z.s > 4){ a.hp = [q.x, q.y]; clearTimeout(a.holdT); a.holdT = setTimeout(inkSnap, 550); }
+    let px = q.x, py = q.y; a.raw = [q.x, q.y];
+    if(z.smooth && z.tool !== 'hl'){ a.fx += (q.x - a.fx) * 0.45; a.fy += (q.y - a.fy) * 0.45; px = a.fx; py = a.fy; }
+    const dx = px - a.last[0], dy = py - a.last[1]; if(dx*dx + dy*dy < Math.pow(1.1 / z.s, 2)) return;
+    a.pts.push(px, py); a.last = [px, py]; const p = a.pts, n = p.length / 2, g = z.ctx.live, tc = z.tc[z.tool];
     g.strokeStyle = tc.c; g.lineWidth = tc.w; g.lineCap = z.tool === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round'; g.beginPath();
     if(n === 2){ g.moveTo(p[0], p[1]); g.lineTo((p[0]+p[2])/2, (p[1]+p[3])/2); }
     else{ g.moveTo((p[2*n-6]+p[2*n-4])/2, (p[2*n-5]+p[2*n-3])/2); g.quadraticCurveTo(p[2*n-4], p[2*n-3], (p[2*n-4]+p[2*n-2])/2, (p[2*n-3]+p[2*n-1])/2); }
@@ -3741,6 +3780,9 @@ function inkToolMove(e){
 function inkToolUp(e){
   const z = ink, a = z.act; if(!a) return; z.act = null;
   if(a.kind === 'stroke'){
+    clearTimeout(a.holdT);
+    if(a.snapped){ inkCommit(z.objs.concat(a.snapped)); return; }
+    if(a.raw && z.smooth && z.tool !== 'hl' && a.pts.length >= 4) a.pts.push(a.raw[0], a.raw[1]);
     const tc = z.tc[z.tool], p = a.pts.length < 4 ? [a.pts[0], a.pts[1], a.pts[0], a.pts[1]] : a.pts;
     inkCommit(z.objs.concat({ k:'s', tool:z.tool, c:tc.c, w:tc.w, p:p.map(v=>Math.round(v*10)) }));
   }else if(a.kind === 'erase'){ if(a.changed){ z.undo.push(a.before); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } inkRender(); inkUpdateUI(); }
@@ -3763,7 +3805,7 @@ function inkToolUp(e){
     inkRender(); inkUpdateUI();
   }
 }
-function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; z.act = null; if(a.kind === 'move' || a.kind === 'erase') z.objs = a.kind === 'move' ? a.base : a.before; inkRender(); }
+function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; clearTimeout(a.holdT); z.act = null; if(a.kind === 'move' || a.kind === 'erase') z.objs = a.kind === 'move' ? a.base : a.before; inkRender(); }
 function inkErase(x, y){
   const z = ink, a = z.act, r = z.tc.eraser.w / z.s; const keep = z.objs.filter(o=>!inkHit(o, x, y, r));
   if(keep.length !== z.objs.length){ z.objs = keep; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
@@ -3823,6 +3865,38 @@ function inkDictStop(noFocus){
   inkUpdateUI(); if(!noFocus && d.ta.isConnected) d.ta.focus();
 }
 
+/* ---------- formes automatiques : garder le stylo posé redresse le trait ---------- */
+function inkSnapPreview(a){
+  const z = ink; inkOverlay(); inkLiveStyle(z.tool); const g = z.ctx.live; inkSetT(g); inkDrawObj(g, a.snapped);
+}
+function inkSnap(){
+  const z = ink; if(!z || !z.act || z.act.kind !== 'stroke' || z.act.snapped || !z.snap) return;
+  const a = z.act, p = a.pts; if(p.length < 8) return;
+  const tc = z.tc[z.tool], n = p.length / 2; let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+  for(let i = 0; i < p.length; i += 2){ mnx = Math.min(mnx, p[i]); mxx = Math.max(mxx, p[i]); mny = Math.min(mny, p[i+1]); mxy = Math.max(mxy, p[i+1]); }
+  const diag = Math.hypot(mxx - mnx, mxy - mny); if(diag < 12) return;
+  const x0 = p[0], y0 = p[1], xe = p[p.length-2], ye = p[p.length-1], chord = Math.hypot(xe - x0, ye - y0);
+  const base = { tool:z.tool, c:tc.c, w:tc.w }; let obj = null;
+  if(chord > diag * 0.85){
+    let dev = 0; for(let i = 0; i < p.length; i += 2) dev = Math.max(dev, inkSeg(p[i], p[i+1], x0, y0, xe, ye));
+    if(dev < chord * 0.07) obj = Object.assign({ k:'s', p:[x0, y0, xe, ye].map(v=>Math.round(v*10)) }, base);
+  }else if(chord < diag * 0.4){
+    const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2, ra = (mxx - mnx) / 2, rb = (mxy - mny) / 2;
+    if(ra > 4 && rb > 4){
+      let e = 0, r = 0; const cn = [Infinity, Infinity, Infinity, Infinity]; for(let i = 0; i < p.length; i += 2){
+        cn[0] = Math.min(cn[0], Math.hypot(p[i] - mnx, p[i+1] - mny)); cn[1] = Math.min(cn[1], Math.hypot(p[i] - mxx, p[i+1] - mny)); cn[2] = Math.min(cn[2], Math.hypot(p[i] - mnx, p[i+1] - mxy)); cn[3] = Math.min(cn[3], Math.hypot(p[i] - mxx, p[i+1] - mxy));
+        e += Math.abs(Math.hypot((p[i] - cx) / ra, (p[i+1] - cy) / rb) - 1);
+        r += Math.min(Math.abs(p[i] - mnx), Math.abs(p[i] - mxx), Math.abs(p[i+1] - mny), Math.abs(p[i+1] - mxy));
+      }
+      e /= n; r = r / n / (Math.min(ra, rb) * 2);
+      const box = [mnx, mny, mxx, mxy].map(v=>Math.round(v*10));
+      const corners = Math.max(cn[0], cn[1], cn[2], cn[3]) < Math.min(ra, rb) * 2 * 0.14;
+      if(r < 0.07 && corners) obj = Object.assign({ k:'r', p:box }, base); else if(e < 0.1) obj = Object.assign({ k:'o', p:box }, base);
+    }
+  }
+  if(!obj) return; a.snapped = obj; inkSnapPreview(a);
+}
+
 /* ---------- barre d'outils ---------- */
 function inkClick(e){
   const z = ink; if(!z) return;
@@ -3836,6 +3910,8 @@ function inkClick(e){
   else if(a === 'prev') inkGo(-1);
   else if(a === 'next') inkGo(1);
   else if(a === 'blank') inkBlank();
+  else if(a === 'addfiles'){ const fi = document.getElementById('neFiles'); if(fi) fi.click(); }
+  else if(a === 'rmpage') inkRemovePage();
   else if(a === 'undo') inkUndo();
   else if(a === 'redo') inkRedo();
   else if(a === 'zin') inkZoomAt(z.sw/2, z.sh/2, 1.25, true);
@@ -3845,6 +3921,8 @@ function inkClick(e){
   else if(a === 'finger'){ z.finger = !z.finger; inkUpdateUI(); inkSavePrefs(); }
   else if(a === 'pal') inkTogglePalette();
   else if(a === 'dict') inkDictate();
+  else if(a === 'smooth'){ z.smooth = !z.smooth; inkUpdateUI(); inkSavePrefs(); }
+  else if(a === 'snap'){ z.snap = !z.snap; inkUpdateUI(); inkSavePrefs(); }
   else if(a === 'del') inkDeleteSel();
   else if(a === 'dup') inkDupSel();
   else if(a === 'recolor') inkRecolor();
@@ -3891,6 +3969,7 @@ function inkUpdateUI(){
   else{ w.style.display = 'none'; wv.style.display = 'none'; }
   w.oninput = ()=>{ const kk = inkKey(z.tool); if(kk){ z.tc[kk].w = Number(w.value); wv.textContent = w.value; inkSavePrefs(); } };
   el.querySelector('#neFinger').classList.toggle('on', z.finger);
+  el.querySelector('#neSmooth').classList.toggle('on', z.smooth); el.querySelector('#neSnap').classList.toggle('on', z.snap);
   const dk = el.querySelector('#neDict'); dk.classList.toggle('on', !!z.dict); dk.textContent = z.dict ? 'Arrêter la dictée' : 'Dicter';
   el.querySelector('#neSelbar').hidden = !z.sel.length;
   el.querySelector('#neUndo').disabled = !z.undo.length; el.querySelector('#neRedo').disabled = !z.redo.length;
@@ -3930,6 +4009,29 @@ async function inkGo(d){
   const z = ink; if(!z) return; const np = z.pos + d; if(np < 0 || np >= z.item.payload.pages.length) return;
   inkCloseActs(); await inkSave(); z.pos = np; if(state.notes) state.notes.pos = np; await inkLoadPage(true);
 }
+async function inkAddFiles(files){
+  const z = ink; if(!z) return; await inkSave();
+  let data; try{ data = await notesFilesToPages(files); }catch(err){ toast(err.message || 'Fichier illisible.'); return; }
+  const room = 120 - z.item.payload.pages.length; if(!data.length){ toast('Aucune page ajoutée.'); return; }
+  if(data.length > room){ data.length = Math.max(0, room); toast('120 pages au maximum.'); } if(!data.length) return;
+  const ids = []; for(const d of data){ const id = uid('i'); await imgPut(id, d); ids.push(id); }
+  const at = z.pos + 1;
+  try{
+    const saved = await updateItem(z.item.id, it=>{ it.payload.pages.splice.apply(it.payload.pages, [at, 0].concat(ids)); it.meta = { count:it.payload.pages.length }; return it; });
+    z.item = saved; if(state.notes){ state.notes.item = saved; state.notes.pos = at; }
+    z.pos = at; toast(plural(ids.length,'page')+' ajoutée'+(ids.length>1?'s':'')+' après la page '+at+'.'); await inkLoadPage(true);
+  }catch(e){ toast('Ajout impossible.'); }
+}
+async function inkRemovePage(){
+  const z = ink; if(!z) return;
+  if(z.item.payload.pages.length < 2){ toast('C\'est la seule page.'); return; }
+  if(!window.confirm('Supprimer la page ' + (z.pos + 1) + ' et ce que tu y as écrit ?')) return;
+  inkCloseActs(); z.dirty = false; clearTimeout(z.st); await z.saving;
+  try{
+    if(state.notes){ state.notes.item = z.item; state.notes.pos = z.pos; }
+    await notesRemoveAt(z.pos); z.item = state.notes.item; z.pos = state.notes.pos; await inkLoadPage(true);
+  }catch(e){ toast('Suppression impossible.'); }
+}
 async function inkBlank(){
   const z = ink; if(!z) return; await inkSave();
   const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
@@ -3962,6 +4064,134 @@ const BODY_RULES = [
   ['Tissu osseux', /osteon|ossification|os long|os court|os plat|foetus|os compact/]
 ];
 function plainTxt(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/œ/g,'oe'); }
+/* ================= v3.9.3 : onglet « Prendre des notes » ================= */
+function isCours(i){ return !!(i && i.type === 'notes' && i.kind === 'cours'); }
+function curTab(){ if(state.tab === undefined){ try{ state.tab = localStorage.getItem('revisions:tab') === 'notes' ? 'notes' : 'rev'; }catch(e){ state.tab = 'rev'; } } return state.tab; }
+function setTab(t){ state.tab = t === 'notes' ? 'notes' : 'rev'; try{ localStorage.setItem('revisions:tab', state.tab); }catch(e){} renderLibrary(); window.scrollTo(0, 0); }
+function tabsHTML(){
+  const t = curTab(), b = (k, label)=>'<button class="mtab'+(t === k ? ' on' : '')+'" role="tab" aria-selected="'+(t === k)+'" data-act="main-tab" data-t="'+k+'">'+label+'</button>';
+  return '<nav class="mtabs" role="tablist">'+b('rev','Mes révisions')+b('notes','Prendre des notes')+'<button class="mtab mhome" data-act="home">⌂ Accueil</button></nav>';
+}
+function noteCardHTML(it){
+  const d = it.createdAt ? new Date(it.createdAt).toLocaleDateString('fr',{day:'numeric',month:'short'}) : '';
+  const nInk = Object.keys((it.payload && it.payload.ink) || {}).length;
+  return '<article class="card"><button class="card-main" data-act="open" data-id="'+esc(it.id)+'"><span class="badge notes">Cours</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(plural(it.payload.pages.length,'page')+(nInk ? ' · '+plural(nInk,'page annotée') : ''))+'</p></button>'+
+    '<div class="card-foot"><span>'+esc(d)+'</span><span class="ca">'+
+      '<button class="icon-btn" data-act="nc-rename" data-id="'+esc(it.id)+'" aria-label="Renommer '+esc(it.title)+'" title="Renommer">'+ICON.edit+'</button>'+
+      '<button class="icon-btn" data-act="move" data-id="'+esc(it.id)+'" aria-label="Déplacer '+esc(it.title)+' vers un dossier" title="Déplacer vers un dossier">'+ICON.move+'</button>'+
+      '<button class="icon-btn" data-act="nc-del" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span></div></article>';
+}
+function notesHomeHTML(){
+  const list = state.items.filter(isCours).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const head = '<section class="nh-head"><div><h2>Prendre des notes</h2><p class="hint">Écris pendant le cours à l\'Apple Pencil, au clavier ou à la voix, sur une page blanche ou sur le PDF du cours. Tu peux ajouter des pages quand tu veux.</p></div>'+
+    '<div class="row"><button class="btn primary" data-act="note-blank">'+ICON.plus+'<span>Nouvelle note</span></button><button class="btn" data-act="course-import">'+ICON.upload+'<span>Importer un cours (PDF)</span></button></div></section>';
+  if(!list.length) return head + '<div class="empty"><div class="empty-art" aria-hidden="true">'+MARK(52)+'</div><h2>Aucune note pour l\'instant</h2><p>Commence par « Nouvelle note » pour écrire sur une page blanche, ou par « Importer un cours » pour écrire sur le PDF de ton cours.</p></div>';
+  const groups = new Map(); list.forEach(i=>{ const k = i.course || ''; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+  const keys = Array.from(groups.keys()).sort((a,b)=> a===''?1 : b===''?-1 : a.localeCompare(b,'fr'));
+  return head + keys.map(k=>'<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+groups.get(k).length+'</span></h2><div class="grid">'+groups.get(k).map(noteCardHTML).join('')+'</div></section>').join('');
+}
+function blankPageData(){
+  const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8);
+}
+async function notesRemoveAt(i){
+  const z = state.notes; if(!z) return; const pid = z.item.payload.pages[i]; if(!pid) return;
+  await updateItem(z.item.id, it=>{ it.payload.pages.splice(i, 1); it.meta = { count: it.payload.pages.length }; if(it.payload.ink && it.payload.ink[pid]){ imgDel(it.payload.ink[pid]); delete it.payload.ink[pid]; } return it; });
+  imgDel(pid); z.item = state.items.find(x=>x.id === z.item.id) || z.item; z.pos = Math.max(0, Math.min(z.pos, z.item.payload.pages.length - 1));
+}
+function notesAskRemove(i){
+  const z = state.notes; if(!z) return;
+  if(z.item.payload.pages.length < 2){ toast('C\'est la seule page : supprime plutôt la note depuis la liste.'); return; }
+  openModal('Supprimer la page '+(i+1)+' ?', '<p>Cette page et ce que tu y as écrit seront supprimés.</p>', 'Supprimer', async ()=>{
+    try{ await notesRemoveAt(i); closeModal(); renderNotes(); }catch(e){ modalError('Suppression impossible.'); } });
+}
+async function notesMove(i, d){
+  const z = state.notes; if(!z) return; const j = i + d; if(j < 0 || j >= z.item.payload.pages.length) return;
+  try{
+    await updateItem(z.item.id, it=>{ const a = it.payload.pages, t = a[i]; a[i] = a[j]; a[j] = t; return it; });
+    z.item = state.items.find(x=>x.id === z.item.id) || z.item; if(z.pos === i) z.pos = j; else if(z.pos === j) z.pos = i; renderNotes();
+  }catch(e){ toast('Déplacement impossible.'); }
+}
+async function notesAddBlank(){
+  const z = state.notes; if(!z) return;
+  if(z.item.payload.pages.length >= 120){ toast('120 pages au maximum.'); return; }
+  const id = uid('i'); await imgPut(id, blankPageData());
+  try{
+    await updateItem(z.item.id, it=>{ it.payload.pages.push(id); it.meta = { count: it.payload.pages.length }; return it; });
+    z.item = state.items.find(x=>x.id === z.item.id) || z.item; z.pos = z.item.payload.pages.length - 1; z.grid = false; renderNotes(); toast('Page blanche ajoutée.');
+  }catch(e){ toast('Ajout impossible.'); }
+}
+function openNoteRename(id){
+  const it = state.items.find(i=>i.id === id); if(!it) return;
+  openModal('Renommer la note', '<label class="lbl" for="ncName">Titre</label><input class="txt" id="ncName" maxlength="100" value="'+esc(it.title)+'" data-enter="1" autocomplete="off">', 'Renommer', async ()=>{
+    const t = clip(($('#ncName').value || '').trim(), 120); if(!t){ modalError('Le titre ne peut pas être vide.'); return; }
+    try{ await updateItem(id, x=>{ x.title = t; return x; }); closeModal(); refreshLibrary(); }catch(e){ modalError('Impossible de renommer.'); } });
+}
+function openNoteDelete(id){
+  const it = state.items.find(i=>i.id === id); if(!it) return;
+  openModal('Supprimer cette note ?', '<p>« '+esc(it.title)+' » et tout ce que tu y as écrit seront supprimés. Cette action est définitive.</p>', 'Supprimer', async ()=>{
+    try{ await removeItem(id); closeModal(); refreshLibrary(); toast('Note supprimée.'); }catch(e){ modalError('Suppression impossible.'); } });
+}
+function renderHome(){
+  const due = todayDueCards().length, nNotes = state.items.filter(isCours).length, nRev = state.items.filter(i=>!isCours(i)).length;
+  $('#app').innerHTML =
+  '<header class="top">'+
+    '<div class="brand"><div class="logo" aria-hidden="true">'+MARK(22)+'</div><div><h1>Mes révisions</h1><p class="sub" id="persist"></p></div></div>'+
+    '<div class="top-actions"><button class="icon-btn" data-act="theme" aria-label="'+esc(themeLabel())+'" title="'+esc(themeLabel())+'">'+ICON.theme+'</button>'+
+      (state.user ? '<button class="icon-btn" data-act="account" aria-label="Mon compte" title="Mon compte">'+ICON.user+'</button>' : (state.cloudCfg ? '<button class="btn ghost sm" data-act="fb-login">'+ICON.user+'<span>Se connecter</span></button>' : ''))+
+    '</div></header>'+
+  '<main class="home"><h2 class="home-title">Que veux-tu faire ?</h2><div class="home-grid">'+
+    '<button class="home-card notes" data-act="go-notes"><span class="home-ico">'+ICON.edit+'</span><b>Prendre des notes</b><span class="home-sub">Écrire pendant le cours, sur une page blanche ou sur le PDF du cours.</span><small>'+(nNotes ? plural(nNotes,'note') : 'Aucune note pour l\'instant')+'</small></button>'+
+    '<button class="home-card rev" data-act="go-rev"><span class="home-ico">'+ICON.book+'</span><b>Réviser</b><span class="home-sub">Quiz, cartes, synthèses, schémas et examens blancs.</span><small>'+(due ? plural(due,'carte')+' à revoir aujourd\'hui' : plural(nRev,'élément'))+'</small></button>'+
+  '</div></main><p class="foot">Version '+APP_VERSION+'</p>';
+  updatePersistLabel();
+}
+function goFromHome(tab){ state.home = false; setTab(tab); maybeAutoBackup(); }
+function bodyNames(){ return BODY_RULES.map(r=>r[0]); }
+function bodyGroupFor(it){
+  const c = it.course || '';
+  if(!/^anatomie/i.test(c) && bodyNames().indexOf(c) < 0) return null;
+  const t = plainTxt(it.title), hits = BODY_RULES.filter(([n, rx])=>rx.test(t));
+  if(it.type !== 'schema' && hits.length !== 1) return null;
+  return hits.length ? hits[0][0] : null;
+}
+function bodyMovedCount(){ const n = bodyNames(); return state.items.filter(i=>n.indexOf(i.course || '') >= 0).length; }
+function bodyViewSet(on){ state.bodyView = !!on; try{ localStorage.setItem('revisions:bodyview', on ? '1' : '0'); }catch(e){} }
+function openBodyUndo(){
+  const n = bodyNames(), items = state.items.filter(i=>n.indexOf(i.course || '') >= 0);
+  if(!items.length){ toast('Rien à annuler.'); return; }
+  const opts = folderNames().filter(x=>n.indexOf(x) < 0).map(x=>'<option value="'+esc(x)+'"></option>').join('');
+  openModal('Annuler le classement',
+    '<p class="hint">'+plural(items.length,'élément')+' rangé'+(items.length>1?'s':'')+' par partie du corps (dossiers Main, Genou, Pied…) vont revenir dans un seul dossier. Les dossiers vides seront retirés.</p>'+
+    '<label class="lbl" for="bdName">Remettre dans le dossier</label><input class="txt" id="bdName" list="bdList" maxlength="80" value="Anatomie" autocomplete="off"><datalist id="bdList">'+opts+'</datalist>',
+    'Remettre', async ()=>{
+      const name = clip($('#bdName').value, 80); if(!name){ modalError('Donne un nom de dossier.'); return; }
+      try{
+        for(const it of items) await moveItem(it.id, name);
+        for(const f of state.folders.slice()){ if(n.indexOf(f.name) >= 0 && !state.items.some(i=>i.course === f.name)) await removeItem(f.id); }
+        closeModal(); toast(plural(items.length,'élément')+' remis dans « '+name+' ».'); refreshLibrary();
+      }catch(e){ modalError('Opération impossible pour le moment.'); }
+    });
+}
+function openNoteBlank(){
+  const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
+  openModal('Prendre des notes',
+    '<p class="hint">Une page blanche s\'ouvre pour écrire avec ton Apple Pencil, ton doigt, la souris ou la dictée. Tu pourras ajouter des pages ou importer le PDF du cours.</p>'+
+    '<label class="lbl" for="nbTitle">Titre</label><input class="txt" id="nbTitle" maxlength="100" placeholder="Ex. Chimie : cours du 28 octobre" autocomplete="off" data-enter="1">'+
+    '<label class="lbl" for="nbCourse">Dossier (facultatif)</label><input class="txt" id="nbCourse" list="nbList" maxlength="80" value="'+esc(state.fold && state.fold !== '__none__' ? state.fold : '')+'" placeholder="Ex. Chimie" autocomplete="off"><datalist id="nbList">'+opts+'</datalist>',
+    'Commencer', submitNoteBlank);
+}
+async function submitNoteBlank(){
+  const title = ($('#nbTitle').value || '').trim(), course = ($('#nbCourse').value || '').trim();
+  if(!title){ modalError('Donne un titre à tes notes.'); return; }
+  const btn = $('#submitBtn'); if(btn) btn.disabled = true; closeModal();
+  try{
+    const id = uid('i'); await imgPut(id, blankPageData());
+    const full = await addNewItem({ type:'notes', kind:'cours', title:clip(title,120), course:clip(course,80), payload:{ pages:[id] }, meta:{ count:1 } }, course);
+    if(curTab() !== 'notes') setTab('notes'); else refreshLibrary();
+    await openItem(full.id); inkOpen();
+  }catch(err){ toast('Création impossible : ' + (err.message || 'erreur')); }
+}
 function bodyFolderFor(it){
   if(!/^anatomie/i.test(it.course || '')) return null;
   if(it.type==='folder') return null;
@@ -4812,7 +5042,9 @@ document.addEventListener('click', async e=>{
     case 'ls-prev': listenMove(-1); break;
     case 'ls-stop': stopListen(); break;
     case 'notes-new': openNotesNew(); break;
-    case 'body-sort': openBodySort(); break;
+    case 'body-sort': bodyViewSet(!state.bodyView); renderResults(); break;
+    case 'body-undo': openBodyUndo(); break;
+    case 'note-blank': openNoteBlank(); break;
     case 'sel-move': openSelMove(); break;
     case 'nt-prev': notesGo(-1); break;
     case 'nt-next': notesGo(1); break;
@@ -4822,6 +5054,16 @@ document.addEventListener('click', async e=>{
     case 'nt-zout': { const z = state.notes; if(z){ z.zoom = Math.max(0.5, Math.round((z.zoom - 0.25)*100)/100); renderNotes(); } break; }
     case 'nt-full': notesOpenFull(); break;
     case 'nt-edit': inkOpen(); break;
+    case 'nt-mv': notesMove(i, Number(el.dataset.d)); break;
+    case 'nt-rm': notesAskRemove(i); break;
+    case 'nt-blank': notesAddBlank(); break;
+    case 'main-tab': setTab(el.dataset.t); break;
+    case 'go-notes': goFromHome('notes'); break;
+    case 'go-rev': goFromHome('rev'); break;
+    case 'home': state.home = true; state.view = 'library'; renderLibrary(); window.scrollTo(0, 0); break;
+    case 'course-import': openNotesNew('cours'); break;
+    case 'nc-rename': openNoteRename(id); break;
+    case 'nc-del': openNoteDelete(id); break;
     case 'nt-fclose': notesCloseFull(); break;
     case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
     case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer ma synthèse', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
@@ -4980,7 +5222,7 @@ document.addEventListener('change', e=>{
   if((t.id==='legHide' || t.id==='legHideF') && state.schema){ state.schema.hide = t.checked; state.schema.rev = {}; schLegendLayout(); return; }
   if(t.id==='folderPick'){ const fl = Array.from(t.files||[]); t.value = ''; routeImportedFiles(fl); return; }
   if(t.id==='folderSel'){ state.fold = t.value; renderResults(); return; }
-  if(t.id==='nnFiles'){ state.nnFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#nnName'); if(nm) nm.textContent = state.nnFiles.length ? plural(state.nnFiles.length,'fichier')+' : '+clip(state.nnFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
+  if(t.id==='nnFiles'){ state.nnFiles = Array.from(t.files||[]); t.value = ''; const tt = $('#nnTitle'); if(tt && !tt.value.trim() && state.nnFiles.length) tt.value = clip(state.nnFiles[0].name.replace(/\.[^.]+$/, ''), 100); const nm = $('#nnName'); if(nm) nm.textContent = state.nnFiles.length ? plural(state.nnFiles.length,'fichier')+' : '+clip(state.nnFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
   if(t.id==='ntAddFiles'){ const fl = Array.from(t.files||[]); t.value = ''; if(fl.length) notesAddPages(fl); return; }
   if(t.id==='snFiles'){ state.snFiles = Array.from(t.files||[]); t.value = ''; const nm = $('#snName'); if(nm) nm.textContent = state.snFiles.length ? plural(state.snFiles.length,'fichier')+' : '+clip(state.snFiles.map(f=>f.name).join(', '), 60) : 'Aucun fichier choisi'; return; }
   if(t.dataset && t.dataset.pg && state.pdfPick){ state.pdfPick.sel[t.dataset.pg] = t.checked; pdfPickUpdate(); return; }
