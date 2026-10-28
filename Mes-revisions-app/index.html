@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.8">
+<meta name="app-version" content="3.11.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -149,7 +149,7 @@ h1{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.15;ma
 .none{color:var(--muted);text-align:center;padding:40px 0}
 
 /* Modale */
-.overlay{position:fixed;inset:0;background:rgba(14,22,18,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+.overlay{position:fixed;inset:0;background:rgba(14,22,18,.55);display:flex;align-items:flex-end;justify-content:center;z-index:120;padding:0}
 @media (min-width:640px){.overlay{align-items:center;padding:24px}}
 .modal{background:var(--surface);width:100%;max-width:640px;max-height:92dvh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:var(--shadow);border:1.5px solid var(--line);border-bottom:none}
 @media (min-width:640px){.modal{border-radius:20px;border-bottom:1.5px solid var(--line)}}
@@ -580,6 +580,30 @@ body.has-wall{background:transparent}
 .tpl-or{display:flex;gap:16px;margin:4px 0 8px}
 .ne-mtpl{flex-wrap:wrap}
 .ne-mtpl span{flex:1 0 100%;text-align:left;padding-left:34px}
+.ne.has-ref .ne-stage{margin-left:var(--ref-w)}
+.ne.has-ref .ne-pages{left:var(--ref-w)}
+.ne.has-ref .ne-dock,.ne.has-ref .ne-subrow,.ne.has-ref .ne-selbar,.ne.has-ref .ne-menu.up{left:calc(var(--ref-w) + (100% - var(--ref-w)) / 2)}
+.ne.has-ref .ne-dock{max-width:calc(100% - var(--ref-w) - 12px)}
+.ne.has-ref .ne-dp{overflow-x:auto;scrollbar-width:none}
+.ne-ref{position:absolute;left:0;bottom:0;width:var(--ref-w);background:#5f5f66;z-index:9;display:flex;flex-direction:column;border-right:3px solid var(--accent)}
+.ne-ref-h{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ne-ref-h b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.ne-ref-c{display:inline-flex;gap:6px}
+.ne-ref-b{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom}
+.ne-ref-in{margin:0 auto;padding:4px 0 80px}
+.ne-ref-p{margin:10px 0;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.ne-ref-p img{display:block;width:100%;height:100%}
+.ne-ref-r{position:absolute;right:-9px;top:0;bottom:0;width:18px;cursor:col-resize;touch-action:none;z-index:2}
+.ne-ref-r::after{content:'';position:absolute;left:7px;top:50%;width:4px;height:54px;margin-top:-27px;border-radius:3px;background:var(--accent)}
+.ne-rect{color:#e53935;font-weight:700;font-size:13px;white-space:nowrap}
+.ne-rect[hidden]{display:none}
+.ne-ib.on#neRecBtn{background:#e53935;color:#fff}
+.ne-audio{top:auto!important;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:min(380px,94vw);padding:10px}
+.ne-audio audio{width:100%}
+.ref-g{padding:8px 12px 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.ref-i{display:flex;width:100%;align-items:center;gap:10px;border:0;border-top:1px solid var(--line);background:none;padding:12px;text-align:left;font-size:15px;cursor:pointer;color:var(--ink)}
+.ref-i span{flex:1;font-weight:600}
+.ref-i small{color:var(--muted)}
 /* ---- v3.9 : éditeur façon Notes+ ---- */
 .ne,.ne *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .ne textarea.ne-text,.ne input[type=number],.ne input[type=color],.ne #neCalcIn{-webkit-user-select:text;user-select:text}
@@ -812,7 +836,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.8';
+const APP_VERSION = '3.11.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -930,7 +954,7 @@ async function removeItem(id){
   state.folders = state.folders.filter(i=>i.id!==id);
   if(state.view==='library') refreshLibrary();
   if(state.col) state.col.doc(id).delete().catch(cloudErr); else persistLocal();
-  if(it && it.payload) imageIds(it).forEach(imgDel);
+  if(it && it.payload){ imageIds(it).forEach(imgDel); (it.payload.recs || []).forEach(r=>recDel(r.id)); }
 }
 async function updateItem(id, fn){
   const cur = state.items.find(i=>i.id===id); if(!cur) return null;
@@ -1296,7 +1320,18 @@ function normalizeItem(o, course){
 }
 /* Les images collées en data URL sont rangées dans IndexedDB ; la fiche ne garde que leur identifiant. */
 async function materializeImages(item){
-  if(item.type==='notes'){ const ps = []; for(const p of item.payload.pages){ if(p && /^data:/.test(p)){ const id = uid('i'); await imgPut(id, p); ps.push(id); } else ps.push(p); } item.payload.pages = ps; return item; }
+  if(item.type==='notes'){
+    const ps = []; for(const p of item.payload.pages){ if(p && /^data:/.test(p)){ const id = uid('i'); await imgPut(id, p); ps.push(id); } else ps.push(p); } item.payload.pages = ps;
+    const imgs = item._imgs || {}, inks = item._inks || {}, newImg = {};
+    for(const oid of Object.keys(imgs)){ const d = imgs[oid]; if(typeof d === 'string' && /^data:image\//.test(d) && d.length < 6000000){ const nid = uid('i'); await imgPut(nid, d); newImg[oid] = nid; } }
+    for(const idx of Object.keys(inks)){
+      const pid = ps[Number(idx)]; if(!pid) continue; let arr; try{ arr = JSON.parse(inks[idx]); }catch(e){ continue; } if(!Array.isArray(arr)) continue;
+      arr = arr.filter(o=>o && typeof o === 'object' && Array.isArray(o.p)); arr.forEach(o=>{ if(o.k === 'i') o.id = newImg[o.id] || ''; }); arr = arr.filter(o=>o.k !== 'i' || o.id);
+      const nid = uid('i'); await imgPut(nid, JSON.stringify(arr)); item.payload.ink = item.payload.ink || {}; item.payload.ink[pid] = nid;
+    }
+    if(Object.keys(newImg).length) item.payload.imgs = Object.keys(newImg).map(k=>newImg[k]);
+    delete item._inks; delete item._imgs; return item;
+  }
   if(item.type==='schema'){ const im = item.payload.image; if(im && /^data:/.test(im)){ const id = uid('i'); await imgPut(id, im); item.payload.image = id; } return item; }
   const list = item.type==='quiz' ? item.payload.questions : item.type==='flashcards' ? item.payload.cards : item.type==='synthese' ? [].concat.apply([], item.payload.sections.map(s=>s.items)) : [];
   const seen = {};
@@ -1332,7 +1367,18 @@ async function exportItem(it){
     return Object.assign(base, { sections });
   }
   if(it.type==='schema'){ const d = await imgGet(it.payload.image); return Object.assign(base, { image: d || '', labels: it.payload.labels }); }
-  if(it.type==='notes'){ const pages = []; for(const p of it.payload.pages){ pages.push(/^data:/.test(p) ? p : (await imgGet(p) || '')); } return Object.assign(base, { pages: pages.filter(Boolean) }); }
+  if(it.type==='notes'){
+    const pages = [], inks = {}, imgs = {}, ink = it.payload.ink || {};
+    for(const p of it.payload.pages){
+      const d = /^data:/.test(p) ? p : (await imgGet(p) || ''); if(!d) continue; pages.push(d);
+      const iid = ink[p]; if(iid){ const raw = state.imgCache[iid] || await imgGet(iid); if(raw){ inks[pages.length - 1] = raw; try{ JSON.parse(raw).forEach(o=>{ if(o && o.k === 'i' && o.id && !imgs[o.id]) imgs[o.id] = '1'; }); }catch(e){} } }
+    }
+    for(const oid of Object.keys(imgs)){ imgs[oid] = await imgGet(oid) || ''; if(!imgs[oid]) delete imgs[oid]; }
+    const out = Object.assign(base, { pages });
+    if(it.kind === 'cours') out.kind = 'cours'; if(it.payload.tpl) out.tpl = it.payload.tpl;
+    if(Object.keys(inks).length) out.inks = inks; if(Object.keys(imgs).length) out.imgs = imgs;
+    return out;
+  }
   return Object.assign(base, { root: it.payload.root });
 }
 function slug(s){ return String(s||'export').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'export'; }
@@ -1831,9 +1877,12 @@ async function loadSample(){
 async function exportAll(){
   if(!state.dl) return;
   try{
+    toast('Préparation de la sauvegarde…');
     const data = []; for(const it of state.items) data.push(await exportItem(it));
-    await state.dl.save({ filename:'mes-revisions.json', data: JSON.stringify(data, null, 2) });
-  }catch(e){ toast('Export non effectué.'); }
+    const json = JSON.stringify(data), nN = data.filter(d=>d.type === 'notes').length;
+    await state.dl.save({ filename:'mes-revisions-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json', data: json });
+    toast('Sauvegarde enregistrée : ' + plural(data.length, 'élément') + (nN ? ' dont ' + plural(nN, 'note') + ' avec leur écriture' : '') + ' (' + Math.max(1, Math.round(json.length / 1048576)) + ' Mo). Pour restaurer : « Importer ».');
+  }catch(e){ toast('Sauvegarde non effectuée.'); }
 }
 /* Sauvegarde automatique, en plus du bouton « Exporter » : au plus une fois par semaine, en silence. */
 async function maybeAutoBackup(){
@@ -2269,6 +2318,69 @@ function renderPrintList(){
   }).join('');
   const n = items.filter(i=>state.print.sel[i.id]).length, el = $('#printInfo');
   if(el) el.textContent = n ? plural(n,'synthèse')+' sélectionnée'+(n>1?'s':'')+'.' : 'Coche au moins une synthèse.';
+}
+/* ================= v3.11 : PDF, « Préparer pour Claude », sauvegarde complète ================= */
+function downloadBlob(blob, filename){ const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 4000); }
+function b64ToBytes(d){ const s = atob(d.slice(d.indexOf(',') + 1)), u = new Uint8Array(s.length); for(let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+function buildPdf(pages){
+  const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
+  const push = x=>{ const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+  const n = pages.length, objN = 2 + n * 3;
+  push('%PDF-1.4\n');
+  const obj = (id, body)=>{ offs[id] = len; push(id + ' 0 obj\n'); push(body); push('\nendobj\n'); };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [' + pages.map((p, i)=>(3 + i * 3) + ' 0 R').join(' ') + '] /Count ' + n + ' >>');
+  pages.forEach((p, i)=>{
+    const W = 595, H = Math.round(595 * p.h / p.w), pid = 3 + i * 3, cid = pid + 1, iid = pid + 2;
+    obj(pid, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /XObject << /Im0 ' + iid + ' 0 R >> >> /Contents ' + cid + ' 0 R >>');
+    const cs = 'q ' + W + ' 0 0 ' + H + ' 0 0 cm /Im0 Do Q';
+    obj(cid, '<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream');
+    const jb = b64ToBytes(p.jpeg);
+    offs[iid] = len; push(iid + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + p.w + ' /Height ' + p.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jb.length + ' >>\nstream\n'); push(jb); push('\nendstream\nendobj\n');
+  });
+  const xref = len; push('xref\n0 ' + (objN + 1) + '\n0000000000 65535 f \n');
+  for(let i = 1; i <= objN; i++) push(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+  push('trailer\n<< /Size ' + (objN + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+  return new Blob(parts, { type:'application/pdf' });
+}
+async function noteToPdf(it, withInk){
+  const pages = [], total = it.payload.pages.length;
+  for(let i = 0; i < total; i++){
+    const s = await notePageImage(it, i, withInk); if(!s) continue; const d = inkImgDims(s); if(!d || !d[0]) continue;
+    pages.push({ jpeg:s, w:d[0], h:d[1] }); if(total > 6 && (i + 1) % 6 === 0) toast('PDF : ' + (i + 1) + ' / ' + total + ' pages…');
+  }
+  if(!pages.length) throw new Error('Aucune page lisible.');
+  return buildPdf(pages);
+}
+async function noteTypedText(it){
+  const tx = await noteInkTexts(it); if(!tx.length) return '';
+  return it.title + '\n\n' + tx.map(x=>'Page ' + (x.i + 1) + ' :\n' + x.t).join('\n\n') + '\n';
+}
+function claudePrompt(it){
+  return 'Voici ma synthèse « ' + it.title + ' » (' + it.payload.pages.length + ' pages, en PDF' + (it.course ? ', matière : ' + it.course : '') + '). Lis toutes les pages. Compare-la à mon cours que je t\'envoie aussi, puis donne-moi un tableau avec les colonnes Page, Ce qui est écrit, Correction, Priorité (À corriger, À vérifier, Coquille, Conseillé). Signale aussi quand tu n\'es pas sûr de ma lecture de mon écriture. Ensuite, fais-moi des cartes à retourner et un quiz sur cette synthèse.';
+}
+function openPrepClaude(it){
+  if(!it) return;
+  openModal('Préparer pour Claude',
+    '<p class="hint">Je prépare ta synthèse en <b>PDF</b> (avec ton écriture) à envoyer à Claude avec ton cours, puis tu lui colles la consigne ci-dessous.</p>'+
+    '<div class="checks"><label><input type="checkbox" id="pcInk" checked> Inclure mon écriture sur les pages</label></div>'+
+    '<div class="row" style="flex-direction:column;align-items:stretch;gap:8px;margin:10px 0"><button class="btn primary" data-act="pc-pdf" data-id="'+esc(it.id)+'">'+ICON.download+'<span>Télécharger le PDF</span></button>'+
+    '<button class="btn" data-act="pc-txt" data-id="'+esc(it.id)+'">Télécharger le texte tapé (si tu en as écrit)</button>'+
+    '<button class="btn" data-act="pc-copy">Copier la consigne pour Claude</button></div>'+
+    '<textarea class="txt" id="pcText" rows="6" readonly>'+esc(claudePrompt(it))+'</textarea>', '', null);
+}
+async function pcPdf(id){
+  const it = state.items.find(i=>i.id === id); if(!it) return;
+  try{ toast('Préparation du PDF…'); const blob = await noteToPdf(it, !!($('#pcInk') && $('#pcInk').checked)); downloadBlob(blob, slug(it.title) + '.pdf'); toast('PDF prêt (' + Math.max(1, Math.round(blob.size / 1048576)) + ' Mo) : envoie-le à Claude.'); }
+  catch(e){ toast('PDF impossible : ' + (e.message || 'erreur')); }
+}
+async function pcTxt(id){
+  const it = state.items.find(i=>i.id === id); if(!it) return; const t = await noteTypedText(it);
+  if(!t){ toast('Aucun texte tapé dans cette note : ton écriture à la main est dans le PDF.'); return; }
+  downloadBlob(new Blob([t], { type:'text/plain;charset=utf-8' }), slug(it.title) + '.txt'); toast('Texte prêt.');
+}
+async function pcCopy(){
+  const ta = $('#pcText'); if(!ta) return; try{ await navigator.clipboard.writeText(ta.value); toast('Consigne copiée : colle-la dans Claude.'); }catch(e){ ta.select(); try{ document.execCommand('copy'); toast('Consigne copiée : colle-la dans Claude.'); }catch(_){ toast('Copie impossible : sélectionne le texte à la main.'); } }
 }
 async function doPrint(){
   const chosen = printItems().filter(i=>state.print && state.print.sel[i.id]);
@@ -2863,7 +2975,7 @@ function startCloud(user){
   let first = true;
   state.unsub = state.col.onSnapshot(snap=>{
     const docs = snap.docs.map(d=>Object.assign({ id:d.id }, d.data()));
-    splitDocs(docs); state.loaded = true;
+    splitDocs(docs); state.loaded = true; try{ if(typeof inkRemoteChanged === 'function') inkRemoteChanged(); }catch(e){}
     if(first){
       first = false;
       let migrated = false; try{ migrated = localStorage.getItem(MIGR_KEY + user.uid) === '1'; }catch(e){}
@@ -2946,6 +3058,7 @@ function openAccount(){
     '<div class="row" style="flex-direction:column;align-items:stretch;margin-top:12px">'+
     (nLocal ? '<button class="btn" data-act="acc-upload">Envoyer les données de cet appareil vers mon compte ('+nLocal+')</button>' : '')+
     '<button class="btn" data-act="prep-offline">'+ICON.download+'<span>Préparer le hors ligne (télécharger tous mes cours)</span></button>'+
+    (state.dl ? '<button class="btn" data-act="backup-all">'+ICON.download+'<span>Sauvegarde complète (fichier, avec mes notes)</span></button>' : '')+
     '<button class="btn" data-act="wp-open">'+ICON.image+'<span>Importer un fond d\'écran</span></button>'+
     '<button class="btn" data-act="acc-reset">Changer le mot de passe (par e-mail)</button>'+
     '<button class="btn" data-act="acc-logout">Se déconnecter</button></div>', '', null);
@@ -3539,7 +3652,10 @@ function normNotes(o, course){
   if(src.length > 120) throw new Error('Synthèse : 120 pages maximum.');
   const pages = src.map(p=>cleanImg(typeof p === 'string' ? p : (p && p.image))).filter(Boolean);
   if(!pages.length) throw new Error('Cette synthèse ne contient aucune page (images en data URL).');
-  return { type:'notes', title: clip(o.title||o.titre||'Synthèse sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
+  const res = { type:'notes', title: clip(o.title||o.titre||'Synthèse sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
+  if(o.kind === 'cours') res.kind = 'cours'; if(['blank','grid','lines','big'].indexOf(o.tpl) >= 0) res.payload.tpl = o.tpl;
+  if(o.inks && typeof o.inks === 'object' && !Array.isArray(o.inks)) res._inks = o.inks; if(o.imgs && typeof o.imgs === 'object' && !Array.isArray(o.imgs)) res._imgs = o.imgs;
+  return res;
 }
 function openNotesNew(kind){
   state.nnFiles = []; state.nnKind = kind || '';
@@ -3598,7 +3714,7 @@ function renderNotes(){
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Nouvelle page</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm" data-act="nt-print">'+ICON.print+'<span>Imprimer</span></button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Nouvelle page</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm" data-act="nt-print">'+ICON.print+'<span>Imprimer</span></button><button class="btn sm" data-act="nt-claude">'+ICON.share+'<span>Préparer pour Claude</span></button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3688,6 +3804,7 @@ const INK_ICON = {
   finger:'<path d="M9 11V5.5a1.6 1.6 0 0 1 3.2 0V14l2.3-.9a1.6 1.6 0 0 1 1.8 2.5L14 20.5H9.5L6 15.5a1.5 1.5 0 0 1 2.4-1.7L9 14.5"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
   pages:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>',
+  share:'<path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 13v6h14v-6"/>',
   print:'<path d="M7 9V4h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/>',
   chev:'<path d="M7 10l5 5 5-5"/>',
   penc:'<circle cx="12" cy="12" r="9.5"/><path d="M8.5 15.5l.9-3.4 5.2-5.2 2.5 2.5-5.2 5.2z"/>',
@@ -3700,6 +3817,7 @@ const INK_ICON = {
   fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   redo:'<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  rec:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4" fill="currentColor"/>',
   rot:'<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/>'
 };
 function inkSvg(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(INK_ICON[k] || '')+'</svg>'; }
@@ -3726,7 +3844,7 @@ function penSvg(base, c, ls){
 function inkIconFor(id){ return INK_BY[id] ? penSvg(INK_BY[id].base, (ink && ink.tc[id] ? ink.tc[id].c : INK_BY[id].c), INK_BY[id].ls) : inkSvg(id); }
 
 function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink4') || '{}') || {}; }catch(e){ return {}; } }
-function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink4', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, dockOpen:z.dockOpen, finger:z.finger, snap:z.snap, recent:z.recent, vis:z.vis, tbl:z.tbl, plumeK:z.plumeK, eraseMode:z.eraseMode, spRef:z.spRef })); }catch(e){} }
+function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink4', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, dockOpen:z.dockOpen, finger:z.finger, snap:z.snap, recent:z.recent, vis:z.vis, tbl:z.tbl, plumeK:z.plumeK, eraseMode:z.eraseMode, spRef:z.spRef, improve:z.improve })); }catch(e){} }
 function inkKey(t){ const b = inkBase(t); return b === 'hand' || b === 'select' || b === 'ruler' || b === 'image' ? null : t; }
 
 /* ---------- le document : toutes les pages à la suite ---------- */
@@ -3777,7 +3895,7 @@ function inkMakeImg(p){
 }
 async function inkEnsureInk(i){
   const z = ink, p = z.P[i]; if(!p || p.objs !== null || p.loading) return; p.loading = true; let arr = [];
-  const id = (z.item.payload.ink || {})[p.key];
+  const id = (z.item.payload.ink || {})[p.key]; p.inkId = id || '';
   if(id){ try{ const raw = state.imgCache[id] || await imgGet(id); const a = raw ? JSON.parse(raw) : []; if(Array.isArray(a)) arr = a; }catch(e){} }
   if(ink !== z) return; if(p.objs === null) p.objs = arr; p.loading = false; inkRender(); inkUpdateUI();
 }
@@ -4204,6 +4322,7 @@ function inkToolUp(e){
     if(a.snapped){ inkCommit(z.objs.concat(a.snapped)); return; }
     if(a.raw && !a.rule && inkBase(z.tool) !== 'hl' && a.pts.length >= 4){ a.pts.push(a.raw[0], a.raw[1]); a.q.push(a.q[a.q.length-1]); }
     if(a.pts.length < 4){ a.pts.push(a.pts[0], a.pts[1]); a.q.push(a.q[0]); }
+    if(z.improve && ['plume','stylo','crayon','mono','feutre','calame'].indexOf(inkBase(z.tool)) >= 0) inkImprove(a);
     inkCommit(z.objs.concat(inkStrokeObj(a)));
   }else if(a.kind === 'laser'){ inkOverlay(); }
   else if(a.kind === 'erase'){ if(a.changed){ z.undo.push(a.before); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } inkRender(); inkUpdateUI(); }
@@ -4254,7 +4373,8 @@ function inkErase(x, y){
   if(changed){ z.objs = out; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
 }
 function inkCommit(next){
-  const z = ink; z.undo.push(z.objs); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.objs = next; z.sel = []; z.dirty = true;
+  const z = ink; if(z.rec && next.length > z.objs.length){ const o = next[next.length - 1]; if(o && !o.ar){ next = next.slice(); next[next.length - 1] = Object.assign({}, o, { ar:z.rec.id, at:Math.round((Date.now() - z.rec.t0) / 1000) }); } }
+  z.undo.push(z.objs); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.objs = next; z.sel = []; z.dirty = true;
   inkSchedSave(); inkRender(); inkUpdateUI();
 }
 function inkUndo(){ const z = ink; if(!z || !z.undo.length) return; z.redo.push(z.objs); z.objs = z.undo.pop(); z.sel = []; z.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); }
@@ -4466,6 +4586,16 @@ function inkClick(e){
   else if(a === 'mrota') inkRotate(true, 1);
   else if(a === 'addfiles'){ const fi = document.getElementById('neFiles'); if(fi) fi.click(); }
   else if(a === 'rmpage') inkRemovePage();
+  else if(a === 'mimp'){ z.improve = !z.improve; inkUpdateUI(); inkSavePrefs(); toast(z.improve ? 'Amélioration automatique activée : les tremblements sont lissés et les traits presque droits redressés.' : 'Amélioration automatique désactivée.'); }
+  else if(a === 'mref'){ if(z.ref) inkRefClose(); else openRefChooser(); }
+  else if(a === 'refpick') openRefChooser();
+  else if(a === 'refx') inkRefClose();
+  else if(a === 'refzi' || a === 'refzo'){ if(z.ref){ z.ref.zoom = Math.max(0.6, Math.min(3, z.ref.zoom * (a === 'refzi' ? 1.25 : 0.8))); const w = document.getElementById('neRefIn'); if(w) w.style.width = Math.round(z.ref.zoom * 100) + '%'; } }
+  else if(a === 'rec'){ if(z.rec) inkRecStop(); else inkRecStart(); }
+  else if(a === 'mrecs') openRecs();
+  else if(a === 'hear'){ const o = z.sel.length === 1 ? z.objs[z.sel[0]] : null; if(o && o.ar) inkHear(o.ar, (o.at || 0) - 3); }
+  else if(a === 'audioclose'){ const bx = document.getElementById('neAudio'), au = document.getElementById('neAudioEl'); if(au){ au.pause(); } if(bx) bx.hidden = true; }
+  else if(a === 'mclaude'){ inkSave().then(()=>{ if(ink) openPrepClaude(ink.item); }); }
   else if(a === 'mprint'){ inkSave().then(()=>{ if(ink) printNotes([ink.item]); }); }
   else if(a === 'undo') inkUndo();
   else if(a === 'redo') inkRedo();
@@ -4547,6 +4677,9 @@ function inkUpdateUI(){
   el.querySelector('#neDock').hidden = !z.dockOpen; el.querySelector('#neDockBtn').classList.toggle('on', z.dockOpen);
   el.querySelector('#neTMenuBtn').classList.toggle('on', z.tool === 'hand' || z.tool === 'shape');
   const on = (id, v)=>{ const x = el.querySelector('#'+id); if(x) x.classList.toggle('on', !!v); };
+  on('neMImp', z.improve); on('neMRef', !!z.ref); on('neRecBtn', !!z.rec);
+  { const rt = el.querySelector('#neRecT'); if(rt){ rt.hidden = !z.rec; if(z.rec) rt.textContent = '● ' + fmtDur((Date.now() - z.rec.t0) / 1000); } }
+  { const so = z.sel.length === 1 ? z.objs[z.sel[0]] : null, hb = el.querySelector('#neHear'); if(hb) hb.hidden = !(so && so.ar); }
   on('neMRuler', z.ruler.on); on('neMSnap', z.snap); on('neMFinger', z.finger); on('neMHand', z.tool === 'hand'); on('neDictTop', z.dict);
   el.querySelectorAll('.ne-tmic').forEach(m=>m.classList.toggle('on', !!z.dict && z.dict.ta === m._ta));
   el.querySelector('#neSelbar').hidden = !z.sel.length;
@@ -4578,17 +4711,19 @@ function inkSave(){
   const z = ink; if(!z) return Promise.resolve();
   const dirty = z.P.filter(p=>p.dirty && p.objs); if(!dirty.length) return z.saving;
   clearTimeout(z.st); const jobs = dirty.map(p=>{ p.dirty = false; return { key:p.key, objs:p.objs }; }), id = z.item.id;
+  z.nSave = (z.nSave || 0) + 1;
   z.saving = z.saving.then(async ()=>{
     for(const j of jobs){
       try{
         const cur = state.items.find(i=>i.id === id) || z.item; const oldId = (cur.payload.ink || {})[j.key]; let newId = '';
-        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); await imgPut(newId, json); }
+        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
         const saved = await updateItem(id, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[j.key] = newId; else delete it.payload.ink[j.key]; return it; });
         if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
         if(oldId) imgDel(oldId);
       }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
     }
     const s = document.getElementById('neSave'); if(s) s.textContent = 'Enregistré';
+    z.nSave = Math.max(0, (z.nSave || 1) - 1); inkRemoteChanged();
   });
   return z.saving;
 }
@@ -4673,6 +4808,126 @@ async function inkSetTpl(t){
   const saved = await updateItem(z.item.id, it=>{ it.payload.tpl = t; return it; }); if(saved){ z.item = saved; if(state.notes) state.notes.item = saved; }
   try{ localStorage.setItem('revisions:tpl', t); }catch(e){} inkUpdateUI(); toast('Les nouvelles pages seront : ' + lab.toLowerCase() + '.');
 }
+/* ================= v3.11 : mise à jour en direct, cours à côté, audio, amélioration de l'écriture ================= */
+/* --- mise à jour depuis un autre appareil --- */
+function inkRemoteChanged(){
+  const z = ink; if(!z || !z.loaded) return;
+  const it = state.items.find(i=>i.id === z.item.id); if(!it || it === z.item) return;
+  if(z.nSave > 0 || z.act) return;
+  const a = z.item.payload.pages, b = it.payload.pages, same = a.length === b.length && a.every((k, i)=>k === b[i]);
+  if(!same){
+    if(z.dirty) return; z.item = it; if(state.notes) state.notes.item = it;
+    inkLoadDoc(z.pos).then(()=>inkPagesRefresh()); toast('Note mise à jour depuis un autre appareil.'); return;
+  }
+  z.item = it; if(state.notes) state.notes.item = it;
+  let n = 0;
+  z.P.forEach((p, i)=>{ const nid = (it.payload.ink || {})[p.key] || ''; if(p.objs !== null && nid !== (p.inkId || '') && !p.dirty && !p.loading){ p.objs = null; p.undo = []; p.redo = []; p.inkId = nid; if(z.cur === i) z.sel = []; n++; } });
+  if(n){ z.P.forEach((p, i)=>{ if(p.objs === null) inkEnsureInk(i); }); toast('Page mise à jour depuis un autre appareil.'); }
+}
+/* --- amélioration automatique de l'écriture (lisse, redresse, garde les angles) --- */
+function inkImprove(a){
+  const p = a.pts, n = p.length / 2; if(n < 5) return;
+  let len = 0; for(let i = 2; i < p.length; i += 2) len += Math.hypot(p[i] - p[i-2], p[i+1] - p[i-1]); if(len < 12) return;
+  const x0 = p[0], y0 = p[1], xe = p[p.length-2], ye = p[p.length-1], chord = Math.hypot(xe - x0, ye - y0);
+  let dev = 0; for(let i = 0; i < p.length; i += 2) dev = Math.max(dev, inkSeg(p[i], p[i+1], x0, y0, xe, ye));
+  if(chord > 25 && dev < Math.max(2.2, chord * 0.035)){
+    let y1 = ye, x1 = xe; if(Math.abs(ye - y0) < chord * 0.04) y1 = y0; else if(Math.abs(xe - x0) < chord * 0.04) x1 = x0;
+    a.pts = [x0, y0, x1, y1]; const qa = Math.round(a.q.reduce((s, v)=>s + v, 0) / a.q.length); a.q = [qa, qa]; return;
+  }
+  let P = []; for(let i = 0; i < n; i++) P.push([p[2*i], p[2*i+1], a.q[i] || 20]);
+  const corner = P.map((pt, i)=>{ if(i < 2 || i > n - 3) return false; const a1 = Math.atan2(pt[1] - P[i-2][1], pt[0] - P[i-2][0]), a2 = Math.atan2(P[i+2][1] - pt[1], P[i+2][0] - pt[0]); let d = Math.abs(a2 - a1); if(d > Math.PI) d = 2 * Math.PI - d; return d > 1.05; });
+  for(let pass = 0; pass < 3; pass++){
+    const Q = P.map(x=>x.slice());
+    for(let i = 1; i < n - 1; i++){ if(corner[i] || corner[i-1] || corner[i+1]) continue; Q[i][0] = (P[i-1][0] + 2 * P[i][0] + P[i+1][0]) / 4; Q[i][1] = (P[i-1][1] + 2 * P[i][1] + P[i+1][1]) / 4; Q[i][2] = (P[i-1][2] + 2 * P[i][2] + P[i+1][2]) / 4; }
+    P = Q;
+  }
+  a.pts = []; a.q = []; P.forEach(pt=>{ a.pts.push(pt[0], pt[1]); a.q.push(Math.round(pt[2])); });
+}
+/* --- cours à côté (affichage en deux volets) --- */
+function openRefChooser(){
+  const z = ink; if(!z) return;
+  const list = state.items.filter(i=>i.type === 'notes' && i.id !== z.item.id); if(!list.length){ toast('Aucun autre cours ou synthèse à afficher. Importe d\'abord ton cours (PDF) dans « Prendre des notes ».'); return; }
+  const groups = new Map(); list.forEach(i=>{ const k = i.course || ''; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+  const keys = Array.from(groups.keys()).sort((a, b)=> a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'fr'));
+  openModal('Afficher un cours à côté',
+    '<p class="hint">Choisis le cours ou la synthèse à afficher à gauche, pendant que tu écris à droite. Tu peux aussi y lire ton écriture.</p>'+
+    '<div class="fm-list">'+keys.map(k=>'<div class="ref-g">'+esc(k || 'Sans dossier')+'</div>'+groups.get(k).map(i=>'<button class="ref-i" data-act="ref-pick" data-id="'+esc(i.id)+'"><span>'+esc(i.title)+'</span><small>'+esc(plural(i.payload.pages.length, 'page'))+'</small></button>').join('')).join('')+'</div>', '', null);
+}
+async function inkRefOpen(id){
+  const z = ink; if(!z) return; const it = state.items.find(i=>i.id === id); if(!it) return;
+  if(window.innerWidth < 760){ toast('Écran trop étroit pour afficher deux pages côte à côte.'); return; }
+  await preloadImages(imageIds(it)); if(ink !== z) return;
+  z.ref = { id, w:z.refW || 0.5, zoom:1 }; inkRefBuild(); inkRefSavePref(); inkUpdateUI();
+}
+function inkRefClose(){
+  const z = ink; if(!z) return; z.ref = null; const b = document.getElementById('neRef'); if(b){ if(b._io) b._io.disconnect(); b.remove(); }
+  z.el.classList.remove('has-ref'); z.el.style.removeProperty('--ref-w'); inkRefSavePref(); inkUpdateUI();
+}
+function inkRefSavePref(){
+  const z = ink; if(!z) return; let m = {}; try{ m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}; }catch(e){}
+  if(z.ref) m[z.item.id] = z.ref.id; else delete m[z.item.id];
+  try{ localStorage.setItem('revisions:refby', JSON.stringify(m)); localStorage.setItem('revisions:refw', String(z.refW || 0.5)); }catch(e){}
+}
+function inkRefBuild(){
+  const z = ink, r = z.ref, it = state.items.find(i=>i.id === r.id); if(!it){ inkRefClose(); return; }
+  let box = document.getElementById('neRef'); if(!box){ box = document.createElement('div'); box.id = 'neRef'; box.className = 'ne-ref'; z.el.appendChild(box); }
+  if(box._io) box._io.disconnect(); box.style.top = z.stage.offsetTop + 'px'; z.el.classList.add('has-ref'); z.el.style.setProperty('--ref-w', (r.w * 100).toFixed(1) + '%');
+  box.innerHTML = '<div class="ne-ref-h"><b>'+esc(it.title)+'</b><span class="ne-ref-c"><button class="btn sm ne-s" data-ne="refzo" aria-label="Dézoomer">−</button><button class="btn sm ne-s" data-ne="refzi" aria-label="Zoomer">＋</button><button class="btn sm" data-ne="refpick">Changer</button><button class="btn sm ne-s" data-ne="refx" aria-label="Fermer le cours à côté">✕</button></span></div>'+
+    '<div class="ne-ref-b" id="neRefB"><div class="ne-ref-in" id="neRefIn" style="width:'+Math.round(r.zoom * 100)+'%">'+it.payload.pages.map((p, i)=>{ const d = inkImgDims(state.imgCache[p]); return '<div class="ne-ref-p" data-i="'+i+'" style="aspect-ratio:'+(d && d[0] ? d[0]+'/'+d[1] : '1/1.414')+'"><img alt=""></div>'; }).join('')+'</div></div><div class="ne-ref-r" id="neRefR"></div>';
+  const body = box.querySelector('#neRefB');
+  const io = new IntersectionObserver(es=>es.forEach(e=>{ if(!e.isIntersecting) return; const d = e.target; if(d._done) return; d._done = true; notePageImage(it, Number(d.dataset.i), true).then(s=>{ if(s) d.firstChild.src = s; }); }), { root:body, rootMargin:'700px' });
+  box.querySelectorAll('.ne-ref-p').forEach(p=>io.observe(p)); box._io = io;
+  const rz = box.querySelector('#neRefR');
+  rz.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ rz.setPointerCapture(e.pointerId); }catch(_){} rz._d = true; });
+  rz.addEventListener('pointermove', e=>{ if(!rz._d) return; const w = Math.max(0.2, Math.min(0.75, e.clientX / z.el.clientWidth)); r.w = w; z.refW = w; z.el.style.setProperty('--ref-w', (w * 100).toFixed(1) + '%'); });
+  rz.addEventListener('pointerup', e=>{ rz._d = false; try{ rz.releasePointerCapture(e.pointerId); }catch(_){} inkRefSavePref(); });
+}
+/* --- enregistrement audio du cours, relié à ce qu'on écrit --- */
+async function recPut(id, blob){ const db = await idbOpen(); return new Promise((res, rej)=>{ const tx = db.transaction('img', 'readwrite'); tx.objectStore('img').put(blob, 'rec_' + id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); }); }
+async function recGet(id){ try{ const db = await idbOpen(); return await new Promise(res=>{ const r = db.transaction('img').objectStore('img').get('rec_' + id); r.onsuccess = ()=>res(r.result || null); r.onerror = ()=>res(null); }); }catch(e){ return null; } }
+async function recDel(id){ try{ const db = await idbOpen(); await new Promise(res=>{ const tx = db.transaction('img', 'readwrite'); tx.objectStore('img').delete('rec_' + id); tx.oncomplete = res; tx.onerror = res; }); }catch(e){} }
+function fmtDur(s){ s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); }
+async function inkRecStart(){
+  const z = ink; if(!z || z.rec) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ toast('L\'enregistrement audio n\'est pas disponible sur ce navigateur.'); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].filter(m=>MediaRecorder.isTypeSupported(m))[0] || '';
+    const mr = mime ? new MediaRecorder(stream, { mimeType:mime }) : new MediaRecorder(stream);
+    const rec = { id:uid('r'), mr, stream, chunks:[], t0:Date.now(), mime:mr.mimeType || mime || 'audio/mp4' };
+    mr.ondataavailable = e=>{ if(e.data && e.data.size) rec.chunks.push(e.data); }; mr.start(1000); z.rec = rec;
+    rec.timer = setInterval(()=>{ const t = document.getElementById('neRecT'); if(t) t.textContent = '● ' + fmtDur((Date.now() - rec.t0) / 1000); }, 1000);
+    toast('Enregistrement en cours : ce que tu écris est relié au son. Touche à nouveau le bouton rouge pour arrêter.'); inkUpdateUI();
+  }catch(e){ toast('Autorise le micro pour enregistrer le cours.'); }
+}
+async function inkRecStop(){
+  const z = ink; if(!z || !z.rec) return; const rec = z.rec; z.rec = null; clearInterval(rec.timer);
+  try{ await new Promise(res=>{ rec.mr.onstop = res; try{ rec.mr.stop(); }catch(e){ res(); } }); }catch(e){}
+  rec.stream.getTracks().forEach(t=>t.stop());
+  const blob = new Blob(rec.chunks, { type:rec.mime }), dur = Math.round((Date.now() - rec.t0) / 1000);
+  inkUpdateUI();
+  if(!blob.size || dur < 2){ toast('Enregistrement trop court : il n\'a pas été gardé.'); return; }
+  try{
+    await recPut(rec.id, blob);
+    const saved = await updateItem(z.item.id, it=>{ it.payload.recs = (it.payload.recs || []).concat({ id:rec.id, t:rec.t0, d:dur, m:rec.mime }); return it; });
+    if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
+    toast('Enregistrement gardé sur cet appareil (' + fmtDur(dur) + ').');
+  }catch(e){ toast('Enregistrement impossible à sauvegarder : ' + (e.message || 'erreur')); }
+}
+async function inkHear(recId, t){
+  const z = ink; if(!z) return; const rec = (z.item.payload.recs || []).filter(r=>r.id === recId)[0]; if(!rec){ toast('Enregistrement introuvable.'); return; }
+  const blob = await recGet(recId); if(!blob){ toast('Cet enregistrement est sur un autre appareil : l\'audio n\'est pas synchronisé.'); return; }
+  const box = document.getElementById('neAudio'), au = document.getElementById('neAudioEl'); if(!box || !au) return;
+  if(au._url) URL.revokeObjectURL(au._url); au._url = URL.createObjectURL(blob); au.src = au._url; box.hidden = false;
+  document.getElementById('neAudioT').textContent = 'Enregistrement du ' + new Date(rec.t).toLocaleString('fr', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  au.onloadedmetadata = ()=>{ try{ au.currentTime = Math.max(0, t || 0); }catch(e){} au.play().catch(()=>{}); };
+}
+function openRecs(){
+  const z = ink; if(!z) return; const recs = z.item.payload.recs || [];
+  openModal('Enregistrements audio de cette note',
+    (recs.length ? '<div class="fm-list">'+recs.map(r=>'<div class="fm-row"><span>'+esc(new Date(r.t).toLocaleString('fr', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))+'<br><small>'+fmtDur(r.d)+'</small></span><button class="btn sm" data-act="rec-play" data-id="'+esc(r.id)+'">▶ Écouter</button><button class="btn sm ghost" data-act="rec-del" data-id="'+esc(r.id)+'" aria-label="Supprimer">'+ICON.trash+'</button></div>').join('')+'</div>' : '<p class="hint">Aucun enregistrement pour cette note.</p>')+
+    '<p class="hint">Touche le bouton rouge en haut pour enregistrer le cours. Ensuite, sélectionne ce que tu as écrit avec le lasso : « ▶ Écouter » rejoue le son à ce moment. <b>L\'audio reste sur cet appareil</b> (il n\'est pas synchronisé).</p>', '', null);
+}
 async function inkBlank(land){
   const z = ink; if(!z) return; await inkSave();
   const id = uid('i'); await imgPut(id, blankPageData(land === true, z.item.payload.tpl));
@@ -4685,7 +4940,7 @@ async function inkBlank(land){
 }
 function inkPagesRefresh(){ const box = document.getElementById('nePages'); if(box && !box.hidden) inkPagesBuild(); }
 async function inkClose(){
-  const z = ink; if(!z) return; inkCloseActs(); inkSavePrefs(); await inkSave();
+  const z = ink; if(!z) return; if(z.rec) await inkRecStop(); inkCloseActs(); inkSavePrefs(); await inkSave();
   if(z.ro) z.ro.disconnect(); window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
   z.el.remove(); document.body.style.overflow = ''; ink = null;
   if(state.notes){ state.notes.item = state.items.find(i=>i.id === z.item.id) || z.item; state.notes.pos = z.pos; renderNotes(); }
@@ -4703,7 +4958,7 @@ async function inkOpen(){
   const pos0 = Math.max(0, Math.min(zn.pos || 0, zn.item.payload.pages.length - 1));
   const z = ink = { item:zn.item, pos:pos0, cur:pos0, P:[], DH:1500, tool:tool0, vis, shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', dockOpen: pr.dockOpen !== false, finger: !!pr.finger, snap: pr.snap !== false, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
     sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false,
-    ruler:{ on:false, cx:500, cy:500, ang:0, L:1000, TH:75 }, imgEls:{}, eraseMode: pr.eraseMode === 'px' ? 'px' : 'obj', spRef: Number(pr.spRef) > 0 ? Math.min(2, Number(pr.spRef)) : 0.4,
+    ruler:{ on:false, cx:500, cy:500, ang:0, L:1000, TH:75 }, imgEls:{}, eraseMode: pr.eraseMode === 'px' ? 'px' : 'obj', spRef: Number(pr.spRef) > 0 ? Math.min(2, Number(pr.spRef)) : 0.4, improve: !!pr.improve, refW: Math.max(0.2, Math.min(0.75, Number(localStorage.getItem('revisions:refw')) || 0.5)),
     plumeK: isFinite(pr.plumeK) && pr.plumeK !== null ? Math.max(0, Math.min(200, Number(pr.plumeK))) : 100,
     tbl:{ r:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.r) || 3)), c:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.c) || 3)) } };
   inkDefProps(z);
@@ -4712,9 +4967,10 @@ async function inkOpen(){
   ov.innerHTML =
     '<div class="ne-top">'+
       '<div class="ne-pill"><button class="ne-ib" data-ne="close" aria-label="Retour" title="Retour">'+inkSvg('back')+'</button><button class="ne-ib" data-ne="pages" id="nePagesBtn" aria-label="Pages" title="Pages">'+inkSvg('pages')+'</button></div>'+
-      '<div class="ne-pill ne-pt"><b class="ne-title">'+esc(z.item.title)+'</b><span class="ne-pos" id="nePos"></span><span class="ne-save" id="neSave"></span><button class="ne-ib sm" data-ne="menu" aria-label="Options du document" title="Options du document">'+inkSvg('chev')+'</button></div>'+
+      '<div class="ne-pill ne-pt"><b class="ne-title">'+esc(z.item.title)+'</b><span class="ne-pos" id="nePos"></span><span class="ne-save" id="neSave"></span><span class="ne-rect" id="neRecT" hidden></span><button class="ne-ib sm" data-ne="menu" aria-label="Options du document" title="Options du document">'+inkSvg('chev')+'</button></div>'+
       '<span class="ne-sp"></span>'+
       '<div class="ne-pill">'+
+        '<button class="ne-ib" data-ne="rec" id="neRecBtn" aria-label="Enregistrer le cours (audio)" title="Enregistrer le cours (audio)">'+inkSvg('rec')+'</button>'+
         '<button class="ne-ib" data-ne="dict" id="neDictTop" aria-label="Dicter" title="Dicter">'+inkSvg('mic')+'</button>'+
         '<button class="ne-ib" data-ne="mcalc" aria-label="Calculatrice scientifique" title="Calculatrice scientifique">'+inkSvg('calc')+'</button>'+
         '<button class="ne-ib" data-ne="mpad" aria-label="Brouillon" title="Brouillon">'+inkSvg('pad')+'</button>'+
@@ -4730,11 +4986,11 @@ async function inkOpen(){
       '<span class="ne-chips" id="neErase"><button class="btn sm" data-erase="obj" title="Efface le trait entier">Trait entier</button><button class="btn sm" data-erase="px" title="Efface seulement la partie touchée">Précis</button></span>'+
       '<button class="btn sm" data-ne="selall" id="neSelAll">Tout sélectionner</button>'+
     '</div>'+
-    '<div class="ne-selbar" id="neSelbar" hidden><span class="ne-tblctl" id="neTblCtl" hidden><button class="btn sm" data-ne="tadj" data-dr="-1">Lignes −</button><button class="btn sm" data-ne="tadj" data-dr="1">Lignes ＋</button><button class="btn sm" data-ne="tadj" data-dc="-1">Col. −</button><button class="btn sm" data-ne="tadj" data-dc="1">Col. ＋</button><b id="neTblInfo"></b></span><button class="btn sm" data-ne="del">Supprimer</button><button class="btn sm" data-ne="recolor">Appliquer la couleur</button><button class="btn sm" data-ne="dup">Dupliquer</button><button class="btn sm" data-ne="unsel">OK</button></div>'+
+    '<div class="ne-selbar" id="neSelbar" hidden><button class="btn sm" data-ne="hear" id="neHear" hidden>▶ Écouter</button><span class="ne-tblctl" id="neTblCtl" hidden><button class="btn sm" data-ne="tadj" data-dr="-1">Lignes −</button><button class="btn sm" data-ne="tadj" data-dr="1">Lignes ＋</button><button class="btn sm" data-ne="tadj" data-dc="-1">Col. −</button><button class="btn sm" data-ne="tadj" data-dc="1">Col. ＋</button><b id="neTblInfo"></b></span><button class="btn sm" data-ne="del">Supprimer</button><button class="btn sm" data-ne="recolor">Appliquer la couleur</button><button class="btn sm" data-ne="dup">Dupliquer</button><button class="btn sm" data-ne="unsel">OK</button></div>'+
     '<div class="ne-pop" id="nePop" hidden></div>'+
     '<div class="ne-cfg" id="neCfg" hidden></div>'+
     '<div class="ne-menu" id="neMenu" hidden>'+
-      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+mi('blankl','plus','Nouvelle page en paysage')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page à droite (90°)')+mi('mrotl','rot','Pivoter la page à gauche (90°)')+mi('mrota','rot','Pivoter toutes les pages (90°)')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+
+      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+mi('blankl','plus','Nouvelle page en paysage')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page à droite (90°)')+mi('mrotl','rot','Pivoter la page à gauche (90°)')+mi('mrota','rot','Pivoter toutes les pages (90°)')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+mi('mclaude','share','Préparer pour Claude (PDF)')+mi('mref','pages','Cours à côté…','neMRef')+mi('mrecs','mic','Enregistrements audio…')+
       '<div class="ne-mh">Affichage</div>'+mi('fitw','fit','Ajuster à la largeur')+mi('fitp','fit','Page entière')+
       '<div class="ne-mrow"><button class="btn sm" data-ne="zout">− Zoom</button><span id="neZoomLbl">100 %</span><button class="btn sm" data-ne="zin">＋ Zoom</button></div>'+
     '</div>'+
@@ -4743,9 +4999,10 @@ async function inkOpen(){
       '<div class="ne-mrow ne-mshapes"><span>Formes</span><button class="btn sm" data-shape="r" title="Rectangle">▭</button><button class="btn sm" data-shape="o" title="Ovale">◯</button><button class="btn sm" data-shape="l" title="Ligne">╱</button><button class="btn sm" data-shape="a" title="Flèche">➚</button></div>'+
       mi('mtable','table','Tableau…')+mi('mruler','ruler','Règle (latte)','neMRuler')+
       '<div class="ne-mh">Écriture</div>'+
-      mi('mhand','hand','Main (déplacer la page)','neMHand')+mi('finger','finger','Dessiner avec le doigt','neMFinger')+mi('snap','snap','Formes automatiques (garder le stylo posé)','neMSnap')+mi('cfg','gear','Paramètres des stylos')+
+      mi('mimp','snap','Améliorer automatiquement l\'écriture','neMImp')+mi('mhand','hand','Main (déplacer la page)','neMHand')+mi('finger','finger','Dessiner avec le doigt','neMFinger')+mi('snap','snap','Formes automatiques (garder le stylo posé)','neMSnap')+mi('cfg','gear','Paramètres des stylos')+
       '<p class="ne-mnote">Texte : double-clique sur la page.</p>'+
     '</div>'+
+    '<div class="ne-panel ne-audio" id="neAudio" hidden><div class="ne-ch"><b id="neAudioT">Enregistrement</b><button class="btn sm ne-s" data-ne="audioclose" aria-label="Fermer">✕</button></div><audio id="neAudioEl" controls></audio></div>'+
     '<div class="ne-panel ne-calc" id="neCalc" hidden></div><div class="ne-panel ne-pad" id="nePad" hidden></div>'+
     '<div class="ne-dock" id="neDock"><div class="ne-pill ne-dp" id="neDockPill">'+
       '<button class="ne-ib" data-ne="undo" id="neUndo" aria-label="Annuler" title="Annuler">'+inkSvg('undo')+'</button><button class="ne-ib" data-ne="redo" id="neRedo" aria-label="Rétablir" title="Rétablir">'+inkSvg('redo')+'</button>'+
@@ -4781,6 +5038,7 @@ async function inkOpen(){
   z.onKey = inkKey2; document.addEventListener('keydown', z.onKey);
   z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
   inkBuildTools(); inkResize(); await inkLoadDoc(pos0); inkUpdateUI();
+  try{ const m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}, rid = m[z.item.id]; if(rid && state.items.some(i=>i.id === rid) && ink === z) inkRefOpen(rid); }catch(e){}
 }
 
 
@@ -6037,6 +6295,14 @@ document.addEventListener('click', async e=>{
     case 'nt-full': notesOpenFull(); break;
     case 'nt-edit': inkOpen(); break;
     case 'nt-print': { const z = state.notes; if(z) printNotes([z.item]); break; }
+    case 'nt-claude': { const z = state.notes; if(z) openPrepClaude(z.item); break; }
+    case 'pc-pdf': pcPdf(id); break;
+    case 'pc-txt': pcTxt(id); break;
+    case 'pc-copy': pcCopy(); break;
+    case 'backup-all': exportAll(); break;
+    case 'ref-pick': closeModal(); if(ink) inkRefOpen(id); break;
+    case 'rec-play': closeModal(); if(ink) inkHear(id, 0); break;
+    case 'rec-del': { const z = ink; if(z){ closeModal(); (async()=>{ await recDel(id); const saved = await updateItem(z.item.id, it=>{ it.payload.recs = (it.payload.recs || []).filter(r=>r.id !== id); return it; }); if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; } toast('Enregistrement supprimé.'); })(); } break; }
     case 'nt-mv': notesMove(i, Number(el.dataset.d)); break;
     case 'nt-rm': notesAskRemove(i); break;
     case 'nt-blank': notesAddBlank(); break;
