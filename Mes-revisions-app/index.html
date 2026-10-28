@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.9.5">
+<meta name="app-version" content="3.9.9">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -559,6 +559,47 @@ html{background:var(--bg)}
 #wall::after{content:'';position:absolute;inset:0;background:var(--bg);opacity:var(--wall-veil,.55)}
 body.has-wall{background:transparent}
 .home-links{margin:22px 0 0}
+.ne-fab{position:absolute;left:12px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:6;width:54px;height:54px;border-radius:50%;border:4px solid var(--line);background:var(--surface);font-size:24px;line-height:1;display:grid;place-items:center;box-shadow:0 4px 16px rgba(0,0,0,.35);cursor:pointer;padding:0;color:var(--ink);font-weight:700}
+.ne-fab.open{background:var(--accent-soft)}
+.ne .ne-bar{padding-left:82px}
+.ne .ne-bar.closed{display:none}
+.ne .btn.ne-t{width:46px;min-width:46px;padding:0;min-height:44px}
+.ne-t svg:not(.pen),.ne-fab svg:not(.pen){width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+svg.pen{display:block;width:22px;height:40px}
+.ne-fab svg.pen{width:20px;height:36px}
+.ne .btn.ne-t.on{transform:translateY(-3px);box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.ne-fab svg:not(.pen){width:27px;height:27px}
+.ne-tools{display:inline-flex;align-items:center;gap:6px;flex:none}
+.ne .btn.ne-s{min-width:34px;width:34px;padding:0;min-height:36px}
+.ne-wn{width:64px;min-height:36px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 6px;font-size:14px;flex:none}
+.ne-ruler{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;border-radius:8px;border:1.5px solid rgba(40,60,90,.7);background-color:rgba(190,215,245,.42);box-shadow:0 2px 12px rgba(0,0,0,.3);--tick:47px;background-image:repeating-linear-gradient(90deg,rgba(30,40,60,.85) 0 1px,transparent 1px var(--tick)),repeating-linear-gradient(90deg,rgba(30,40,60,.5) 0 1px,transparent 1px calc(var(--tick) / 10));background-size:100% 32%,100% 15%;background-repeat:no-repeat;background-position:top left}
+.ne-ruler[hidden]{display:none}
+.ne-ruler-h{position:absolute;left:88%;top:50%;margin-top:-17px;width:34px;height:34px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:auto;cursor:grab;touch-action:none}
+.ne-cfg{position:absolute;inset:0;z-index:30;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 30px}
+.ne-cfg[hidden]{display:none}
+.ne-cfg-top{display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:8px;min-height:48px}
+.ne-cfg-top b{font-size:20px}
+.ne-done{position:absolute;right:0;top:0;width:48px;height:48px;border-radius:50%;border:0;background:#2f7bf6;color:#fff;font-size:26px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(47,123,246,.5)}
+.ne-cfg-hint{text-align:center;color:var(--muted);margin:0 0 14px}
+.ne-cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;background:var(--surface);border-radius:16px;padding:12px}
+.ne-cell{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:none;padding:8px 4px;cursor:pointer;color:var(--ink)}
+.ne-cell-i{height:80px;display:grid;place-items:center;border-bottom:1px solid var(--line);width:100%}
+.ne-cell-i svg.pen{width:38px;height:70px}
+.ne-cell-i svg:not(.pen){width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ne-cell-l{font-size:13.5px;text-align:center;color:var(--muted);min-height:36px;display:flex;align-items:center}
+.ne-chk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;flex:none}
+.ne-chk.on{background:#2f7bf6;border-color:#2f7bf6}
+.ne-chk.on::after{content:'✓';color:#fff;font-weight:700;font-size:16px;line-height:1}
+.ne-pop.tbl{display:block;grid-template-columns:none;min-width:250px}
+.ne-tbl{display:flex;flex-direction:column;gap:10px}
+.ne-tt{font-size:16px}
+.ne-tr{display:flex;align-items:center;gap:8px}
+.ne-tr span{flex:1;font-weight:600}
+.ne-tr b{min-width:30px;text-align:center;font-size:18px}
+.ne-tprev{display:grid;grid-template-columns:repeat(var(--c),1fr);grid-template-rows:repeat(var(--r),1fr);gap:0;height:92px;border:2px solid var(--ink);border-radius:4px;overflow:hidden}
+.ne-tprev i{border:.5px solid var(--ink);opacity:.8}
+.ne-tblctl{display:inline-flex;align-items:center;gap:6px}
+.ne-tblctl b{margin:0 4px;font-size:14px;white-space:nowrap}
 /* ---- v3.9 : écrire sur les pages ---- */
 .ne{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .ne-top,.ne-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);flex:none;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
@@ -579,13 +620,13 @@ body.has-wall{background:transparent}
 .ne-bar input[type=range]{width:110px;flex:none}
 .ne-wv{min-width:22px;font-size:13px;font-weight:600}
 .ne-sub{display:none;gap:4px;flex:none}
-.ne-pop{position:absolute;left:10px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.3);display:grid;grid-template-columns:repeat(8,34px);gap:8px;max-width:calc(100vw - 20px)}
+.ne-pop{position:absolute;left:10px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.3);display:grid;grid-template-columns:repeat(8,34px);gap:8px;max-width:calc(100vw - 20px)}
 .ne-pop[hidden],.ne-selbar[hidden]{display:none}
 .ne-c{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);padding:0;cursor:pointer}
 .ne-c.on{outline:3px solid var(--accent);outline-offset:1px}
 .ne-rl{grid-column:1/-1;font-size:12px;color:var(--muted)}
 .ne-custom{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:14px}
-.ne-selbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 6px 22px rgba(0,0,0,.3)}
+.ne-selbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 6px 22px rgba(0,0,0,.3)}
 .ne-text{position:absolute;z-index:3;min-width:140px;background:rgba(255,255,255,.9);border:1.5px dashed #1e88e5;outline:none;resize:none;padding:0 3px;font-family:-apple-system,Helvetica,Arial,sans-serif;user-select:text;-webkit-user-select:text}
 /* ---- v3.5 : examens, lecture audio, impression de schéma ---- */
 .exam-wrap{margin-top:14px}
@@ -690,7 +731,7 @@ body.has-wall{background:transparent}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.9.5';
+const APP_VERSION = '3.9.9';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -859,7 +900,7 @@ async function imgDel(id){
 }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
 function imageIds(it){
-  if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p)).concat(Object.keys(it.payload.ink || {}).map(k=>it.payload.ink[k]).filter(Boolean));
+  if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p)).concat(Object.keys(it.payload.ink || {}).map(k=>it.payload.ink[k]).filter(Boolean), (it.payload.imgs || []).filter(Boolean));
   if(it.type==='schema') return it.payload.image && !/^data:/.test(it.payload.image) ? [it.payload.image] : [];
   const list = it.type==='quiz' ? it.payload.questions : it.type==='flashcards' ? it.payload.cards : it.type==='synthese' ? [].concat.apply([], it.payload.sections.map(s=>s.items)) : [];
   const out = []; list.forEach(x=>{ if(x.image && !/^data:/.test(x.image) && out.indexOf(x.image)<0) out.push(x.image); });
@@ -3451,7 +3492,7 @@ function renderNotes(){
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3492,45 +3533,115 @@ document.addEventListener('keydown', e=>{
   if(e.key==='ArrowRight'){ notesGo(1); } else if(e.key==='ArrowLeft'){ notesGo(-1); } else if(e.key==='Escape'){ notesCloseFull(); }
 });
 
-/* ================= v3.9 : écrire sur les pages (stylo, crayon, marqueur, fluo, gomme, sélection, formes, texte, zoom) ================= */
+/* ================= v3.9 : écrire sur les pages (plumes, stylos, lignes, règle, images, zoom) ================= */
+const INK_PT = 0.595;
+const ptw = pt=>Math.round(pt / INK_PT * 100) / 100;
 const INK_PAL = ['#111111','#4b4b4b','#8a8a8a','#ffffff','#c62828','#e53935','#ff6f00','#f9a825','#fdd835','#c0ca33','#2e7d32','#00c853','#00897b','#00acc1','#1e88e5','#1565c0','#3949ab','#6a1b9a','#8e24aa','#d81b60','#ec407a','#6d4c41','#a1887f','#ff1744'];
-const INK_DEF = { pen:{c:'#111111',w:3}, pencil:{c:'#4b4b4b',w:2}, marker:{c:'#1e88e5',w:9}, hl:{c:'#fdd835',w:28}, shape:{c:'#c62828',w:3}, text:{c:'#111111',w:5}, eraser:{c:'#000000',w:16} };
-const INK_RANGE = { pen:[1,12], pencil:[1,8], marker:[3,30], hl:[10,60], shape:[1,14], text:[1,20], eraser:[6,48] };
-const INK_ALPHA = { pen:1, pencil:0.8, marker:1, hl:1 };
-const INK_TOOLS = ['hand','pen','pencil','marker','hl','eraser','select','shape','text'];
+const INK_PENS = [];
+[['plume','Plume','plume',['#5b2a86','#1a237e','#6a1b9a','#e07a5f'],1.5],
+ ['stylo','Stylo','stylo',['#111111','#e0583c','#111111','#2e7d32'],4.1],
+ ['crayon','Crayon','crayon',['#2f6b57','#2f6fe0','#e0583c','#2e8b57'],1.8],
+ ['mono','Stylo Monoligne','mono',['#111111','#1a237e','#6a1b9a','#e07a5f'],1.0],
+ ['hl','Surligneur','hl',['#9ccc65','#ef6f6c','#4dd0e1'],16]
+].forEach(f=>f[3].forEach((c, i)=>INK_PENS.push({ id:f[0]+(i+1), label:f[1]+' '+(i+1), base:f[2], c, w:ptw(f[4]) })));
+[['ligne','Stylo Ligne Simple','dash','s','#e0583c',1.5],['ondulee','Ligne ondulée','dash','w','#111111',1.5],['pointillee','Ligne pointillée','dash','t','#e0583c',3],
+ ['double','Double ligne','dash','d2','#e0583c',1.2],['ondulee2','Stylo Ligne Ondulée Double','dash','w2','#111111',1.2],['triple','Stylo Ligne Triple','dash','d3','#e0583c',1.1],
+ ['pastel','Pastel','pastel',null,'#e57373',12],['calame','Calame','calame',null,'#111111',5],['feutre','Feutre','feutre',null,'#c17a4a',6],
+ ['ephemere','Stylo éphémère','ephemere',null,'#e53935',3],['laser','Pointeur laser','laser',null,'#ff1744',8]
+].forEach(s=>INK_PENS.push({ id:s[0], label:s[1], base:s[2], ls:s[3], c:s[4], w:ptw(s[5]) }));
+const INK_BY = {}; INK_PENS.forEach(p=>{ INK_BY[p.id] = p; });
+const INK_OTHERS = [['hand','Main (déplacer la page)'],['eraser','Gomme'],['select','Sélection au lasso'],['shape','Formes'],['text','Texte'],['table','Tableau'],['ruler','Règle (latte)'],['image','Image']];
+const INK_ORDER = ['hand'].concat(INK_PENS.map(p=>p.id), ['eraser','select','shape','text','table','ruler','image']);
+const INK_VIS_DEF = ['hand','plume1','stylo1','crayon1','mono1','hl1','ondulee','pointillee','eraser','select','shape','text','table','ruler','image'];
+const INK_DEF = { shape:{c:'#c62828',w:3}, text:{c:'#111111',w:5}, eraser:{c:'#000000',w:16} };
+INK_PENS.forEach(p=>{ INK_DEF[p.id] = { c:p.c, w:p.w }; });
+const INK_RNG = { plume:[0.3,8], stylo:[1,20], crayon:[0.3,6], mono:[0.3,5], hl:[6,40], dash:[0.5,10], pastel:[4,40], calame:[1,15], feutre:[1,15], ephemere:[1,10], laser:[3,20], shape:[0.5,10], text:[1,20], eraser:[6,48] };
+const INK_ALPHA = { crayon:0.8, pastel:0.55, feutre:0.9, pencil:0.8, pen:1, marker:1 };
+const INK_STROKE = ['plume','stylo','mono','crayon','hl','pastel','feutre','calame','dash'];
 const INK_W = 1000;
 let ink = null;
-function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink') || '{}') || {}; }catch(e){ return {}; } }
-function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, finger:z.finger, smooth:z.smooth, snap:z.snap, recent:z.recent })); }catch(e){} }
-function inkKey(t){ return t==='hand' || t==='select' ? null : t; }
+function inkBase(id){ return INK_BY[id] ? INK_BY[id].base : id; }
+function inkRaw(id){ return id === 'text' || id === 'eraser'; }
+function inkDisp(id, w){ return inkRaw(id) ? w : Math.round(w * INK_PT * 10) / 10; }
+function inkFromDisp(id, v){ return inkRaw(id) ? v : v / INK_PT; }
+function inkLabel(id){ if(INK_BY[id]) return INK_BY[id].label; const o = INK_OTHERS.filter(x=>x[0] === id)[0]; return o ? o[1] : id; }
+
+const INK_ICON = {
+  hand:'<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11m0-5.5a1.5 1.5 0 0 1 3 0V11m0-3a1.5 1.5 0 0 1 3 0v5.5a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4.2-2.3L4.6 14a1.4 1.4 0 0 1 2.3-1.6L8 13.6"/>',
+  eraser:'<path d="M20 20H10L4.5 14.5a1.5 1.5 0 0 1 0-2.1L12.4 4.5a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1L12 19"/><path d="M8 10l6 6"/>',
+  select:'<ellipse cx="12" cy="10" rx="8.5" ry="6" stroke-dasharray="3.2 3"/><path d="M8 15.5c-.5 2.4.8 4.5 3 5"/>',
+  shape:'<rect x="3" y="11" width="9.5" height="9.5" rx="1.6"/><circle cx="16" cy="8" r="5"/>',
+  text:'<path d="M5 7V4.5h14V7M12 4.5V20M9 20h6"/>',
+  table:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.5h18M9 4v16M15 4v16"/>',
+  ruler:'<path d="M3.5 15.5l12-12 5 5-12 12z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
+  gear:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+  smooth:'<path d="M3 14c3-8 5.5 8 9 0s6 8 9 0"/>',
+  snap:'<circle cx="12" cy="12" r="3.2"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>',
+  finger:'<path d="M9 11V5.5a1.6 1.6 0 0 1 3.2 0V14l2.3-.9a1.6 1.6 0 0 1 1.8 2.5L14 20.5H9.5L6 15.5a1.5 1.5 0 0 1 2.4-1.7L9 14.5"/>'
+};
+function inkSvg(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(INK_ICON[k] || '')+'</svg>'; }
+function penSvg(base, c, ls){
+  const body = '<rect x="5" y="19" width="14" height="24" rx="2.5" fill="#fafafa" stroke="#b9b9b9" stroke-width="1"/>';
+  let tip = '', mark = '<rect x="5" y="30" width="14" height="4.5" fill="'+c+'"/>';
+  if(base === 'plume') tip = '<path d="M12 3L18 15Q18 19 15.5 19.5h-7Q6 19 6 15z" fill="#cfcfcf" stroke="#8d8d8d" stroke-width=".8"/><path d="M12 5v9" stroke="'+c+'" stroke-width="1.3"/><circle cx="12" cy="13" r="1.4" fill="'+c+'"/>';
+  else if(base === 'stylo') tip = '<path d="M12 3l3.4 16H8.6z" fill="'+c+'" stroke="#8d8d8d" stroke-width=".6"/>';
+  else if(base === 'crayon') tip = '<path d="M12 3l7 16H5z" fill="#e3e3e3" stroke="#aaa" stroke-width=".7"/><path d="M12 3l2.6 6h-5.2z" fill="'+c+'"/>';
+  else if(base === 'mono') tip = '<path d="M11.2 2h1.6v5h-1.6z" fill="'+c+'"/><rect x="9.8" y="7" width="4.4" height="12" rx="1" fill="#eee" stroke="#aaa" stroke-width=".7"/>';
+  else if(base === 'hl') tip = '<path d="M7 19L8.4 8.5 12 4l3.6 4.5L17 19z" fill="'+c+'" opacity=".85" stroke="#9a9a9a" stroke-width=".6"/>';
+  else if(base === 'pastel') tip = '<path d="M7 19l1-10c0-3 8-3 8 0l1 10z" fill="'+c+'" stroke="#aaa" stroke-width=".6"/>';
+  else if(base === 'calame') tip = '<path d="M12 2l5 9-2 8H9l-2-8z" fill="#1c1c1c"/><path d="M12 5v8" stroke="#eee" stroke-width=".8"/>';
+  else if(base === 'feutre') tip = '<path d="M8 19c0-6 2-12 4-14 2 2 4 8 4 14z" fill="'+c+'" stroke="#8d8d8d" stroke-width=".6"/>';
+  else if(base === 'ephemere') tip = '<path d="M12 3l3.4 16H8.6z" fill="'+c+'" stroke="#8d8d8d" stroke-width=".6"/>';
+  else if(base === 'laser'){ tip = '<rect x="7" y="8" width="10" height="11" rx="2" fill="#eee" stroke="#aaa" stroke-width=".7"/><ellipse cx="12" cy="6" rx="5" ry="3.2" fill="'+c+'" opacity=".9"/>'; mark = '<circle cx="12" cy="33" r="2.2" fill="none" stroke="#999"/>'; }
+  else if(base === 'dash'){
+    tip = '<path d="M12 3l3.4 16H8.6z" fill="#222" stroke="#8d8d8d" stroke-width=".6"/>';
+    const L = y=>'<path d="M7 '+y+'h10" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/>', Wv = y=>'<path d="M7 '+y+'q1.5-3 3 0t3 0 3 0" fill="none" stroke="'+c+'" stroke-width="1.4" stroke-linecap="round"/>';
+    mark = ls === 'w' ? Wv(33) : ls === 't' ? '<circle cx="8" cy="33" r="1.1" fill="'+c+'"/><circle cx="12" cy="33" r="1.1" fill="'+c+'"/><circle cx="16" cy="33" r="1.1" fill="'+c+'"/>' : ls === 'd2' ? L(30)+L(35) : ls === 'w2' ? Wv(30)+Wv(36) : ls === 'd3' ? L(28)+L(33)+L(38) : L(33);
+  }
+  return '<svg class="pen" viewBox="0 0 24 44" aria-hidden="true">'+body+mark+tip+'</svg>';
+}
+function inkIconFor(id){ return INK_BY[id] ? penSvg(INK_BY[id].base, (ink && ink.tc[id] ? ink.tc[id].c : INK_BY[id].c), INK_BY[id].ls) : inkSvg(id); }
+
+function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink2') || '{}') || {}; }catch(e){ return {}; } }
+function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink2', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, barOpen:z.barOpen, finger:z.finger, smooth:z.smooth, snap:z.snap, recent:z.recent, vis:z.vis, tbl:z.tbl, tblSeen:true })); }catch(e){} }
+function inkKey(t){ const b = inkBase(t); return b === 'hand' || b === 'select' || b === 'ruler' || b === 'image' ? null : t; }
 function inkPageKey(z){ return z.item.payload.pages[z.pos]; }
 
 async function inkOpen(){
   const zn = state.notes; if(!zn || document.getElementById('ne')) return;
   const pr = inkLoadPrefs(), tc = {};
   Object.keys(INK_DEF).forEach(k=>{ tc[k] = Object.assign({}, INK_DEF[k], (pr.tc || {})[k] || {}); });
-  ink = { item:zn.item, pos:zn.pos, tool: INK_TOOLS.indexOf(pr.tool) >= 0 ? pr.tool : 'pen', shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', finger: !!pr.finger, smooth: pr.smooth !== false, snap: pr.snap !== false, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
-    objs:[], undo:[], redo:[], sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, H:1414, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, dirty:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false };
+  let vis = Array.isArray(pr.vis) ? pr.vis.filter(id=>INK_ORDER.indexOf(id) >= 0) : INK_VIS_DEF.slice();
+  if(!vis.length) vis = INK_VIS_DEF.slice(); if(!pr.tblSeen && vis.indexOf('table') < 0) vis.push('table'); vis.sort((a, b)=>INK_ORDER.indexOf(a) - INK_ORDER.indexOf(b));
+  const tool0 = vis.indexOf(pr.tool) >= 0 && pr.tool !== 'ruler' && pr.tool !== 'image' ? pr.tool : (vis.filter(id=>INK_BY[id])[0] || 'hand');
+  ink = { item:zn.item, pos:zn.pos, tool:tool0, vis, shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', barOpen: !!pr.barOpen, finger: !!pr.finger, smooth: pr.smooth !== false, snap: pr.snap !== false, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
+    objs:[], undo:[], redo:[], sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, H:1414, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, dirty:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false,
+    ruler:{ on:false, cx:500, cy:500, ang:0, L:1000, TH:75 }, imgEls:{}, tbl:{ r:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.r) || 3)), c:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.c) || 3)) } };
   const ov = document.createElement('div'); ov.id = 'ne'; ov.className = 'ne';
   ov.innerHTML =
     '<div class="ne-top"><button class="btn sm" data-ne="close">‹ Fermer</button><b class="ne-title">'+esc(ink.item.title)+'</b>'+
     '<button class="btn sm" data-ne="prev" aria-label="Page précédente">‹</button><span class="ne-pos" id="nePos"></span><button class="btn sm" data-ne="next" aria-label="Page suivante">›</button>'+
-    '<button class="btn sm" data-ne="blank">＋ Page blanche</button><button class="btn sm" data-ne="addfiles">＋ PDF / images</button><input type="file" id="neFiles" accept="image/*,application/pdf" multiple hidden><button class="btn sm" data-ne="rmpage">Supprimer la page</button>'+
+    '<button class="btn sm" data-ne="blank">＋ Page blanche</button><button class="btn sm" data-ne="addfiles">＋ PDF / images</button><input type="file" id="neFiles" accept="image/*,application/pdf" multiple hidden><input type="file" id="neImgFile" accept="image/*" hidden><button class="btn sm" data-ne="rmpage">Supprimer la page</button>'+
     '<button class="btn sm" data-ne="undo" id="neUndo" aria-label="Annuler">↶</button><button class="btn sm" data-ne="redo" id="neRedo" aria-label="Rétablir">↷</button>'+
     '<button class="btn sm" data-ne="zout" aria-label="Dézoomer">−</button><span class="ne-zoom" id="neZoom">100 %</span><button class="btn sm" data-ne="zin" aria-label="Zoomer">＋</button>'+
     '<button class="btn sm" data-ne="fitw">Largeur</button><button class="btn sm" data-ne="fitp">Page entière</button><span class="ne-save" id="neSave"></span></div>'+
-    '<div class="ne-stage" id="neStage"><img class="ne-img" id="neImg" alt="" draggable="false"><canvas class="ne-cv ne-hl" id="neHl"></canvas><canvas class="ne-cv" id="neInk"></canvas><canvas class="ne-cv" id="neLive"></canvas></div>'+
-    '<div class="ne-selbar" id="neSelbar" hidden><button class="btn sm" data-ne="del">Supprimer</button><button class="btn sm" data-ne="recolor">Appliquer la couleur</button><button class="btn sm" data-ne="dup">Dupliquer</button><button class="btn sm" data-ne="unsel">OK</button></div>'+
+    '<div class="ne-stage" id="neStage"><img class="ne-img" id="neImg" alt="" draggable="false"><canvas class="ne-cv ne-hl" id="neHl"></canvas><canvas class="ne-cv" id="neInk"></canvas><canvas class="ne-cv" id="neLive"></canvas>'+
+      '<div class="ne-ruler" id="neRuler" hidden><span class="ne-ruler-h" id="neRulerH" title="Tourner la règle"></span></div></div>'+
+    '<div class="ne-selbar" id="neSelbar" hidden><span class="ne-tblctl" id="neTblCtl" hidden><button class="btn sm" data-ne="tadj" data-dr="-1">Lignes −</button><button class="btn sm" data-ne="tadj" data-dr="1">Lignes ＋</button><button class="btn sm" data-ne="tadj" data-dc="-1">Col. −</button><button class="btn sm" data-ne="tadj" data-dc="1">Col. ＋</button><b id="neTblInfo"></b></span><button class="btn sm" data-ne="del">Supprimer</button><button class="btn sm" data-ne="recolor">Appliquer la couleur</button><button class="btn sm" data-ne="dup">Dupliquer</button><button class="btn sm" data-ne="unsel">OK</button></div>'+
     '<div class="ne-pop" id="nePop" hidden></div>'+
-    '<div class="ne-bar">'+
-      [['hand','Main'],['pen','Stylo'],['pencil','Crayon'],['marker','Marqueur'],['hl','Fluo'],['eraser','Gomme'],['select','Sélection'],['shape','Formes'],['text','Texte']].map(t=>'<button class="btn sm" data-tool="'+t[0]+'">'+t[1]+'</button>').join('')+
-      '<button class="btn sm" data-ne="dict" id="neDict">Dicter</button>'+
-      '<button class="btn sm" data-ne="smooth" id="neSmooth">Lisser</button><button class="btn sm" data-ne="snap" id="neSnap">Formes auto</button>'+
+    '<div class="ne-cfg" id="neCfg" hidden></div>'+
+    '<button class="ne-fab" id="neFab" data-ne="fab" aria-label="Outils" title="Outils"></button>'+
+    '<div class="ne-bar" id="neBar"><span class="ne-tools" id="neTools"></span>'+
+      '<button class="btn sm ne-t" data-ne="dict" id="neDict" aria-label="Dicter" title="Dicter">'+inkSvg('mic')+'</button>'+
+      '<button class="btn sm ne-t" data-ne="smooth" id="neSmooth" aria-label="Lisser le trait" title="Lisser le trait">'+inkSvg('smooth')+'</button><button class="btn sm ne-t" data-ne="snap" id="neSnap" aria-label="Formes automatiques (garder le stylo posé)" title="Formes automatiques (garder le stylo posé)">'+inkSvg('snap')+'</button>'+
+      '<button class="btn sm ne-t" data-ne="cfg" id="neGear" aria-label="Paramètres des stylos" title="Paramètres des stylos">'+inkSvg('gear')+'</button>'+
       '<span class="ne-sub" id="neShapes"><button class="btn sm" data-shape="r">▭</button><button class="btn sm" data-shape="o">◯</button><button class="btn sm" data-shape="l">╱</button><button class="btn sm" data-shape="a">➚</button></span>'+
       '<button class="btn sm" data-ne="selall" id="neSelAll">Tout sélectionner</button>'+
       '<button class="ne-sw" id="neSw" data-ne="pal" aria-label="Couleur"></button>'+
-      '<input type="range" id="neW" min="1" max="12" step="1" aria-label="Épaisseur"><span class="ne-wv" id="neWv"></span>'+
-      '<button class="btn sm" data-ne="finger" id="neFinger">Doigt</button>'+
+      '<button class="btn sm ne-s" data-ne="wdec" aria-label="Plus fin">−</button><input type="range" id="neW" min="1" max="12" step="0.1" aria-label="Épaisseur"><button class="btn sm ne-s" data-ne="winc" aria-label="Plus épais">＋</button><input type="number" id="neWn" class="ne-wn" step="0.1" aria-label="Taille du trait">'+
+      '<button class="btn sm ne-t" data-ne="finger" id="neFinger" aria-label="Dessiner avec le doigt" title="Dessiner avec le doigt">'+inkSvg('finger')+'</button>'+
     '</div>';
   document.body.appendChild(ov); document.body.style.overflow = 'hidden';
   const z = ink; z.el = ov; z.stage = ov.querySelector('#neStage'); z.img = ov.querySelector('#neImg');
@@ -3538,14 +3649,26 @@ async function inkOpen(){
   z.ctx = { hl:z.cv.hl.getContext('2d'), ink:z.cv.ink.getContext('2d'), live:z.cv.live.getContext('2d') };
   ov.addEventListener('click', inkClick);
   ov.querySelector('#neFiles').addEventListener('change', e=>{ const f = Array.from(e.target.files || []); e.target.value = ''; if(f.length) inkAddFiles(f); });
+  ov.querySelector('#neImgFile').addEventListener('change', e=>{ const f = e.target.files && e.target.files[0]; e.target.value = ''; if(f) inkAddImage(f); });
+  const wi = ov.querySelector('#neW'), wn = ov.querySelector('#neWn');
+  wi.addEventListener('input', ()=>inkSetSize(Number(wi.value))); wn.addEventListener('change', ()=>{ if(wn.value !== '') inkSetSize(Number(wn.value)); });
   const st = z.stage;
   st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp);
   st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
   st.addEventListener('gesturestart', inkGStart); st.addEventListener('gesturechange', inkGChange); st.addEventListener('gestureend', e=>e.preventDefault());
+  const rh = ov.querySelector('#neRulerH');
+  rh.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); try{ rh.setPointerCapture(e.pointerId); }catch(_){} rh._on = true; });
+  rh.addEventListener('pointermove', e=>{ if(!rh._on) return; const q = inkPt(e), R = z.ruler; R.ang = Math.atan2(q.y - R.cy, q.x - R.cx); inkRulerPos(); });
+  rh.addEventListener('pointerup', e=>{ rh._on = false; try{ rh.releasePointerCapture(e.pointerId); }catch(_){} });
   z.onResize = ()=>{ inkResize(); }; window.addEventListener('resize', z.onResize);
+  if(window.ResizeObserver){ z.ro = new ResizeObserver(()=>inkResize()); z.ro.observe(z.stage); }
   z.onKey = inkKey2; document.addEventListener('keydown', z.onKey);
   z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
-  inkResize(); await inkLoadPage(true); inkUpdateUI();
+  inkBuildTools(); inkResize(); await inkLoadPage(true); inkUpdateUI();
+}
+function inkBuildTools(){
+  const z = ink; if(!z) return;
+  z.el.querySelector('#neTools').innerHTML = z.vis.map(id=>'<button class="btn sm ne-t" data-tool="'+id+'" aria-label="'+esc(inkLabel(id))+'" title="'+esc(inkLabel(id))+'">'+inkIconFor(id)+'</button>').join('');
 }
 function inkResize(){
   const z = ink; if(!z) return; const sw = z.stage.clientWidth, sh = z.stage.clientHeight; if(!sw || !sh) return;
@@ -3581,25 +3704,89 @@ function inkApply(now){
   const k = z.s / z.rs, t = 'translate('+(z.tx - k*z.rtx)+'px,'+(z.ty - k*z.rty)+'px) scale('+k+')';
   ['hl','ink','live'].forEach(n=>{ z.cv[n].style.transform = t; });
   const zl = document.getElementById('neZoom'); if(zl) zl.textContent = Math.round(z.s / (z.sw / INK_W) * 100) + ' %';
+  inkRulerPos();
   clearTimeout(z.rt); if(now) inkRender(); else z.rt = setTimeout(inkRender, 130);
 }
 function inkSetT(g){ const z = ink, d = z.dpr; g.setTransform(d*z.s, 0, 0, d*z.s, d*z.tx, d*z.ty); }
+function inkImgEl(id){
+  const z = ink; const el = z.imgEls[id]; if(el && el !== 1) return el; if(el === 1) return null;
+  z.imgEls[id] = 1;
+  imgGet(id).then(d=>{ if(!d || ink !== z){ return; } const im = new Image(); im.onload = ()=>{ z.imgEls[id] = im; inkRender(); }; im.src = d; }).catch(()=>{});
+  return null;
+}
 function inkRender(){
   const z = ink; if(!z || !z.sw) return;
   z.rs = z.s; z.rtx = z.tx; z.rty = z.ty;
   ['hl','ink','live'].forEach(n=>{ z.cv[n].style.transform = ''; });
-  const d = z.dpr;
   ['hl','ink'].forEach(n=>{ const g = z.ctx[n]; g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv[n].width, z.cv[n].height); inkSetT(g); });
-  z.objs.forEach(o=>inkDrawObj(o.tool === 'hl' ? z.ctx.hl : z.ctx.ink, o));
+  z.objs.forEach(o=>{ if(o.k === 'i') inkDrawObj(z.ctx.ink, o); });
+  z.objs.forEach(o=>{ if(o.k !== 'i') inkDrawObj(o.tool === 'hl' ? z.ctx.hl : z.ctx.ink, o); });
   inkOverlay();
 }
+/* largeur : plume = pression + vitesse ; calame = pointe plate */
+function inkCalF(dx, dy){ return 0.2 + 0.95 * Math.abs(Math.sin(Math.atan2(dy, dx) + 0.75)); }
+function inkDrawVar(g, o, q){
+  const p = o.p, n = p.length / 2; let sx = p[0]/10, sy = p[1]/10; g.lineCap = 'round';
+  for(let i = 1; i < n; i++){
+    const cx = p[2*i]/10, cy = p[2*i+1]/10; let ex, ey;
+    if(i < n - 1){ ex = (cx + p[2*i+2]/10) / 2; ey = (cy + p[2*i+3]/10) / 2; } else { ex = cx; ey = cy; }
+    g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(cx, cy, ex, ey); g.lineWidth = Math.max(0.2, o.w * q[i] / 20); g.stroke(); sx = ex; sy = ey;
+  }
+}
+function inkPoly(p){
+  const out = []; let px = p[0]/10, py = p[1]/10; out.push([px, py]);
+  for(let i = 2; i < p.length; i += 2){ const x = p[i]/10, y = p[i+1]/10, d = Math.hypot(x - px, y - py), n = Math.max(1, Math.ceil(d / 2)); for(let k = 1; k <= n; k++) out.push([px + (x - px)*k/n, py + (y - py)*k/n]); px = x; py = y; }
+  return out;
+}
+function inkOffset(poly, off, amp, wl){
+  const res = []; let s = 0;
+  for(let i = 0; i < poly.length; i++){
+    const a = poly[Math.max(0, i-1)], b = poly[Math.min(poly.length-1, i+1)]; let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    if(i) s += Math.hypot(poly[i][0] - poly[i-1][0], poly[i][1] - poly[i-1][1]);
+    const o = off + (amp ? amp * Math.sin(2 * Math.PI * s / wl) : 0);
+    res.push([poly[i][0] - ty*o, poly[i][1] + tx*o]);
+  }
+  return res;
+}
+function inkPolyStroke(g, pts){ g.beginPath(); pts.forEach((q, i)=>{ if(i) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); }); g.stroke(); }
+function inkDrawDash(g, o){
+  const w = o.w || 3, poly = inkPoly(o.p), ls = o.ls || 's';
+  g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = w;
+  if(poly.length < 2){ g.beginPath(); g.arc(poly[0][0], poly[0][1], w/2, 0, Math.PI*2); g.fill(); return; }
+  const amp = Math.max(2, w * 1.5), wl = amp * 5;
+  if(ls === 's') inkPolyStroke(g, poly);
+  else if(ls === 't'){ g.setLineDash([0.01, w * 2.2]); inkPolyStroke(g, poly); g.setLineDash([]); }
+  else if(ls === 'd2') [-1, 1].forEach(k=>inkPolyStroke(g, inkOffset(poly, k * w * 1.1, 0, 0)));
+  else if(ls === 'd3') [-1, 0, 1].forEach(k=>inkPolyStroke(g, inkOffset(poly, k * w * 2, 0, 0)));
+  else if(ls === 'w') inkPolyStroke(g, inkOffset(poly, 0, amp, wl));
+  else if(ls === 'w2') [-1, 1].forEach(k=>inkPolyStroke(g, inkOffset(poly, k * w * 1.4, amp, wl)));
+  else inkPolyStroke(g, poly);
+}
 function inkDrawObj(g, o){
+  const p = o.p;
+  if(o.k === 'i'){
+    const im = inkImgEl(o.id), x = Math.min(p[0], p[2])/10, y = Math.min(p[1], p[3])/10, w = Math.abs(p[2]-p[0])/10, h = Math.abs(p[3]-p[1])/10;
+    if(im) g.drawImage(im, x, y, w, h); else { g.save(); g.fillStyle = 'rgba(150,150,150,.25)'; g.fillRect(x, y, w, h); g.restore(); }
+    return;
+  }
+  if(o.k === 'g'){
+    const x0 = Math.min(p[0], p[2])/10, y0 = Math.min(p[1], p[3])/10, x1 = Math.max(p[0], p[2])/10, y1 = Math.max(p[1], p[3])/10, R = o.r || 3, C = o.n || 3;
+    g.save(); g.strokeStyle = o.c; g.lineWidth = o.w || 3; g.lineCap = 'square'; g.lineJoin = 'miter'; g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0);
+    for(let i = 1; i < R; i++){ const y = y0 + (y1 - y0) * i / R; g.moveTo(x0, y); g.lineTo(x1, y); }
+    for(let j = 1; j < C; j++){ const x = x0 + (x1 - x0) * j / C; g.moveTo(x, y0); g.lineTo(x, y1); }
+    g.stroke(); g.restore(); return;
+  }
   g.save(); g.strokeStyle = o.c; g.fillStyle = o.c; g.lineCap = o.tool === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round'; g.lineWidth = o.w || 3;
   if(o.tool && INK_ALPHA[o.tool] != null) g.globalAlpha = INK_ALPHA[o.tool];
-  const p = o.p;
   if(o.k === 's'){
     let same = true; for(let i = 2; i < p.length; i += 2){ if(p[i] !== p[0] || p[i+1] !== p[1]){ same = false; break; } }
-    if(same){ g.beginPath(); g.arc(p[0]/10, p[1]/10, (o.w||3)/2, 0, Math.PI*2); g.fill(); }
+    if(same){ g.beginPath(); g.arc(p[0]/10, p[1]/10, (o.w||3)/2 * (o.q ? o.q[0]/20 : 1), 0, Math.PI*2); g.fill(); }
+    else if(o.ls) inkDrawDash(g, o);
+    else if(o.tool === 'calame' || (o.tool === 'plume' && o.q && o.q.length === p.length/2)){
+      let q = o.q;
+      if(o.tool === 'calame'){ q = []; const n = p.length/2; for(let i = 0; i < n; i++){ const a = Math.max(0, i-1), b = Math.min(n-1, i+1); q.push(Math.round(20 * inkCalF(p[2*b]-p[2*a], p[2*b+1]-p[2*a+1]))); } }
+      inkDrawVar(g, o, q);
+    }
     else{
       g.beginPath(); g.moveTo(p[0]/10, p[1]/10);
       if(p.length === 4) g.lineTo(p[2]/10, p[3]/10);
@@ -3628,18 +3815,22 @@ function inkShape(g, k, x0, y0, x1, y1, w){
 }
 function inkOverlay(){
   const z = ink; if(!z) return; const g = z.ctx.live;
-  g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv.live.width, z.cv.live.height); z.cv.live.style.opacity = 1; z.cv.live.style.mixBlendMode = 'normal';
+  g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv.live.width, z.cv.live.height); z.cv.live.style.transition = ''; z.cv.live.style.opacity = 1; z.cv.live.style.mixBlendMode = 'normal';
   inkSetT(g);
   if(z.sel.length){
     const b = inkBBoxAll(z.sel.map(i=>z.objs[i]).filter(Boolean)); if(b){
       g.save(); g.setLineDash([6/z.s, 4/z.s]); g.lineWidth = 1.6/z.s; g.strokeStyle = '#1e88e5'; g.fillStyle = 'rgba(30,136,229,.08)';
-      const pd = 6/z.s; g.fillRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd); g.strokeRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd); g.restore();
+      const pd = 6/z.s; g.fillRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd); g.strokeRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd);
+      if(z.sel.length === 1 && z.objs[z.sel[0]] && (z.objs[z.sel[0]].k === 'i' || z.objs[z.sel[0]].k === 'g')){ g.setLineDash([]); g.fillStyle = '#1e88e5'; g.beginPath(); g.arc(b[2], b[3], 9/z.s, 0, Math.PI*2); g.fill(); }
+      g.restore();
     }
   }
   const a = z.act;
   if(a && a.kind === 'lasso'){ g.save(); g.setLineDash([6/z.s, 4/z.s]); g.lineWidth = 1.6/z.s; g.strokeStyle = '#1e88e5'; g.beginPath(); for(let i = 0; i < a.pts.length; i += 2){ if(i) g.lineTo(a.pts[i], a.pts[i+1]); else g.moveTo(a.pts[0], a.pts[1]); } g.closePath(); g.stroke(); g.restore(); }
   if(a && a.kind === 'erase' && a.cx != null){ g.save(); g.lineWidth = 1.5/z.s; g.strokeStyle = '#555'; g.setLineDash([4/z.s, 3/z.s]); g.beginPath(); g.arc(a.cx, a.cy, z.tc.eraser.w / z.s, 0, Math.PI*2); g.stroke(); g.restore(); }
   if(a && a.kind === 'shape'){ const tc = z.tc.shape; g.save(); g.strokeStyle = tc.c; g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = tc.w; inkShape(g, z.shape, a.x0, a.y0, a.x1, a.y1, tc.w); g.restore(); }
+  if(a && a.kind === 'laser'){ g.save(); g.fillStyle = z.tc[z.tool].c; g.shadowColor = z.tc[z.tool].c; g.shadowBlur = 18; g.beginPath(); g.arc(a.cx, a.cy, z.tc[z.tool].w/2, 0, Math.PI*2); g.fill(); g.restore(); }
+  if(a && a.kind === 'stroke' && a.whole){ inkDrawObj(g, a.whole()); }
 }
 /* boîtes englobantes */
 let inkMeasure = null;
@@ -3653,7 +3844,7 @@ function inkBBox(o){
   }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for(let i = 0; i < p.length; i += 2){ x0 = Math.min(x0, p[i]/10); x1 = Math.max(x1, p[i]/10); y0 = Math.min(y0, p[i+1]/10); y1 = Math.max(y1, p[i+1]/10); }
-  const h = (o.w || 3) / 2; return [x0-h, y0-h, x1+h, y1+h];
+  const h = o.k === 'i' ? 0 : (o.w || 3) / 2 + (o.ls ? (o.w || 3) * 2.5 : 0); return [x0-h, y0-h, x1+h, y1+h];
 }
 function inkBBoxAll(list){
   if(!list.length) return null; let r = [Infinity, Infinity, -Infinity, -Infinity];
@@ -3665,7 +3856,8 @@ function inkSeg(px, py, x1, y1, x2, y2){
   return Math.hypot(px - (x1 + t*dx), py - (y1 + t*dy));
 }
 function inkHit(o, x, y, r){
-  const p = o.p, rr = r + (o.w || 3) / 2;
+  const p = o.p, rr = r + (o.w || 3) / 2 + (o.ls ? (o.w || 3) * 2 : 0);
+  if(o.k === 'i' || o.k === 'g'){ const x0 = Math.min(p[0], p[2])/10, x1 = Math.max(p[0], p[2])/10, y0 = Math.min(p[1], p[3])/10, y1 = Math.max(p[1], p[3])/10; return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
   if(o.k === 's'){
     if(p.length <= 2) return Math.hypot(x - p[0]/10, y - p[1]/10) <= rr;
     for(let i = 0; i < p.length - 2; i += 2) if(inkSeg(x, y, p[i]/10, p[i+1]/10, p[i+2]/10, p[i+3]/10) <= rr) return true;
@@ -3684,18 +3876,51 @@ function inkInPoly(x, y, pts){
   return c;
 }
 
+/* ---------- la règle (latte) ---------- */
+function inkRulerPos(){
+  const z = ink; if(!z) return; const R = z.ruler, el = document.getElementById('neRuler'); if(!el) return;
+  el.hidden = !R.on; if(!R.on) return; const s = z.s;
+  el.style.width = (R.L * s) + 'px'; el.style.height = (R.TH * s) + 'px'; el.style.setProperty('--tick', (47.6 * s) + 'px');
+  el.style.transform = 'translate('+(z.tx + R.cx * s)+'px,'+(z.ty + R.cy * s)+'px) rotate('+R.ang+'rad) translate('+(-R.L * s / 2)+'px,'+(-R.TH * s / 2)+'px)';
+}
+function inkRulerHit(q){
+  const R = ink.ruler, ux = Math.cos(R.ang), uy = Math.sin(R.ang), dx = q.x - R.cx, dy = q.y - R.cy, t = dx*ux + dy*uy, d = -dx*uy + dy*ux;
+  const inside = Math.abs(t) <= R.L/2 && Math.abs(d) <= R.TH/2 + 8/ink.s; return { inside, edge: R.TH/2 - Math.abs(d) };
+}
+function inkRuleFor(q){
+  const z = ink, R = z.ruler; if(!R.on) return null;
+  const ux = Math.cos(R.ang), uy = Math.sin(R.ang), dx = q.x - R.cx, dy = q.y - R.cy, t = dx*ux + dy*uy, d = -dx*uy + dy*ux;
+  if(Math.abs(t) > R.L/2 + 20/z.s) return null;
+  const off = R.TH/2 * (d >= 0 ? 1 : -1); if(Math.abs(d - off) <= 26/z.s) return { off, ux, uy, cx:R.cx, cy:R.cy, L:R.L };
+  return null;
+}
+function inkRuleProj(r, q){
+  const dx = q.x - r.cx, dy = q.y - r.cy; let t = dx*r.ux + dy*r.uy; t = Math.max(-r.L/2, Math.min(r.L/2, t));
+  return [r.cx + r.ux*t - r.uy*r.off, r.cy + r.uy*t + r.ux*r.off];
+}
+
 /* ---------- gestes : dessin, déplacement, zoom ---------- */
 function inkPt(e){ const r = ink.stage.getBoundingClientRect(); const sx = e.clientX - r.left, sy = e.clientY - r.top; return { sx, sy, x:(sx - ink.tx) / ink.s, y:(sy - ink.ty) / ink.s }; }
 function inkTouches(){ return Array.from(ink.ptrs.values()).filter(v=>v.type === 'touch'); }
 function inkDown(e){
   const z = ink; if(!z || !z.loaded) return; e.preventDefault();
   const txt = z.stage.querySelector('.ne-text'); if(txt && txt._finish) txt._finish(true);
-  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; Array.from(z.ptrs.keys()).forEach(id=>{ if(z.ptrs.get(id).type === 'touch') z.ptrs.delete(id); }); z.gest = null; z.pan = null; }
+  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; Array.from(z.ptrs.keys()).forEach(id=>{ if(z.ptrs.get(id).type === 'touch') z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
   if(e.pointerType === 'touch' && z.penDown) return;
   z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY });
   try{ z.stage.setPointerCapture(e.pointerId); }catch(_){}
+  if(z.ruler.on){
+    const q0 = inkPt(e), h = inkRulerHit(q0), touch = e.pointerType === 'touch';
+    if(h.inside && (touch || (e.pointerType === 'mouse' && e.button === 0 && h.edge > 14 / z.s))){
+      if(touch && z.rdrag && z.rdrag.id !== e.pointerId){
+        const a = z.ptrs.get(z.rdrag.id), b = z.ptrs.get(e.pointerId); if(a && b){ const R = z.ruler; z.rrot = { id1:z.rdrag.id, id2:e.pointerId, a0:Math.atan2(b.y - a.y, b.x - a.x), ang0:R.ang, mx0:(a.x + b.x)/2, my0:(a.y + b.y)/2, cx0:R.cx, cy0:R.cy }; z.rdrag = null; }
+        return;
+      }
+      inkCancelAct(); z.rdrag = { id:e.pointerId, ox:q0.x, oy:q0.y, cx0:z.ruler.cx, cy0:z.ruler.cy }; return;
+    }
+  }
   const tt = inkTouches();
-  if(tt.length >= 2){ inkCancelAct(); inkStartGesture(); return; }
+  if(tt.length >= 2){ z.rdrag = null; inkCancelAct(); inkStartGesture(); return; }
   const draws = e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0) || (e.pointerType === 'touch' && z.finger);
   if(z.tool === 'hand' || !draws){ z.pan = { id:e.pointerId, x0:e.clientX, y0:e.clientY, tx0:z.tx, ty0:z.ty }; return; }
   inkToolDown(e);
@@ -3703,6 +3928,12 @@ function inkDown(e){
 function inkMove(e){
   const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId);
   if(!p){ return; } e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
+  if(z.rrot){
+    const a = z.ptrs.get(z.rrot.id1), b = z.ptrs.get(z.rrot.id2), R = z.ruler, r = z.rrot;
+    if(a && b){ R.ang = r.ang0 + (Math.atan2(b.y - a.y, b.x - a.x) - r.a0); R.cx = r.cx0 + ((a.x + b.x)/2 - r.mx0) / z.s; R.cy = r.cy0 + ((a.y + b.y)/2 - r.my0) / z.s; inkRulerPos(); }
+    return;
+  }
+  if(z.rdrag && z.rdrag.id === e.pointerId){ const q = inkPt(e); z.ruler.cx = z.rdrag.cx0 + (q.x - z.rdrag.ox); z.ruler.cy = z.rdrag.cy0 + (q.y - z.rdrag.oy); inkRulerPos(); return; }
   if(z.gest){ inkUpdateGesture(); return; }
   if(z.pan && z.pan.id === e.pointerId){ z.tx = z.pan.tx0 + e.clientX - z.pan.x0; z.ty = z.pan.ty0 + e.clientY - z.pan.y0; inkClamp(); inkApply(false); return; }
   if(z.act && z.act.id === e.pointerId){
@@ -3714,6 +3945,8 @@ function inkUp(e){
   const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId); if(!p) return;
   z.ptrs.delete(e.pointerId); if(e.pointerType === 'pen') z.penDown = false;
   try{ z.stage.releasePointerCapture(e.pointerId); }catch(_){}
+  if(z.rrot){ z.rrot = null; return; }
+  if(z.rdrag && z.rdrag.id === e.pointerId){ z.rdrag = null; return; }
   if(z.gest){ if(inkTouches().length < 2){ z.gest = null; inkApply(true); } return; }
   if(z.pan && z.pan.id === e.pointerId){ z.pan = null; inkApply(true); return; }
   if(z.act && z.act.id === e.pointerId){ if(e.type === 'pointercancel') inkCancelAct(); else inkToolUp(e); }
@@ -3741,24 +3974,38 @@ function inkGStart(e){ e.preventDefault(); if(ink) ink.gs0 = ink.s; }
 function inkGChange(e){ e.preventDefault(); const z = ink; if(!z) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
 
 /* ---------- outils ---------- */
-function inkLiveStyle(t){
-  const z = ink, c = z.cv.live; c.style.opacity = t === 'hl' ? 0.4 : (INK_ALPHA[t] || 1); c.style.mixBlendMode = t === 'hl' ? 'multiply' : 'normal';
+function inkLiveStyle(b){
+  const z = ink, c = z.cv.live; c.style.opacity = b === 'hl' ? 0.4 : (INK_ALPHA[b] || 1); c.style.mixBlendMode = b === 'hl' ? 'multiply' : 'normal';
+}
+function inkStrokeObj(a){
+  const z = ink, tc = z.tc[z.tool], b = inkBase(z.tool), o = { k:'s', tool:b, c:tc.c, w:tc.w, p:a.pts.map(v=>Math.round(v*10)) };
+  if(b === 'plume') o.q = a.q.slice();
+  if(b === 'dash') o.ls = INK_BY[z.tool].ls;
+  return o;
 }
 function inkToolDown(e){
-  const z = ink, q = inkPt(e), t = z.tool;
-  if(t === 'pen' || t === 'pencil' || t === 'marker' || t === 'hl'){
-    z.act = { id:e.pointerId, kind:'stroke', pts:[q.x, q.y], last:[q.x, q.y], fx:q.x, fy:q.y, hp:[q.x, q.y], snapped:null };
-    inkOverlay(); inkLiveStyle(t);
-    const g = z.ctx.live, tc = z.tc[t]; g.setTransform(1,0,0,1,0,0); inkSetT(g); g.fillStyle = tc.c; g.beginPath(); g.arc(q.x, q.y, tc.w/2, 0, Math.PI*2); g.fill();
-  }else if(t === 'eraser'){
+  const z = ink, q = inkPt(e), t = z.tool, b = inkBase(t);
+  if(INK_STROKE.indexOf(b) >= 0 || b === 'ephemere'){
+    const rule = b === 'ephemere' ? null : inkRuleFor(q); let x = q.x, y = q.y; if(rule){ const pr = inkRuleProj(rule, q); x = pr[0]; y = pr[1]; }
+    z.act = { id:e.pointerId, kind:'stroke', pts:[x, y], q:[20], f:1, last:[x, y], fx:x, fy:y, hp:[x, y], snapped:null, rule, lt:e.timeStamp, eph:b === 'ephemere' };
+    inkOverlay(); inkLiveStyle(b);
+    if(b === 'dash' || b === 'ephemere'){ const a = z.act; a.whole = ()=>({ k:'s', tool:b === 'ephemere' ? 'stylo' : b, c:z.tc[t].c, w:z.tc[t].w, ls:b === 'dash' ? INK_BY[t].ls : undefined, p:(a.pts.length < 4 ? [a.pts[0], a.pts[1], a.pts[0], a.pts[1]] : a.pts).map(v=>Math.round(v*10)) }); }
+    else { const g = z.ctx.live, tc = z.tc[t]; g.setTransform(1,0,0,1,0,0); inkSetT(g); g.fillStyle = tc.c; g.beginPath(); g.arc(x, y, tc.w/2 * (b === 'plume' ? 1 : 1), 0, Math.PI*2); g.fill(); }
+  }else if(b === 'laser'){
+    z.act = { id:e.pointerId, kind:'laser', cx:q.x, cy:q.y }; inkOverlay();
+  }else if(b === 'eraser'){
     z.act = { id:e.pointerId, kind:'erase', before:z.objs, cx:q.x, cy:q.y, changed:false }; inkErase(q.x, q.y);
-  }else if(t === 'shape'){
+  }else if(b === 'shape'){
     z.act = { id:e.pointerId, kind:'shape', x0:q.x, y0:q.y, x1:q.x, y1:q.y }; z.sel = []; inkOverlay();
-  }else if(t === 'select'){
-    const b = z.sel.length ? inkBBoxAll(z.sel.map(i=>z.objs[i]).filter(Boolean)) : null, pd = 8 / z.s;
-    if(b && q.x >= b[0]-pd && q.x <= b[2]+pd && q.y >= b[1]-pd && q.y <= b[3]+pd) z.act = { id:e.pointerId, kind:'move', x0:q.x, y0:q.y, base:z.objs, moved:false };
+  }else if(b === 'select'){
+    const bb = z.sel.length ? inkBBoxAll(z.sel.map(i=>z.objs[i]).filter(Boolean)) : null, pd = 8 / z.s;
+    if(z.sel.length === 1 && z.objs[z.sel[0]] && (z.objs[z.sel[0]].k === 'i' || z.objs[z.sel[0]].k === 'g')){
+      const o = z.objs[z.sel[0]];
+      if(Math.hypot(q.x - o.p[2]/10, q.y - o.p[3]/10) <= 18 / z.s){ z.act = { id:e.pointerId, kind:'resize', i:z.sel[0], base:z.objs, ratio:(o.p[2]-o.p[0]) / Math.max(1, (o.p[3]-o.p[1])), free:o.k === 'g', moved:false }; return; }
+    }
+    if(bb && q.x >= bb[0]-pd && q.x <= bb[2]+pd && q.y >= bb[1]-pd && q.y <= bb[3]+pd) z.act = { id:e.pointerId, kind:'move', x0:q.x, y0:q.y, base:z.objs, moved:false };
     else{ z.sel = []; z.act = { id:e.pointerId, kind:'lasso', pts:[q.x, q.y] }; inkOverlay(); inkUpdateUI(); }
-  }else if(t === 'text'){ z.act = { id:e.pointerId, kind:'text', q }; }
+  }else if(b === 'text'){ z.act = { id:e.pointerId, kind:'text', q }; }
 }
 function inkToolMove(e){
   const z = ink, a = z.act; if(!a) return; const q = inkPt(e);
@@ -3766,19 +4013,33 @@ function inkToolMove(e){
     if(a.snapped){
       const sn = a.snapped; if(sn.k === 's'){ sn.p[2] = Math.round(q.x*10); sn.p[3] = Math.round(q.y*10); inkSnapPreview(a); } return;
     }
-    if(z.snap && Math.hypot(q.x - a.hp[0], q.y - a.hp[1]) * z.s > 4){ a.hp = [q.x, q.y]; clearTimeout(a.holdT); a.holdT = setTimeout(inkSnap, 550); }
+    const b = inkBase(z.tool);
+    if(z.snap && !a.rule && b !== 'dash' && !a.eph && Math.hypot(q.x - a.hp[0], q.y - a.hp[1]) * z.s > 4){ a.hp = [q.x, q.y]; clearTimeout(a.holdT); a.holdT = setTimeout(inkSnap, 550); }
     let px = q.x, py = q.y; a.raw = [q.x, q.y];
-    if(z.smooth && z.tool !== 'hl'){ a.fx += (q.x - a.fx) * 0.45; a.fy += (q.y - a.fy) * 0.45; px = a.fx; py = a.fy; }
+    if(a.rule){ const pr = inkRuleProj(a.rule, q); px = pr[0]; py = pr[1]; }
+    else if(z.smooth && b !== 'hl'){ a.fx += (q.x - a.fx) * 0.45; a.fy += (q.y - a.fy) * 0.45; px = a.fx; py = a.fy; }
     const dx = px - a.last[0], dy = py - a.last[1]; if(dx*dx + dy*dy < Math.pow(1.1 / z.s, 2)) return;
-    a.pts.push(px, py); a.last = [px, py]; const p = a.pts, n = p.length / 2, g = z.ctx.live, tc = z.tc[z.tool];
-    g.strokeStyle = tc.c; g.lineWidth = tc.w; g.lineCap = z.tool === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round'; g.beginPath();
+    if(b === 'plume'){
+      const dt = Math.max(1, e.timeStamp - a.lt), sp = Math.hypot(dx, dy) * z.s / dt, pf = 0.35 + 1.3 * (e.pressure > 0 ? e.pressure : 0.5), sf = Math.max(0.65, Math.min(1.3, 1.3 - 0.3 * sp));
+      a.f += (pf * sf - a.f) * 0.3; a.lt = e.timeStamp;
+    }
+    a.pts.push(px, py); a.q.push(Math.max(4, Math.min(60, Math.round(a.f * 20)))); a.last = [px, py];
+    if(a.whole){ inkOverlay(); inkLiveStyle(a.eph ? 'stylo' : b); return; }
+    const p = a.pts, n = p.length / 2, g = z.ctx.live, tc = z.tc[z.tool];
+    g.strokeStyle = tc.c; g.lineWidth = b === 'plume' ? tc.w * a.f : tc.w; g.lineCap = b === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round';
+    if(b === 'calame') g.lineWidth = tc.w * inkCalF(dx, dy);
+    g.beginPath();
     if(n === 2){ g.moveTo(p[0], p[1]); g.lineTo((p[0]+p[2])/2, (p[1]+p[3])/2); }
     else{ g.moveTo((p[2*n-6]+p[2*n-4])/2, (p[2*n-5]+p[2*n-3])/2); g.quadraticCurveTo(p[2*n-4], p[2*n-3], (p[2*n-4]+p[2*n-2])/2, (p[2*n-3]+p[2*n-1])/2); }
     g.stroke();
-  }else if(a.kind === 'erase'){ a.cx = q.x; a.cy = q.y; inkErase(q.x, q.y); }
+  }else if(a.kind === 'laser'){ a.cx = q.x; a.cy = q.y; inkOverlay(); }
+  else if(a.kind === 'erase'){ a.cx = q.x; a.cy = q.y; inkErase(q.x, q.y); }
   else if(a.kind === 'shape'){ a.x1 = q.x; a.y1 = q.y; inkOverlay(); }
   else if(a.kind === 'lasso'){ a.pts.push(q.x, q.y); inkOverlay(); }
-  else if(a.kind === 'move'){
+  else if(a.kind === 'resize'){
+    const o0 = a.base[a.i], x0 = o0.p[0]/10, y0 = o0.p[1]/10, nx = Math.max(x0 + 30, q.x), ny = a.free ? Math.max(y0 + 30, q.y) : y0 + (nx - x0) / a.ratio; a.moved = true;
+    z.objs = a.base.map((o, i)=> i !== a.i ? o : Object.assign({}, o, { p:[o.p[0], o.p[1], Math.round(nx*10), Math.round(ny*10)] })); inkRender();
+  }else if(a.kind === 'move'){
     const dx = Math.round((q.x - a.x0) * 10), dy = Math.round((q.y - a.y0) * 10); a.moved = a.moved || Math.abs(dx) + Math.abs(dy) > 8;
     z.objs = a.base.map((o, i)=> z.sel.indexOf(i) < 0 ? o : Object.assign({}, o, { p:o.p.map((v, k)=> v + (k % 2 ? dy : dx)) })); inkRender();
   }
@@ -3787,11 +4048,13 @@ function inkToolUp(e){
   const z = ink, a = z.act; if(!a) return; z.act = null;
   if(a.kind === 'stroke'){
     clearTimeout(a.holdT);
+    if(a.eph){ const c = z.cv.live; c.style.transition = 'opacity 1.3s ease-in'; c.style.opacity = 0; setTimeout(()=>{ if(ink === z && !z.act) inkOverlay(); }, 1400); return; }
     if(a.snapped){ inkCommit(z.objs.concat(a.snapped)); return; }
-    if(a.raw && z.smooth && z.tool !== 'hl' && a.pts.length >= 4) a.pts.push(a.raw[0], a.raw[1]);
-    const tc = z.tc[z.tool], p = a.pts.length < 4 ? [a.pts[0], a.pts[1], a.pts[0], a.pts[1]] : a.pts;
-    inkCommit(z.objs.concat({ k:'s', tool:z.tool, c:tc.c, w:tc.w, p:p.map(v=>Math.round(v*10)) }));
-  }else if(a.kind === 'erase'){ if(a.changed){ z.undo.push(a.before); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } inkRender(); inkUpdateUI(); }
+    if(a.raw && !a.rule && z.smooth && inkBase(z.tool) !== 'hl' && a.pts.length >= 4){ a.pts.push(a.raw[0], a.raw[1]); a.q.push(a.q[a.q.length-1]); }
+    if(a.pts.length < 4){ a.pts.push(a.pts[0], a.pts[1]); a.q.push(a.q[0]); }
+    inkCommit(z.objs.concat(inkStrokeObj(a)));
+  }else if(a.kind === 'laser'){ inkOverlay(); }
+  else if(a.kind === 'erase'){ if(a.changed){ z.undo.push(a.before); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } inkRender(); inkUpdateUI(); }
   else if(a.kind === 'shape'){
     if(Math.hypot(a.x1 - a.x0, a.y1 - a.y0) < 3){ inkRender(); return; }
     const tc = z.tc.shape; inkCommit(z.objs.concat({ k:z.shape, c:tc.c, w:tc.w, p:[a.x0, a.y0, a.x1, a.y1].map(v=>Math.round(v*10)) }));
@@ -3806,14 +4069,14 @@ function inkToolUp(e){
       z.objs.forEach((o, i)=>{ const b = inkBBox(o); if(inkInPoly((b[0]+b[2])/2, (b[1]+b[3])/2, pts)) z.sel.push(i); });
     }
     inkOverlay(); inkUpdateUI();
-  }else if(a.kind === 'move'){
+  }else if(a.kind === 'move' || a.kind === 'resize'){
     if(a.moved){ z.undo.push(a.base); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } else z.objs = a.base;
     inkRender(); inkUpdateUI();
   }
 }
-function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; clearTimeout(a.holdT); z.act = null; if(a.kind === 'move' || a.kind === 'erase') z.objs = a.kind === 'move' ? a.base : a.before; inkRender(); }
+function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; clearTimeout(a.holdT); z.act = null; if(a.kind === 'move' || a.kind === 'resize' || a.kind === 'erase') z.objs = a.kind === 'erase' ? a.before : a.base; inkRender(); }
 function inkErase(x, y){
-  const z = ink, a = z.act, r = z.tc.eraser.w / z.s; const keep = z.objs.filter(o=>!inkHit(o, x, y, r));
+  const z = ink, a = z.act, r = z.tc.eraser.w / z.s; const keep = z.objs.filter(o=>o.k === 'i' || o.k === 'g' || !inkHit(o, x, y, r));
   if(keep.length !== z.objs.length){ z.objs = keep; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
 }
 function inkCommit(next){
@@ -3873,7 +4136,7 @@ function inkDictStop(noFocus){
 
 /* ---------- formes automatiques : garder le stylo posé redresse le trait ---------- */
 function inkSnapPreview(a){
-  const z = ink; inkOverlay(); inkLiveStyle(z.tool); const g = z.ctx.live; inkSetT(g); inkDrawObj(g, a.snapped);
+  const z = ink; inkOverlay(); inkLiveStyle(inkBase(z.tool)); const g = z.ctx.live; inkSetT(g); inkDrawObj(g, a.snapped);
 }
 function inkSnap(){
   const z = ink; if(!z || !z.act || z.act.kind !== 'stroke' || z.act.snapped || !z.snap) return;
@@ -3882,7 +4145,7 @@ function inkSnap(){
   for(let i = 0; i < p.length; i += 2){ mnx = Math.min(mnx, p[i]); mxx = Math.max(mxx, p[i]); mny = Math.min(mny, p[i+1]); mxy = Math.max(mxy, p[i+1]); }
   const diag = Math.hypot(mxx - mnx, mxy - mny); if(diag < 12) return;
   const x0 = p[0], y0 = p[1], xe = p[p.length-2], ye = p[p.length-1], chord = Math.hypot(xe - x0, ye - y0);
-  const base = { tool:z.tool, c:tc.c, w:tc.w }; let obj = null;
+  const base = { tool:inkBase(z.tool), c:tc.c, w:tc.w }; let obj = null;
   if(chord > diag * 0.85){
     let dev = 0; for(let i = 0; i < p.length; i += 2) dev = Math.max(dev, inkSeg(p[i], p[i+1], x0, y0, xe, ye));
     if(dev < chord * 0.07) obj = Object.assign({ k:'s', p:[x0, y0, xe, ye].map(v=>Math.round(v*10)) }, base);
@@ -3903,15 +4166,61 @@ function inkSnap(){
   if(!obj) return; a.snapped = obj; inkSnapPreview(a);
 }
 
+/* ---------- taille du trait (en points, comme sur Notes+) ---------- */
+function inkSetSize(v){
+  const z = ink, k = inkKey(z.tool); if(!k || !isFinite(v)) return; const r = INK_RNG[inkBase(k)] || [1, 20];
+  v = Math.max(r[0], Math.min(r[1], v)); z.tc[k].w = inkFromDisp(k, v); inkSyncSize(); inkSavePrefs();
+}
+function inkSyncSize(){
+  const z = ink; if(!z) return; const k = inkKey(z.tool); const w = z.el.querySelector('#neW'), wn = z.el.querySelector('#neWn'); if(!k) return;
+  const r = INK_RNG[inkBase(k)] || [1, 20], step = inkRaw(k) ? 1 : 0.1, d = inkDisp(k, z.tc[k].w);
+  w.min = r[0]; w.max = r[1]; w.step = step; w.value = d; wn.min = r[0]; wn.max = r[1]; wn.step = step; wn.value = d;
+}
+
+/* ---------- tableau : lignes et colonnes au choix ---------- */
+function inkTblPop(){
+  const z = ink, pop = document.getElementById('nePop'); if(!pop) return;
+  if(!pop.hidden && pop._tbl){ pop.hidden = true; return; }
+  pop._tbl = true; pop.classList.add('tbl'); inkTblPopFill(); pop.hidden = false;
+  const closer = e=>{ if(pop.hidden){ pop.classList.remove('tbl'); pop._tbl = false; pop.removeEventListener('transitionend', closer); } }; pop.addEventListener('transitionend', closer);
+}
+function inkTblPopFill(){
+  const z = ink, pop = document.getElementById('nePop'); if(!pop) return;
+  const row = (lab, id, rm, rp, v)=>'<div class="ne-tr"><span>'+lab+'</span><button class="btn sm ne-s" data-ne="'+rm+'" aria-label="Moins de '+lab.toLowerCase()+'">−</button><b id="'+id+'">'+v+'</b><button class="btn sm ne-s" data-ne="'+rp+'" aria-label="Plus de '+lab.toLowerCase()+'">＋</button></div>';
+  let prev = '<div class="ne-tprev" style="--r:'+z.tbl.r+';--c:'+z.tbl.c+'">';
+  for(let i = 0; i < Math.min(z.tbl.r * z.tbl.c, 400); i++) prev += '<i></i>'; prev += '</div>';
+  pop.innerHTML = '<div class="ne-tbl"><b class="ne-tt">Tableau</b>'+row('Lignes', 'tblR', 'tblrm', 'tblrp', z.tbl.r)+row('Colonnes', 'tblC', 'tblcm', 'tblcp', z.tbl.c)+prev+'<button class="btn primary" data-ne="tblins">Insérer le tableau</button></div>';
+}
+function inkTblInsert(){
+  const z = ink, R = z.tbl.r, C = z.tbl.c; const pop = document.getElementById('nePop'); if(pop){ pop.hidden = true; pop.classList.remove('tbl'); pop._tbl = false; }
+  const w = Math.min(INK_W - 40, Math.max(240, C * 150)), h = Math.max(80, R * 56), cx = (z.sw / 2 - z.tx) / z.s, cy = (z.sh / 2 - z.ty) / z.s;
+  const x0 = Math.max(20, Math.min(INK_W - w - 20, cx - w / 2)), y0 = Math.max(20, Math.min(z.H - h - 20, cy - h / 2)), tc = z.tc.shape;
+  inkCommit(z.objs.concat({ k:'g', c:tc.c, w:tc.w, r:R, n:C, p:[x0, y0, x0 + w, y0 + h].map(v=>Math.round(v*10)) }));
+  z.tool = 'select'; z.sel = [z.objs.length - 1]; inkOverlay(); inkUpdateUI(); inkSavePrefs(); toast('Tableau ' + R + ' × ' + C + ' ajouté : déplace-le, tire le point bleu pour l\'agrandir.');
+}
+function inkTblAdj(dr, dc){
+  const z = ink; if(z.sel.length !== 1) return; const o = z.objs[z.sel[0]]; if(!o || o.k !== 'g') return;
+  const r = Math.max(1, Math.min(30, (o.r || 3) + dr)), c = Math.max(1, Math.min(30, (o.n || 3) + dc)); if(r === o.r && c === o.n) return;
+  const next = z.objs.slice(); next[z.sel[0]] = Object.assign({}, o, { r, n:c }); const keep = z.sel.slice(); inkCommit(next); z.sel = keep; inkOverlay(); inkUpdateUI();
+}
+
 /* ---------- barre d'outils ---------- */
 function inkClick(e){
   const z = ink; if(!z) return;
-  const tl = e.target.closest('[data-tool]'); if(tl){ z.tool = tl.dataset.tool; z.sel = []; inkCloseActs(); inkOverlay(); inkUpdateUI(); inkSavePrefs(); return; }
+  const cf = e.target.closest('[data-cfg]'); if(cf){ inkCfgToggle(cf.dataset.cfg); return; }
+  const tl = e.target.closest('[data-tool]');
+  if(tl && !tl.closest('#neCfg')){
+    const id = tl.dataset.tool;
+    if(id === 'ruler'){ z.ruler.on = !z.ruler.on; if(z.ruler.on){ z.ruler.cx = (z.sw/2 - z.tx) / z.s; z.ruler.cy = (z.sh/2 - z.ty) / z.s; } inkRulerPos(); inkUpdateUI(); return; }
+    if(id === 'image'){ const fi = document.getElementById('neImgFile'); if(fi) fi.click(); return; }
+    if(id === 'table'){ inkTblPop(); return; }
+    z.tool = id; z.sel = []; inkCloseActs(); inkOverlay(); inkUpdateUI(); inkSavePrefs(); return;
+  }
   const sh = e.target.closest('[data-shape]'); if(sh){ z.shape = sh.dataset.shape; z.tool = 'shape'; inkUpdateUI(); inkSavePrefs(); return; }
   const col = e.target.closest('[data-col]'); if(col){ inkPickColor(col.dataset.col); return; }
   const b = e.target.closest('[data-ne]'); if(!b){ const pop = document.getElementById('nePop'); if(pop && !pop.hidden && !e.target.closest('#nePop')) pop.hidden = true; return; }
   const a = b.dataset.ne;
-  if(a !== 'pal'){ const pop = document.getElementById('nePop'); if(pop) pop.hidden = true; }
+  if(a !== 'pal' && a.indexOf('tbl') !== 0){ const pop = document.getElementById('nePop'); if(pop) pop.hidden = true; }
   if(a === 'close') inkClose();
   else if(a === 'prev') inkGo(-1);
   else if(a === 'next') inkGo(1);
@@ -3926,6 +4235,13 @@ function inkClick(e){
   else if(a === 'fitp') inkFit('p');
   else if(a === 'finger'){ z.finger = !z.finger; inkUpdateUI(); inkSavePrefs(); }
   else if(a === 'pal') inkTogglePalette();
+  else if(a === 'cfg') inkCfgOpen();
+  else if(a === 'tblrm' || a === 'tblrp' || a === 'tblcm' || a === 'tblcp'){ const f = a === 'tblrm' || a === 'tblrp' ? 'r' : 'c', pop = document.getElementById('nePop'); if(pop && pop._tbl){ z.tbl[f] = Math.max(1, Math.min(30, z.tbl[f] + (a.slice(-1) === 'p' ? 1 : -1))); inkTblPopFill(); } }
+  else if(a === 'tblins') inkTblInsert();
+  else if(a === 'tadj'){ inkTblAdj(Number(b.dataset.dr) || 0, Number(b.dataset.dc) || 0); }
+  else if(a === 'cfgdone') inkCfgClose();
+  else if(a === 'wdec' || a === 'winc'){ const k = inkKey(z.tool); if(k){ const st = inkRaw(k) ? 1 : 0.1; inkSetSize(Math.round((inkDisp(k, z.tc[k].w) + (a === 'winc' ? st : -st)) * 10) / 10); } }
+  else if(a === 'fab'){ z.barOpen = !z.barOpen; inkUpdateUI(); inkSavePrefs(); requestAnimationFrame(inkResize); }
   else if(a === 'dict') inkDictate();
   else if(a === 'smooth'){ z.smooth = !z.smooth; inkUpdateUI(); inkSavePrefs(); }
   else if(a === 'snap'){ z.snap = !z.snap; inkUpdateUI(); inkSavePrefs(); }
@@ -3934,6 +4250,22 @@ function inkClick(e){
   else if(a === 'recolor') inkRecolor();
   else if(a === 'unsel'){ z.sel = []; inkOverlay(); inkUpdateUI(); }
   else if(a === 'selall'){ z.sel = z.objs.map((o, i)=>i); inkOverlay(); inkUpdateUI(); }
+}
+/* panneau « Paramètres des stylos » */
+function inkCfgHTML(){
+  const z = ink, cell = (id, label, ico)=>'<button class="ne-cell" data-cfg="'+id+'"><span class="ne-cell-i">'+ico+'</span><span class="ne-cell-l">'+esc(label)+'</span><span class="ne-chk'+(z.vis.indexOf(id) >= 0 ? ' on' : '')+'" id="chk_'+id+'"></span></button>';
+  return '<div class="ne-cfg-top"><b>Paramètres des stylos</b><button class="ne-done" data-ne="cfgdone" aria-label="Terminé">✓</button></div>'+
+    '<p class="ne-cfg-hint">Coche les stylos que tu veux voir dans la barre d\'outils.</p>'+
+    '<div class="ne-cfg-grid">'+INK_PENS.map(p=>cell(p.id, p.label, penSvg(p.base, z.tc[p.id].c, p.ls))).join('')+INK_OTHERS.map(o=>cell(o[0], o[1], inkSvg(o[0]))).join('')+'</div>';
+}
+function inkCfgOpen(){ const z = ink, box = document.getElementById('neCfg'); if(!box) return; box.innerHTML = inkCfgHTML(); box.hidden = false; }
+function inkCfgClose(){ const box = document.getElementById('neCfg'); if(box) box.hidden = true; inkSavePrefs(); }
+function inkCfgToggle(id){
+  const z = ink, i = z.vis.indexOf(id);
+  if(i >= 0){ if(z.vis.length <= 1){ toast('Garde au moins un outil.'); return; } z.vis.splice(i, 1); } else { z.vis.push(id); z.vis.sort((a, b)=>INK_ORDER.indexOf(a) - INK_ORDER.indexOf(b)); }
+  const c = document.getElementById('chk_'+id); if(c) c.classList.toggle('on', z.vis.indexOf(id) >= 0);
+  if(z.vis.indexOf(z.tool) < 0){ z.tool = z.vis.filter(x=>INK_BY[x])[0] || z.vis.filter(x=>x !== 'ruler' && x !== 'image')[0] || 'hand'; }
+  inkBuildTools(); inkUpdateUI(); inkSavePrefs();
 }
 function inkCloseActs(){ const t = ink.stage.querySelector('.ne-text'); if(t && t._finish) t._finish(true); }
 function inkCurColor(){ const z = ink, k = inkKey(z.tool); return k ? z.tc[k].c : z.selColor; }
@@ -3956,7 +4288,7 @@ function inkPickColor(c, keepOpen){
 }
 function inkRecolor(){
   const z = ink; if(!z.sel.length) return; const c = inkCurColor(); const next = z.objs.slice();
-  z.sel.forEach(i=>{ if(next[i]) next[i] = Object.assign({}, next[i], { c }); }); const keep = z.sel.slice(); inkCommit(next); z.sel = keep; inkOverlay(); inkUpdateUI();
+  z.sel.forEach(i=>{ if(next[i] && next[i].k !== 'i') next[i] = Object.assign({}, next[i], { c }); }); const keep = z.sel.slice(); inkCommit(next); z.sel = keep; inkOverlay(); inkUpdateUI();
 }
 function inkDeleteSel(){ const z = ink; if(!z.sel.length) return; const s = z.sel; inkCommit(z.objs.filter((o, i)=>s.indexOf(i) < 0)); }
 function inkDupSel(){
@@ -3964,20 +4296,25 @@ function inkDupSel(){
   const base = z.objs.length; inkCommit(z.objs.concat(add)); z.sel = add.map((o, i)=>base + i); inkOverlay(); inkUpdateUI();
 }
 function inkUpdateUI(){
-  const z = ink; if(!z) return; const el = z.el, k = inkKey(z.tool);
-  el.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on', b.dataset.tool === z.tool));
-  el.querySelectorAll('[data-shape]').forEach(b=>b.classList.toggle('on', b.dataset.shape === z.shape));
-  el.querySelector('#neShapes').style.display = z.tool === 'shape' ? 'inline-flex' : 'none';
-  el.querySelector('#neSelAll').style.display = z.tool === 'select' ? '' : 'none';
-  const sw = el.querySelector('#neSw'); sw.style.display = z.tool === 'eraser' || z.tool === 'hand' ? 'none' : ''; sw.style.background = inkCurColor();
-  const w = el.querySelector('#neW'), wv = el.querySelector('#neWv');
-  if(k){ const r = INK_RANGE[k]; w.min = r[0]; w.max = r[1]; w.value = z.tc[k].w; w.style.display = ''; wv.textContent = z.tc[k].w; wv.style.display = ''; }
-  else{ w.style.display = 'none'; wv.style.display = 'none'; }
-  w.oninput = ()=>{ const kk = inkKey(z.tool); if(kk){ z.tc[kk].w = Number(w.value); wv.textContent = w.value; inkSavePrefs(); } };
+  const z = ink; if(!z) return; const el = z.el, k = inkKey(z.tool), b = inkBase(z.tool);
+  el.querySelectorAll('#neTools [data-tool]').forEach(btn=>{
+    const id = btn.dataset.tool; btn.classList.toggle('on', id === 'ruler' ? z.ruler.on : id === z.tool);
+    if(INK_BY[id]){ const c = z.tc[id].c; if(btn._c !== c){ btn._c = c; btn.innerHTML = inkIconFor(id); } }
+  });
+  el.querySelectorAll('[data-shape]').forEach(x=>x.classList.toggle('on', x.dataset.shape === z.shape));
+  el.querySelector('#neShapes').style.display = b === 'shape' ? 'inline-flex' : 'none';
+  el.querySelector('#neSelAll').style.display = b === 'select' ? '' : 'none';
+  const sw = el.querySelector('#neSw'); sw.style.display = !k || b === 'eraser' ? 'none' : ''; sw.style.background = inkCurColor();
+  const w = el.querySelector('#neW'), wn = el.querySelector('#neWn'), sbtn = el.querySelectorAll('.ne-s');
+  if(k){ w.style.display = ''; wn.style.display = ''; sbtn.forEach(x=>x.style.display = ''); inkSyncSize(); } else { w.style.display = 'none'; wn.style.display = 'none'; sbtn.forEach(x=>x.style.display = 'none'); }
   el.querySelector('#neFinger').classList.toggle('on', z.finger);
+  const fab = el.querySelector('#neFab');
+  fab.innerHTML = inkIconFor(z.tool); fab.setAttribute('aria-label', inkLabel(z.tool) + ' : ouvrir ou fermer les outils'); fab.style.borderColor = k && b !== 'eraser' ? inkCurColor() : ''; fab.classList.toggle('open', !!z.barOpen);
+  el.querySelector('#neBar').classList.toggle('closed', !z.barOpen);
   el.querySelector('#neSmooth').classList.toggle('on', z.smooth); el.querySelector('#neSnap').classList.toggle('on', z.snap);
-  const dk = el.querySelector('#neDict'); dk.classList.toggle('on', !!z.dict); dk.textContent = z.dict ? 'Arrêter la dictée' : 'Dicter';
+  const dk = el.querySelector('#neDict'); dk.classList.toggle('on', !!z.dict); dk.title = z.dict ? 'Arrêter la dictée' : 'Dicter'; dk.setAttribute('aria-label', dk.title);
   el.querySelector('#neSelbar').hidden = !z.sel.length;
+  { const so = z.sel.length === 1 ? z.objs[z.sel[0]] : null, tc = el.querySelector('#neTblCtl'); if(tc){ tc.hidden = !(so && so.k === 'g'); if(so && so.k === 'g') el.querySelector('#neTblInfo').textContent = (so.r || 3) + ' × ' + (so.n || 3); } }
   el.querySelector('#neUndo').disabled = !z.undo.length; el.querySelector('#neRedo').disabled = !z.redo.length;
   el.querySelector('#nePos').textContent = 'Page ' + (z.pos + 1) + ' / ' + z.item.payload.pages.length;
   z.stage.classList.toggle('hand', z.tool === 'hand');
@@ -3988,7 +4325,7 @@ function inkKey2(e){
   if(mod && (e.key === 'z' || e.key === 'Z')){ e.preventDefault(); if(e.shiftKey) inkRedo(); else inkUndo(); }
   else if(mod && (e.key === 'y' || e.key === 'Y')){ e.preventDefault(); inkRedo(); }
   else if((e.key === 'Backspace' || e.key === 'Delete') && z.sel.length){ e.preventDefault(); inkDeleteSel(); }
-  else if(e.key === 'Escape'){ if(z.sel.length){ z.sel = []; inkOverlay(); inkUpdateUI(); } else inkClose(); }
+  else if(e.key === 'Escape'){ const cfg = document.getElementById('neCfg'); if(cfg && !cfg.hidden){ inkCfgClose(); } else if(z.sel.length){ z.sel = []; inkOverlay(); inkUpdateUI(); } else inkClose(); }
   else if(e.key === 'PageDown' || (e.key === 'ArrowRight' && mod)){ e.preventDefault(); inkGo(1); }
   else if(e.key === 'PageUp' || (e.key === 'ArrowLeft' && mod)){ e.preventDefault(); inkGo(-1); }
 }
@@ -4010,6 +4347,18 @@ function inkSave(){
     }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
   });
   return z.saving;
+}
+async function inkAddImage(file){
+  const z = ink; if(!z) return;
+  try{
+    const data = await compressImage(file, 1400, 0.82), id = uid('i'); await imgPut(id, data);
+    const dim = await new Promise(res=>{ const im = new Image(); im.onload = ()=>res([im.naturalWidth, im.naturalHeight]); im.onerror = ()=>res([4, 3]); im.src = data; });
+    const w = Math.min(520, INK_W * 0.6), h = w * dim[1] / Math.max(1, dim[0]), cx = (z.sw / 2 - z.tx) / z.s, cy = (z.sh / 2 - z.ty) / z.s;
+    const x0 = Math.max(10, Math.min(INK_W - w - 10, cx - w / 2)), y0 = Math.max(10, cy - h / 2);
+    const saved = await updateItem(z.item.id, it=>{ it.payload.imgs = (it.payload.imgs || []).concat(id); return it; }); if(saved){ z.item = saved; if(state.notes) state.notes.item = saved; }
+    inkCommit(z.objs.concat({ k:'i', id, p:[x0, y0, x0 + w, y0 + h].map(v=>Math.round(v*10)) }));
+    z.tool = 'select'; z.sel = [z.objs.length - 1]; inkOverlay(); inkUpdateUI(); toast('Image ajoutée : déplace-la, ou tire le point bleu pour l\'agrandir.');
+  }catch(err){ toast(err.message || 'Image illisible.'); }
 }
 async function inkGo(d){
   const z = ink; if(!z) return; const np = z.pos + d; if(np < 0 || np >= z.item.payload.pages.length) return;
@@ -4040,8 +4389,7 @@ async function inkRemovePage(){
 }
 async function inkBlank(){
   const z = ink; if(!z) return; await inkSave();
-  const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
-  const id = uid('i'); await imgPut(id, c.toDataURL('image/jpeg', 0.8));
+  const id = uid('i'); await imgPut(id, blankPageData());
   const at = z.pos + 1;
   try{
     const saved = await updateItem(z.item.id, it=>{ it.payload.pages.splice(at, 0, id); it.meta = { count:it.payload.pages.length }; return it; });
@@ -4051,7 +4399,7 @@ async function inkBlank(){
 }
 async function inkClose(){
   const z = ink; if(!z) return; inkCloseActs(); await inkSave();
-  window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
+  if(z.ro) z.ro.disconnect(); window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
   z.el.remove(); document.body.style.overflow = ''; ink = null;
   if(state.notes){ state.notes.item = state.items.find(i=>i.id === z.item.id) || z.item; state.notes.pos = z.pos; renderNotes(); }
 }
@@ -4083,6 +4431,7 @@ function noteCardHTML(it){
   const nInk = Object.keys((it.payload && it.payload.ink) || {}).length;
   return '<article class="card"><button class="card-main" data-act="open" data-id="'+esc(it.id)+'"><span class="badge notes">Cours</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(plural(it.payload.pages.length,'page')+(nInk ? ' · '+plural(nInk,'page annotée') : ''))+'</p></button>'+
     '<div class="card-foot"><span>'+esc(d)+'</span><span class="ca">'+
+      '<button class="icon-btn" data-act="nc-send" data-id="'+esc(it.id)+'" aria-label="Envoyer '+esc(it.title)+' dans Mes révisions" title="Envoyer dans Mes révisions (synthèse manuscrite)">'+ICON.up+'</button>'+
       '<button class="icon-btn" data-act="nc-rename" data-id="'+esc(it.id)+'" aria-label="Renommer '+esc(it.title)+'" title="Renommer">'+ICON.edit+'</button>'+
       '<button class="icon-btn" data-act="move" data-id="'+esc(it.id)+'" aria-label="Déplacer '+esc(it.title)+' vers un dossier" title="Déplacer vers un dossier">'+ICON.move+'</button>'+
       '<button class="icon-btn" data-act="nc-del" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span></div></article>';
@@ -4126,6 +4475,21 @@ async function notesAddBlank(){
     await updateItem(z.item.id, it=>{ it.payload.pages.push(id); it.meta = { count: it.payload.pages.length }; return it; });
     z.item = state.items.find(x=>x.id === z.item.id) || z.item; z.pos = z.item.payload.pages.length - 1; z.grid = false; renderNotes(); toast('Page blanche ajoutée.');
   }catch(e){ toast('Ajout impossible.'); }
+}
+function openNoteSend(id){
+  const it = state.items.find(i=>i.id === id); if(!it) return;
+  const toRev = isCours(it);
+  openModal(toRev ? 'Envoyer dans Mes révisions' : 'Mettre dans Prendre des notes',
+    '<p>'+(toRev ? '« '+esc(it.title)+' » sera rangée dans <b>Mes révisions</b> comme synthèse manuscrite (badge « Manuscrit »). Tu pourras toujours l\'ouvrir et écrire dessus.' : '« '+esc(it.title)+' » sera rangée dans <b>Prendre des notes</b>. Elle n\'apparaîtra plus dans Mes révisions.')+'</p>'+
+    '<p class="hint">Rien n\'est supprimé : le dossier, les pages et ce que tu as écrit sont conservés. Tu peux la renvoyer à tout moment.</p>',
+    toRev ? 'Envoyer' : 'Mettre', async ()=>{
+      try{
+        await updateItem(id, x=>{ if(toRev) delete x.kind; else x.kind = 'cours'; return x; });
+        closeModal();
+        if(state.view === 'notes' && state.notes && state.notes.item.id === id){ state.notes.item = state.items.find(i=>i.id === id) || state.notes.item; renderNotes(); } else refreshLibrary();
+        toast(toRev ? 'Envoyée dans Mes révisions.' : 'Remise dans Prendre des notes.');
+      }catch(e){ modalError('Opération impossible pour le moment.'); }
+    });
 }
 function openNoteRename(id){
   const it = state.items.find(i=>i.id === id); if(!it) return;
@@ -5098,6 +5462,8 @@ document.addEventListener('click', async e=>{
     case 'home': state.home = true; state.view = 'library'; renderLibrary(); window.scrollTo(0, 0); break;
     case 'course-import': openNotesNew('cours'); break;
     case 'nc-rename': openNoteRename(id); break;
+    case 'nc-send': openNoteSend(id); break;
+    case 'nt-send': { const z = state.notes; if(z) openNoteSend(z.item.id); break; }
     case 'nc-del': openNoteDelete(id); break;
     case 'nt-fclose': notesCloseFull(); break;
     case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
