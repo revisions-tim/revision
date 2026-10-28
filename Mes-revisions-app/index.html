@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.3">
+<meta name="app-version" content="3.10.4">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -418,7 +418,9 @@ textarea.txt.outline{min-height:320px;line-height:1.6}
 .print-sheet .view-title{margin-top:0}
 @media print{
   body.is-printing{background:#fff}
-  body.is-printing #app,body.is-printing #modalRoot,body.is-printing #toast,body.is-printing #dropHint{display:none!important}
+  body.is-printing #app,body.is-printing #modalRoot,body.is-printing #toast,body.is-printing #dropHint,body.is-printing #ne{display:none!important}
+  @page{margin:6mm}
+  .print-sheet .pr-note{display:block;width:100%;max-height:285mm;height:auto;object-fit:contain;margin:0 auto}
   body.is-printing #printRoot{display:block;--ink:#182c24;--muted:#4a5b6e;--line:#b9c6d8;--surface:#fff;--surface2:#fff;--spark:#8a5a1c;color:#182c24}
   body.is-printing #printRoot,body.is-printing #printRoot *{visibility:visible}
   .print-sheet.brk{break-after:page;page-break-after:always}
@@ -557,6 +559,8 @@ html{background:var(--bg)}
 #wall::after{content:'';position:absolute;inset:0;background:var(--bg);opacity:var(--wall-veil,.55)}
 body.has-wall{background:transparent}
 .home-links{margin:22px 0 0}
+.wp-hist{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.wp-th{width:78px;height:54px;border-radius:10px;border:2px solid var(--line);background:var(--surface2) center/cover no-repeat;cursor:pointer;padding:0}
 .ne-cell-i svg:not(.pen){width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .fm-list{max-height:46vh;overflow:auto;border:1.5px solid var(--line);border-radius:12px;margin:10px 0 12px}
 .fm-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
@@ -798,7 +802,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.3';
+const APP_VERSION = '3.10.4';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1428,10 +1432,10 @@ function refreshLibrary(){
   if(state.fold && state.fold!=='__none__' && !folderNames().some(n=>n===state.fold)) state.fold = ''; if($('#results')){ renderResults(); renderToday(); updatePersistLabel(); } else renderLibrary(); }
 
 function renderResults(){
-  const all = state.items.filter(i=>!isCours(i));
+  const all = state.items.filter(i=>!isCours(i) && i.type !== 'synthese');
   const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length, nNt = all.filter(i=>i.type==='notes').length;
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
-  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+chip('synthese','Synthèses',nS)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Manuscrit',nNt) : '')+folderSelHTML();
+  $('#chips').innerHTML = chip('all','Tout',all.length)+chip('quiz','Quiz',nQ)+chip('mindmap','Mindmaps',nM)+chip('flashcards','Cartes à retourner',nF)+(nSc ? chip('schema','Schémas',nSc) : '')+(nNt ? chip('notes','Synthèses',nNt) : '')+folderSelHTML();
   const nb = notebookCount();
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
@@ -1441,7 +1445,7 @@ function renderResults(){
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
-    (nS > 0 ? '<button class="btn sm" data-act="print-open">'+ICON.print+'<span>Imprimer des synthèses</span></button>' : '')+
+    (nNt > 0 ? '<button class="btn sm" data-act="print-open">'+ICON.print+'<span>Imprimer des synthèses</span></button>' : '')+
     (nQ + nF > 0 ? '<button class="btn sm" data-act="mix">'+ICON.mix+'<span>Mélanger des thèmes</span></button>' : '')+
     (nb > 0 ? '<button class="btn sm" data-act="notebook">'+ICON.book+'<span>Carnet d\'erreurs · '+nb+'</span></button>' : '')+
     '<button class="btn sm" data-act="exams-open">'+ICON.exam+'<span>Examens'+(examsUpcoming().length ? ' · '+examsUpcoming().length : '')+'</span></button>'+
@@ -1524,7 +1528,7 @@ function cardHTML(it){
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
   return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
-    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Manuscrit':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
+    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Synthèse':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
@@ -2223,7 +2227,7 @@ function renderPTable(){
 }
 
 /* ---------- Impression de plusieurs synthèses ---------- */
-function printItems(){ return state.items.filter(i=>i.type==='synthese').sort((a,b)=>(a.course||'').localeCompare(b.course||'','fr') || a.title.localeCompare(b.title,'fr')); }
+function printItems(){ return state.items.filter(i=>i.type==='notes' && !isCours(i)).sort((a,b)=>(a.course||'').localeCompare(b.course||'','fr') || a.title.localeCompare(b.title,'fr')); }
 function synthBody(it){
   return it.payload.sections.map(sec=>
     '<section class="syn-sec"><h3>'+esc(sec.title)+'</h3>'+
@@ -2237,9 +2241,9 @@ function openPrint(){
   if(!printItems().length){ toast('Aucune synthèse à imprimer.'); return; }
   state.print = { sel:{} };
   openModal('Imprimer des synthèses',
-    '<p class="hint">Coche une ou plusieurs synthèses, ou un dossier entier. Elles sont regroupées dans un seul document, à imprimer ou à enregistrer en PDF.</p>'+
+    '<p class="hint">Coche une ou plusieurs synthèses, ou un dossier entier. Toutes les pages sont regroupées dans un seul document, à imprimer ou à enregistrer en PDF.</p>'+
     '<div id="printList" class="mixlist"></div><p class="hint" id="printInfo"></p>'+
-    '<div class="checks"><label><input type="checkbox" id="printPages" checked> Une synthèse par page (saut de page entre chaque)</label></div>',
+    '<div class="checks"><label><input type="checkbox" id="printInk" checked> Imprimer aussi mon écriture sur les pages</label></div>',
     'Imprimer', doPrint);
   renderPrintList();
 }
@@ -2251,7 +2255,7 @@ function renderPrintList(){
   box.innerHTML = keys.map(k=>{
     const g = groups.get(k), allOn = g.every(i=>state.print.sel[i.id]);
     return '<div class="mixgroup"><label class="mixfolder"><input type="checkbox" data-printfolder="'+esc(k)+'"'+(allOn?' checked':'')+'> <b>'+esc(k || 'Sans dossier')+'</b></label>'+
-      g.map(i=>'<label class="mixitem"><input type="checkbox" data-printitem="'+esc(i.id)+'"'+(state.print.sel[i.id]?' checked':'')+'> '+esc(i.title)+' <small>'+plural(i.payload.sections.length,'section')+'</small></label>').join('')+'</div>';
+      g.map(i=>'<label class="mixitem"><input type="checkbox" data-printitem="'+esc(i.id)+'"'+(state.print.sel[i.id]?' checked':'')+'> '+esc(i.title)+' <small>'+plural(i.payload.pages.length,'page')+'</small></label>').join('')+'</div>';
   }).join('');
   const n = items.filter(i=>state.print.sel[i.id]).length, el = $('#printInfo');
   if(el) el.textContent = n ? plural(n,'synthèse')+' sélectionnée'+(n>1?'s':'')+'.' : 'Coche au moins une synthèse.';
@@ -2259,15 +2263,41 @@ function renderPrintList(){
 async function doPrint(){
   const chosen = printItems().filter(i=>state.print && state.print.sel[i.id]);
   if(!chosen.length){ modalError('Coche au moins une synthèse.'); return; }
-  const pages = !!($('#printPages') && $('#printPages').checked);
-  closeModal();
-  await preloadImages([].concat.apply([], chosen.map(imageIds)));
+  const withInk = !!($('#printInk') && $('#printInk').checked);
+  closeModal(); await printNotes(chosen, withInk);
+}
+async function notePageImage(it, i, withInk){
+  const key = it.payload.pages[i]; const data = state.imgCache[key] || await imgGet(key); if(!data) return '';
+  const im = await new Promise(res=>{ const x = new Image(); x.onload = ()=>res(x); x.onerror = ()=>res(null); x.src = data; }); if(!im) return '';
+  const W = Math.min(1400, im.naturalWidth), k = W / im.naturalWidth, H = Math.round(im.naturalHeight * k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H);
+  const inkId = withInk ? (it.payload.ink || {})[key] : null;
+  if(inkId){
+    let arr = []; try{ const raw = state.imgCache[inkId] || await imgGet(inkId); arr = raw ? JSON.parse(raw) : []; }catch(e){}
+    const prev = ink, tmp = { imgEls:{} }; ink = tmp;
+    try{
+      for(const o of arr){ if(o && o.k === 'i'){ const d = await imgGet(o.id); if(d){ const x = await new Promise(res=>{ const y = new Image(); y.onload = ()=>res(y); y.onerror = ()=>res(null); y.src = d; }); if(x) tmp.imgEls[o.id] = x; } } }
+      g.save(); g.scale(W / INK_W, W / INK_W);
+      arr.filter(o=>o && o.k === 'i').forEach(o=>inkDrawObj(g, o));
+      g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = 0.4; arr.filter(o=>o && o.k !== 'i' && o.tool === 'hl').forEach(o=>inkDrawObj(g, o)); g.restore();
+      arr.filter(o=>o && o.k !== 'i' && o.tool !== 'hl').forEach(o=>inkDrawObj(g, o));
+      g.restore();
+    }finally{ ink = prev; }
+  }
+  return c.toDataURL('image/jpeg', 0.88);
+}
+async function printNotes(items, withInk){
+  if(withInk === undefined) withInk = true;
+  const total = items.reduce((n, i)=>n + i.payload.pages.length, 0); let n = 0; const imgs = [];
+  toast('Préparation de l\'impression…');
+  for(const it of items){ for(let i = 0; i < it.payload.pages.length; i++){ const s = await notePageImage(it, i, withInk); if(s) imgs.push(s); n++; if(total > 8 && n % 8 === 0) toast('Préparation : ' + n + ' / ' + total + ' pages…'); } }
+  if(!imgs.length){ toast('Rien à imprimer : les pages sont introuvables.'); return; }
   const root = $('#printRoot');
-  root.innerHTML = chosen.map(it=>'<article class="print-sheet'+(pages?' brk':'')+'"><h2 class="view-title">'+esc(it.title)+'</h2>'+(it.course?'<p class="meta">'+esc(it.course)+'</p>':'')+synthBody(it)+'</article>').join('');
+  root.innerHTML = imgs.map(s=>'<article class="print-sheet brk"><img class="pr-note" src="'+s+'" alt=""></article>').join('');
   document.body.classList.add('is-printing');
-  const done = ()=>{ document.body.classList.remove('is-printing'); root.innerHTML = ''; window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  setTimeout(()=>window.print(), 150);
+  const fin = ()=>{ document.body.classList.remove('is-printing'); root.innerHTML = ''; window.removeEventListener('afterprint', fin); };
+  window.addEventListener('afterprint', fin);
+  setTimeout(()=>window.print(), 500);
 }
 
 /* ================= v2.9 : schémas à légender, décodeur de termes, examen blanc, réponses écrites, erreurs en cartes ================= */
@@ -3505,7 +3535,7 @@ function openNotesNew(kind){
   state.nnFiles = []; state.nnKind = kind || '';
   const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
   const cours = state.nnKind === 'cours';
-  openModal(cours ? 'Importer un cours' : 'Importer mes synthèses manuscrites',
+  openModal(cours ? 'Importer un cours' : 'Importer une synthèse',
     '<p class="hint">'+(cours ? 'Choisis le PDF de ton cours (ou des images). Chaque page devient une page sur laquelle tu pourras écrire, et tu pourras en ajouter d\'autres plus tard.' : 'Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthèse telle quelle, page par page, dans la bibliothèque.')+'</p>'+
     '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="'+(cours ? 'Ex. Chimie : chapitre 3' : 'Ex. Ma synthèse : l\'ostéologie')+'" autocomplete="off">'+
     '<label class="lbl" for="nnCourse">Dossier (facultatif)</label><input class="txt" id="nnCourse" list="folderList2" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList2">'+opts+'</datalist>'+
@@ -3558,7 +3588,7 @@ function renderNotes(){
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm" data-act="nt-print">'+ICON.print+'<span>Imprimer</span></button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3648,6 +3678,7 @@ const INK_ICON = {
   finger:'<path d="M9 11V5.5a1.6 1.6 0 0 1 3.2 0V14l2.3-.9a1.6 1.6 0 0 1 1.8 2.5L14 20.5H9.5L6 15.5a1.5 1.5 0 0 1 2.4-1.7L9 14.5"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
   pages:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>',
+  print:'<path d="M7 9V4h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/>',
   chev:'<path d="M7 10l5 5 5-5"/>',
   penc:'<circle cx="12" cy="12" r="9.5"/><path d="M8.5 15.5l.9-3.4 5.2-5.2 2.5 2.5-5.2 5.2z"/>',
   dots:'<circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/>',
@@ -4417,6 +4448,7 @@ function inkClick(e){
   else if(a === 'blank') inkBlank();
   else if(a === 'addfiles'){ const fi = document.getElementById('neFiles'); if(fi) fi.click(); }
   else if(a === 'rmpage') inkRemovePage();
+  else if(a === 'mprint'){ inkSave().then(()=>{ if(ink) printNotes([ink.item]); }); }
   else if(a === 'undo') inkUndo();
   else if(a === 'redo') inkRedo();
   else if(a === 'zin') inkZoomAt(z.sw/2, z.sh/2, 1.25, true);
@@ -4639,7 +4671,7 @@ async function inkOpen(){
     '<div class="ne-pop" id="nePop" hidden></div>'+
     '<div class="ne-cfg" id="neCfg" hidden></div>'+
     '<div class="ne-menu" id="neMenu" hidden>'+
-      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Page blanche')+mi('addfiles','file','Importer un PDF ou des images')+mi('rmpage','trash','Supprimer cette page')+
+      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Page blanche')+mi('addfiles','file','Importer un PDF ou des images')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+
       '<div class="ne-mh">Affichage</div>'+mi('fitw','fit','Ajuster à la largeur')+mi('fitp','fit','Page entière')+
       '<div class="ne-mrow"><button class="btn sm" data-ne="zout">− Zoom</button><span id="neZoomLbl">100 %</span><button class="btn sm" data-ne="zin">＋ Zoom</button></div>'+
     '</div>'+
@@ -4837,7 +4869,7 @@ function noteCardHTML(it, snip){
   const nInk = Object.keys((it.payload && it.payload.ink) || {}).length;
   return '<article class="card"><button class="card-main" data-act="'+(snip ? 'open-note-at' : 'open')+'" data-id="'+esc(it.id)+'" data-i="'+(snip ? snip.i : 0)+'"><span class="badge notes">Cours</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(plural(it.payload.pages.length,'page')+(nInk ? ' · '+plural(nInk,'page annotée') : ''))+'</p>'+(snip ? '<p class="nt-snip">Page '+(snip.i+1)+' : '+snip.h+'</p>' : '')+'</button>'+
     '<div class="card-foot"><span>'+esc(d)+'</span><span class="ca">'+
-      '<button class="icon-btn" data-act="nc-send" data-id="'+esc(it.id)+'" aria-label="Envoyer '+esc(it.title)+' dans Mes révisions" title="Envoyer dans Mes révisions (synthèse manuscrite)">'+ICON.up+'</button>'+
+      '<button class="icon-btn" data-act="nc-send" data-id="'+esc(it.id)+'" aria-label="Envoyer '+esc(it.title)+' dans Mes révisions" title="Envoyer dans Mes révisions (synthèse)">'+ICON.up+'</button>'+
       '<button class="icon-btn" data-act="nc-rename" data-id="'+esc(it.id)+'" aria-label="Renommer '+esc(it.title)+'" title="Renommer">'+ICON.edit+'</button>'+
       '<button class="icon-btn" data-act="move" data-id="'+esc(it.id)+'" aria-label="Déplacer '+esc(it.title)+' vers un dossier" title="Déplacer vers un dossier">'+ICON.move+'</button>'+
       '<button class="icon-btn" data-act="nc-del" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span></div></article>';
@@ -4924,7 +4956,7 @@ function openNoteSend(id){
   const it = state.items.find(i=>i.id === id); if(!it) return;
   const toRev = isCours(it);
   openModal(toRev ? 'Envoyer dans Mes révisions' : 'Mettre dans Prendre des notes',
-    '<p>'+(toRev ? '« '+esc(it.title)+' » sera rangée dans <b>Mes révisions</b> comme synthèse manuscrite (badge « Manuscrit »). Tu pourras toujours l\'ouvrir et écrire dessus.' : '« '+esc(it.title)+' » sera rangée dans <b>Prendre des notes</b>. Elle n\'apparaîtra plus dans Mes révisions.')+'</p>'+
+    '<p>'+(toRev ? '« '+esc(it.title)+' » sera rangée dans <b>Mes révisions</b> comme synthèse (badge « Synthèse »). Tu pourras toujours l\'ouvrir et écrire dessus.' : '« '+esc(it.title)+' » sera rangée dans <b>Prendre des notes</b>. Elle n\'apparaîtra plus dans Mes révisions.')+'</p>'+
     '<p class="hint">Rien n\'est supprimé : le dossier, les pages et ce que tu as écrit sont conservés. Tu peux la renvoyer à tout moment.</p>',
     toRev ? 'Envoyer' : 'Mettre', async ()=>{
       try{
@@ -4974,20 +5006,36 @@ async function loadWallpaper(){
   try{ const d = await imgGet('wallpaper'); if(d) applyWallpaper(d); }catch(e){}
 }
 function openWallpaper(){
-  const has = document.body.classList.contains('has-wall');
+  const has = document.body.classList.contains('has-wall'), hist = wallHist();
   openModal('Fond d\'écran',
     '<p class="hint">Choisis une photo pour décorer l\'appli. Elle reste sur cet appareil. Le voile permet de garder les textes lisibles.</p>'+
     '<div class="row" style="flex-direction:column;align-items:stretch;gap:10px"><label class="btn" for="wpFile">'+ICON.image+'<span>Importer un fond d\'écran</span></label><input type="file" id="wpFile" accept="image/*" hidden>'+
     '<label class="lbl" for="wpVeil" style="margin:6px 0 0">Voile : <b id="wpVal">'+Math.round(wallVeil()*100)+' %</b></label><input type="range" id="wpVeil" min="0" max="90" step="5" value="'+Math.round(wallVeil()*100)+'">'+
+    (hist.length ? '<button class="btn" data-act="wp-use" data-id="'+esc(hist[0])+'">Revenir au fond précédent</button><p class="lbl" style="margin:4px 0 0">Mes fonds précédents</p><div class="wp-hist">'+hist.map(id=>'<button class="wp-th" data-act="wp-use" data-id="'+esc(id)+'" aria-label="Remettre ce fond"></button>').join('')+'</div>' : '')+
     (has ? '<button class="btn" data-act="wp-clear">Retirer le fond d\'écran</button>' : '')+'</div>', '', null);
+  setTimeout(()=>{ document.querySelectorAll('.wp-th').forEach(b=>{ imgGet(b.dataset.id).then(d=>{ if(d) b.style.backgroundImage = 'url("' + d + '")'; }); }); }, 40);
   setTimeout(()=>{ const r = $('#wpVeil'); if(r) r.addEventListener('input', ()=>{ try{ localStorage.setItem('revisions:wallveil', String(Number(r.value)/100)); }catch(e){} const w = document.getElementById('wall'); if(w) w.style.setProperty('--wall-veil', Number(r.value)/100); const v = $('#wpVal'); if(v) v.textContent = r.value + ' %'; }); }, 30);
+}
+function wallHist(){ try{ const a = JSON.parse(localStorage.getItem('revisions:wallhist') || '[]'); return Array.isArray(a) ? a.filter(x=>typeof x === 'string') : []; }catch(e){ return []; } }
+function wallHistSet(a){ try{ localStorage.setItem('revisions:wallhist', JSON.stringify(a)); }catch(e){} }
+async function wallPushCurrent(){
+  if(!document.body.classList.contains('has-wall')) return;
+  const cur = await imgGet('wallpaper'); if(!cur) return;
+  const id = uid('i'); await imgPutLocal(id, cur);
+  const h = [id].concat(wallHist()); while(h.length > 6){ imgDel(h.pop()); } wallHistSet(h);
+}
+async function wallpaperUse(id){
+  const d = await imgGet(id); if(!d){ toast('Ce fond n\'est plus disponible.'); return; }
+  await wallPushCurrent();
+  wallHistSet(wallHist().filter(x=>x !== id)); imgDel(id);
+  await imgPutLocal('wallpaper', d); applyWallpaper(d); closeModal(); toast('Fond d\'écran précédent remis.');
 }
 async function wallpaperFromFile(file){
   try{
-    const data = await compressImage(file, 1800, 0.82); await imgPutLocal('wallpaper', data); applyWallpaper(data); closeModal(); toast('Fond d\'écran appliqué.');
+    const data = await compressImage(file, 1800, 0.82); await wallPushCurrent(); await imgPutLocal('wallpaper', data); applyWallpaper(data); closeModal(); toast('Fond d\'écran appliqué.');
   }catch(err){ toast(err.message || 'Image illisible.'); }
 }
-async function wallpaperClear(){ await imgDel('wallpaper'); applyWallpaper(null); closeModal(); toast('Fond d\'écran retiré.'); }
+async function wallpaperClear(){ await wallPushCurrent(); await imgDel('wallpaper'); applyWallpaper(null); closeModal(); toast('Fond d\'écran retiré.'); }
 setTimeout(loadWallpaper, 60);
 /* ================= v3.10.1 : tout préparer pour travailler hors ligne ================= */
 async function imgHasLocal(id){
@@ -5905,6 +5953,7 @@ document.addEventListener('click', async e=>{
     case 'nt-zout': { const z = state.notes; if(z){ z.zoom = Math.max(0.5, Math.round((z.zoom - 0.25)*100)/100); renderNotes(); } break; }
     case 'nt-full': notesOpenFull(); break;
     case 'nt-edit': inkOpen(); break;
+    case 'nt-print': { const z = state.notes; if(z) printNotes([z.item]); break; }
     case 'nt-mv': notesMove(i, Number(el.dataset.d)); break;
     case 'nt-rm': notesAskRemove(i); break;
     case 'nt-blank': notesAddBlank(); break;
@@ -5912,6 +5961,7 @@ document.addEventListener('click', async e=>{
     case 'wp-open': openWallpaper(); break;
     case 'prep-offline': prepareOffline(false); break;
     case 'wp-clear': wallpaperClear(); break;
+    case 'wp-use': wallpaperUse(id); break;
     case 'go-notes': goFromHome('notes'); break;
     case 'go-rev': goFromHome('rev'); break;
     case 'home': state.home = true; state.view = 'library'; renderLibrary(); window.scrollTo(0, 0); break;
