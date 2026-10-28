@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.9.9">
+<meta name="app-version" content="3.9.11">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -581,6 +581,9 @@ svg.pen{display:block;width:22px;height:40px}
 .ne-cfg-top b{font-size:20px}
 .ne-done{position:absolute;right:0;top:0;width:48px;height:48px;border-radius:50%;border:0;background:#2f7bf6;color:#fff;font-size:26px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(47,123,246,.5)}
 .ne-cfg-hint{text-align:center;color:var(--muted);margin:0 0 14px}
+.ne-cfg-k{display:flex;flex-direction:column;gap:6px;background:var(--surface);border-radius:14px;padding:12px 14px;margin:0 0 12px}
+.ne-cfg-k label{font-weight:600}
+.ne-cfg-k small{color:var(--muted)}
 .ne-cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;background:var(--surface);border-radius:16px;padding:12px}
 .ne-cell{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:none;padding:8px 4px;cursor:pointer;color:var(--ink)}
 .ne-cell-i{height:80px;display:grid;place-items:center;border-bottom:1px solid var(--line);width:100%}
@@ -731,7 +734,7 @@ svg.pen{display:block;width:22px;height:40px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.9.9';
+const APP_VERSION = '3.9.11';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3605,7 +3608,7 @@ function penSvg(base, c, ls){
 function inkIconFor(id){ return INK_BY[id] ? penSvg(INK_BY[id].base, (ink && ink.tc[id] ? ink.tc[id].c : INK_BY[id].c), INK_BY[id].ls) : inkSvg(id); }
 
 function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink2') || '{}') || {}; }catch(e){ return {}; } }
-function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink2', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, barOpen:z.barOpen, finger:z.finger, smooth:z.smooth, snap:z.snap, recent:z.recent, vis:z.vis, tbl:z.tbl, tblSeen:true })); }catch(e){} }
+function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink2', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, barOpen:z.barOpen, finger:z.finger, smooth:z.smooth, snap:z.snap, recent:z.recent, vis:z.vis, tbl:z.tbl, plumeK:z.plumeK, eraseMode:z.eraseMode, tblSeen:true })); }catch(e){} }
 function inkKey(t){ const b = inkBase(t); return b === 'hand' || b === 'select' || b === 'ruler' || b === 'image' ? null : t; }
 function inkPageKey(z){ return z.item.payload.pages[z.pos]; }
 
@@ -3618,7 +3621,7 @@ async function inkOpen(){
   const tool0 = vis.indexOf(pr.tool) >= 0 && pr.tool !== 'ruler' && pr.tool !== 'image' ? pr.tool : (vis.filter(id=>INK_BY[id])[0] || 'hand');
   ink = { item:zn.item, pos:zn.pos, tool:tool0, vis, shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', barOpen: !!pr.barOpen, finger: !!pr.finger, smooth: pr.smooth !== false, snap: pr.snap !== false, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
     objs:[], undo:[], redo:[], sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, H:1414, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, dirty:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false,
-    ruler:{ on:false, cx:500, cy:500, ang:0, L:1000, TH:75 }, imgEls:{}, tbl:{ r:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.r) || 3)), c:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.c) || 3)) } };
+    ruler:{ on:false, cx:500, cy:500, ang:0, L:1000, TH:75 }, imgEls:{}, eraseMode: pr.eraseMode === 'px' ? 'px' : 'obj', plumeK: isFinite(pr.plumeK) && pr.plumeK !== null ? Math.max(0, Math.min(200, Number(pr.plumeK))) : 100, tbl:{ r:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.r) || 3)), c:Math.max(1, Math.min(30, Number(pr.tbl && pr.tbl.c) || 3)) } };
   const ov = document.createElement('div'); ov.id = 'ne'; ov.className = 'ne';
   ov.innerHTML =
     '<div class="ne-top"><button class="btn sm" data-ne="close">‹ Fermer</button><b class="ne-title">'+esc(ink.item.title)+'</b>'+
@@ -3637,6 +3640,7 @@ async function inkOpen(){
       '<button class="btn sm ne-t" data-ne="dict" id="neDict" aria-label="Dicter" title="Dicter">'+inkSvg('mic')+'</button>'+
       '<button class="btn sm ne-t" data-ne="smooth" id="neSmooth" aria-label="Lisser le trait" title="Lisser le trait">'+inkSvg('smooth')+'</button><button class="btn sm ne-t" data-ne="snap" id="neSnap" aria-label="Formes automatiques (garder le stylo posé)" title="Formes automatiques (garder le stylo posé)">'+inkSvg('snap')+'</button>'+
       '<button class="btn sm ne-t" data-ne="cfg" id="neGear" aria-label="Paramètres des stylos" title="Paramètres des stylos">'+inkSvg('gear')+'</button>'+
+      '<span class="ne-sub" id="neErase"><button class="btn sm" data-erase="obj" title="Efface le trait entier">Trait entier</button><button class="btn sm" data-erase="px" title="Efface seulement la partie touchée">Précis</button></span>'+
       '<span class="ne-sub" id="neShapes"><button class="btn sm" data-shape="r">▭</button><button class="btn sm" data-shape="o">◯</button><button class="btn sm" data-shape="l">╱</button><button class="btn sm" data-shape="a">➚</button></span>'+
       '<button class="btn sm" data-ne="selall" id="neSelAll">Tout sélectionner</button>'+
       '<button class="ne-sw" id="neSw" data-ne="pal" aria-label="Couleur"></button>'+
@@ -4020,8 +4024,10 @@ function inkToolMove(e){
     else if(z.smooth && b !== 'hl'){ a.fx += (q.x - a.fx) * 0.45; a.fy += (q.y - a.fy) * 0.45; px = a.fx; py = a.fy; }
     const dx = px - a.last[0], dy = py - a.last[1]; if(dx*dx + dy*dy < Math.pow(1.1 / z.s, 2)) return;
     if(b === 'plume'){
-      const dt = Math.max(1, e.timeStamp - a.lt), sp = Math.hypot(dx, dy) * z.s / dt, pf = 0.35 + 1.3 * (e.pressure > 0 ? e.pressure : 0.5), sf = Math.max(0.65, Math.min(1.3, 1.3 - 0.3 * sp));
-      a.f += (pf * sf - a.f) * 0.3; a.lt = e.timeStamp;
+      const dt = Math.max(1, e.timeStamp - a.lt), sp = Math.hypot(dx, dy) * z.s / dt, pr = e.pressure > 0 ? e.pressure : 0.5;
+      a.pmin = Math.min(a.pmin == null ? pr : a.pmin, pr); a.pmax = Math.max(a.pmax == null ? pr : a.pmax, pr);
+      const hasP = (a.pmax - a.pmin) > 0.05, pf = hasP ? 0.35 + 1.3 * pr : 1, sf = hasP ? Math.max(0.65, Math.min(1.3, 1.3 - 0.3 * sp)) : Math.max(0.4, Math.min(1.6, 1.55 - 0.7 * sp));
+      const k = (z.plumeK == null ? 100 : z.plumeK) / 100; a.f += (1 + (pf * sf - 1) * k - a.f) * 0.3; a.lt = e.timeStamp;
     }
     a.pts.push(px, py); a.q.push(Math.max(4, Math.min(60, Math.round(a.f * 20)))); a.last = [px, py];
     if(a.whole){ inkOverlay(); inkLiveStyle(a.eph ? 'stylo' : b); return; }
@@ -4033,7 +4039,10 @@ function inkToolMove(e){
     else{ g.moveTo((p[2*n-6]+p[2*n-4])/2, (p[2*n-5]+p[2*n-3])/2); g.quadraticCurveTo(p[2*n-4], p[2*n-3], (p[2*n-4]+p[2*n-2])/2, (p[2*n-3]+p[2*n-1])/2); }
     g.stroke();
   }else if(a.kind === 'laser'){ a.cx = q.x; a.cy = q.y; inkOverlay(); }
-  else if(a.kind === 'erase'){ a.cx = q.x; a.cy = q.y; inkErase(q.x, q.y); }
+  else if(a.kind === 'erase'){
+    const step = Math.max(1, z.tc.eraser.w / z.s * 0.6), sx = a.cx, sy = a.cy, n = Math.max(1, Math.ceil(Math.hypot(q.x - sx, q.y - sy) / step));
+    for(let i = 1; i <= n; i++){ a.cx = sx + (q.x - sx) * i / n; a.cy = sy + (q.y - sy) * i / n; inkErase(a.cx, a.cy); }
+  }
   else if(a.kind === 'shape'){ a.x1 = q.x; a.y1 = q.y; inkOverlay(); }
   else if(a.kind === 'lasso'){ a.pts.push(q.x, q.y); inkOverlay(); }
   else if(a.kind === 'resize'){
@@ -4075,9 +4084,32 @@ function inkToolUp(e){
   }
 }
 function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; clearTimeout(a.holdT); z.act = null; if(a.kind === 'move' || a.kind === 'resize' || a.kind === 'erase') z.objs = a.kind === 'erase' ? a.before : a.base; inkRender(); }
+/* gomme précise : on coupe le trait là où la gomme passe */
+function inkSplit(o, x, y, r){
+  const p = o.p, n = p.length / 2, hasQ = !!(o.q && o.q.length === n), pts = [];
+  for(let i = 0; i < n - 1; i++){
+    const x0 = p[2*i]/10, y0 = p[2*i+1]/10, x1 = p[2*i+2]/10, y1 = p[2*i+3]/10, q0 = hasQ ? o.q[i] : 20, q1 = hasQ ? o.q[i+1] : 20;
+    const m = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 1.5));
+    for(let k = 0; k < m; k++){ const t = k / m; pts.push([x0 + (x1 - x0)*t, y0 + (y1 - y0)*t, q0 + (q1 - q0)*t]); }
+  }
+  pts.push([p[2*n-2]/10, p[2*n-1]/10, hasQ ? o.q[n-1] : 20]);
+  const rr = r + (o.w || 3) * 0.25, runs = []; let cur = [];
+  pts.forEach(pt=>{ if(Math.hypot(pt[0] - x, pt[1] - y) <= rr){ if(cur.length) runs.push(cur); cur = []; } else cur.push(pt); });
+  if(cur.length) runs.push(cur);
+  return runs.filter(run=>run.length >= 2).map(run=>{
+    const no = Object.assign({}, o, { p:[].concat.apply([], run.map(pt=>[Math.round(pt[0]*10), Math.round(pt[1]*10)])) });
+    if(hasQ) no.q = run.map(pt=>Math.max(4, Math.round(pt[2])));
+    return no;
+  });
+}
 function inkErase(x, y){
-  const z = ink, a = z.act, r = z.tc.eraser.w / z.s; const keep = z.objs.filter(o=>o.k === 'i' || o.k === 'g' || !inkHit(o, x, y, r));
-  if(keep.length !== z.objs.length){ z.objs = keep; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
+  const z = ink, a = z.act, r = z.tc.eraser.w / z.s; let changed = false; const out = [];
+  z.objs.forEach(o=>{
+    if(o.k === 'i' || o.k === 'g' || !inkHit(o, x, y, r)){ out.push(o); return; }
+    changed = true;
+    if(z.eraseMode === 'px' && o.k === 's') inkSplit(o, x, y, r).forEach(s=>out.push(s));
+  });
+  if(changed){ z.objs = out; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
 }
 function inkCommit(next){
   const z = ink; z.undo.push(z.objs); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.objs = next; z.sel = []; z.dirty = true;
@@ -4216,6 +4248,7 @@ function inkClick(e){
     if(id === 'table'){ inkTblPop(); return; }
     z.tool = id; z.sel = []; inkCloseActs(); inkOverlay(); inkUpdateUI(); inkSavePrefs(); return;
   }
+  const er = e.target.closest('[data-erase]'); if(er){ z.eraseMode = er.dataset.erase === 'px' ? 'px' : 'obj'; inkUpdateUI(); inkSavePrefs(); return; }
   const sh = e.target.closest('[data-shape]'); if(sh){ z.shape = sh.dataset.shape; z.tool = 'shape'; inkUpdateUI(); inkSavePrefs(); return; }
   const col = e.target.closest('[data-col]'); if(col){ inkPickColor(col.dataset.col); return; }
   const b = e.target.closest('[data-ne]'); if(!b){ const pop = document.getElementById('nePop'); if(pop && !pop.hidden && !e.target.closest('#nePop')) pop.hidden = true; return; }
@@ -4256,9 +4289,13 @@ function inkCfgHTML(){
   const z = ink, cell = (id, label, ico)=>'<button class="ne-cell" data-cfg="'+id+'"><span class="ne-cell-i">'+ico+'</span><span class="ne-cell-l">'+esc(label)+'</span><span class="ne-chk'+(z.vis.indexOf(id) >= 0 ? ' on' : '')+'" id="chk_'+id+'"></span></button>';
   return '<div class="ne-cfg-top"><b>Paramètres des stylos</b><button class="ne-done" data-ne="cfgdone" aria-label="Terminé">✓</button></div>'+
     '<p class="ne-cfg-hint">Coche les stylos que tu veux voir dans la barre d\'outils.</p>'+
+    '<div class="ne-cfg-k"><label for="neK">Effet de la plume (pression et vitesse) : <b id="neKv">'+z.plumeK+' %</b></label><input type="range" id="neK" min="0" max="200" step="10" value="'+z.plumeK+'"><small>Avec l\'Apple Pencil USB-C (sans pression), l\'effet vient de la vitesse : écris vite = trait fin, lentement = trait épais. Monte le réglage pour accentuer.</small></div>'+
     '<div class="ne-cfg-grid">'+INK_PENS.map(p=>cell(p.id, p.label, penSvg(p.base, z.tc[p.id].c, p.ls))).join('')+INK_OTHERS.map(o=>cell(o[0], o[1], inkSvg(o[0]))).join('')+'</div>';
 }
-function inkCfgOpen(){ const z = ink, box = document.getElementById('neCfg'); if(!box) return; box.innerHTML = inkCfgHTML(); box.hidden = false; }
+function inkCfgOpen(){
+  const z = ink, box = document.getElementById('neCfg'); if(!box) return; box.innerHTML = inkCfgHTML(); box.hidden = false;
+  const k = box.querySelector('#neK'); if(k) k.addEventListener('input', ()=>{ z.plumeK = Number(k.value); const v = box.querySelector('#neKv'); if(v) v.textContent = k.value + ' %'; inkSavePrefs(); });
+}
 function inkCfgClose(){ const box = document.getElementById('neCfg'); if(box) box.hidden = true; inkSavePrefs(); }
 function inkCfgToggle(id){
   const z = ink, i = z.vis.indexOf(id);
@@ -4303,6 +4340,8 @@ function inkUpdateUI(){
   });
   el.querySelectorAll('[data-shape]').forEach(x=>x.classList.toggle('on', x.dataset.shape === z.shape));
   el.querySelector('#neShapes').style.display = b === 'shape' ? 'inline-flex' : 'none';
+  el.querySelector('#neErase').style.display = b === 'eraser' ? 'inline-flex' : 'none';
+  el.querySelectorAll('[data-erase]').forEach(x=>x.classList.toggle('on', x.dataset.erase === z.eraseMode));
   el.querySelector('#neSelAll').style.display = b === 'select' ? '' : 'none';
   const sw = el.querySelector('#neSw'); sw.style.display = !k || b === 'eraser' ? 'none' : ''; sw.style.background = inkCurColor();
   const w = el.querySelector('#neW'), wn = el.querySelector('#neWn'), sbtn = el.querySelectorAll('.ne-s');
