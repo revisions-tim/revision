@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.0">
+<meta name="app-version" content="3.10.1">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -790,7 +790,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.0';
+const APP_VERSION = '3.10.1';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2899,6 +2899,7 @@ function openAccount(){
     '<p class="hint">'+(navigator.onLine ? 'Tes données se synchronisent en direct entre tes appareils.' : 'Hors ligne : tes modifications seront envoyées au retour de la connexion.')+'</p>'+
     '<div class="row" style="flex-direction:column;align-items:stretch;margin-top:12px">'+
     (nLocal ? '<button class="btn" data-act="acc-upload">Envoyer les données de cet appareil vers mon compte ('+nLocal+')</button>' : '')+
+    '<button class="btn" data-act="prep-offline">'+ICON.download+'<span>Préparer le hors ligne (télécharger tous mes cours)</span></button>'+
     '<button class="btn" data-act="wp-open">'+ICON.image+'<span>Importer un fond d\'écran</span></button>'+
     '<button class="btn" data-act="acc-reset">Changer le mot de passe (par e-mail)</button>'+
     '<button class="btn" data-act="acc-logout">Se déconnecter</button></div>', '', null);
@@ -4914,6 +4915,7 @@ function openNoteDelete(id){
     try{ await removeItem(id); closeModal(); refreshLibrary(); toast('Note supprimée.'); }catch(e){ modalError('Suppression impossible.'); } });
 }
 function renderHome(){
+  prepareOfflineAuto();
   const due = todayDueCards().length, nNotes = state.items.filter(isCours).length, nRev = state.items.filter(i=>!isCours(i)).length;
   $('#app').innerHTML =
   '<header class="top">'+
@@ -4924,7 +4926,7 @@ function renderHome(){
   '<main class="home"><h2 class="home-title">Que veux-tu faire ?</h2><div class="home-grid">'+
     '<button class="home-card notes" data-act="go-notes"><span class="home-ico">'+ICON.edit+'</span><b>Prendre des notes</b><span class="home-sub">Écrire pendant le cours, sur une page blanche ou sur le PDF du cours.</span><small>'+(nNotes ? plural(nNotes,'note') : 'Aucune note pour l\'instant')+'</small></button>'+
     '<button class="home-card rev" data-act="go-rev"><span class="home-ico">'+ICON.book+'</span><b>Réviser</b><span class="home-sub">Quiz, cartes, synthèses, schémas et examens blancs.</span><small>'+(due ? plural(due,'carte')+' à revoir aujourd\'hui' : plural(nRev,'élément'))+'</small></button>'+
-  '</div><p class="home-links"><button class="btn ghost sm" data-act="wp-open">'+ICON.image+'<span>Fond d\'écran</span></button></p></main><p class="foot">Version '+APP_VERSION+'</p>';
+  '</div><p class="home-links"><button class="btn ghost sm" data-act="prep-offline">'+ICON.download+'<span>Préparer le hors ligne</span></button> <button class="btn ghost sm" data-act="wp-open">'+ICON.image+'<span>Fond d\'écran</span></button></p></main><p class="foot">Version '+APP_VERSION+'</p>';
   updatePersistLabel();
 }
 function goFromHome(tab){ state.home = false; setTab(tab); maybeAutoBackup(); }
@@ -4955,6 +4957,39 @@ async function wallpaperFromFile(file){
 }
 async function wallpaperClear(){ await imgDel('wallpaper'); applyWallpaper(null); closeModal(); toast('Fond d\'écran retiré.'); }
 setTimeout(loadWallpaper, 60);
+/* ================= v3.10.1 : tout préparer pour travailler hors ligne ================= */
+async function imgHasLocal(id){
+  try{ const db = await idbOpen(); return await new Promise(res=>{ const r = db.transaction('img').objectStore('img').getKey(id); r.onsuccess = ()=>res(r.result !== undefined); r.onerror = ()=>res(false); }); }catch(e){ return false; }
+}
+let prepBusy = false;
+async function prepareOffline(silent){
+  if(prepBusy) return;
+  if(!state.imgCol){ if(!silent) toast('Tout est déjà sur cet appareil (aucun compte connecté).'); return; }
+  if(!navigator.onLine){ if(!silent) toast('Il faut du réseau pour préparer le hors ligne.'); return; }
+  prepBusy = true;
+  try{
+    const ids = [], seen = {}; state.items.forEach(it=>{ imageIds(it).forEach(id=>{ if(!seen[id]){ seen[id] = 1; ids.push(id); } }); });
+    const missing = []; for(const id of ids){ if(!(await imgHasLocal(id))) missing.push(id); }
+    if(!missing.length){ if(!silent) toast('Tout est déjà prêt hors ligne : ' + plural(state.items.length, 'élément') + '.'); return; }
+    if(!silent) toast('Préparation hors ligne : ' + missing.length + ' fichiers à télécharger…');
+    let done = 0, fail = 0, bytes = 0;
+    for(const id of missing){
+      if(!navigator.onLine) break;
+      try{ const sn = await state.imgCol.doc(id).get(); const d = sn.exists ? sn.data().data : null; if(d){ await imgPutLocal(id, d); delete state.imgCache[id]; done++; bytes += d.length; } else fail++; }catch(e){ fail++; }
+      if(!silent && (done + fail) % 15 === 0) toast('Préparation hors ligne : ' + (done + fail) + ' / ' + missing.length + '…');
+      await new Promise(r=>setTimeout(r, 15));
+    }
+    if(!silent){
+      if(!navigator.onLine && done + fail < missing.length) toast('Réseau perdu : ' + done + ' fichiers enregistrés sur ' + missing.length + '. Relance quand le réseau revient.');
+      else toast('Prêt hors ligne : ' + done + ' fichiers enregistrés (' + Math.max(1, Math.round(bytes / 1048576)) + ' Mo)' + (fail ? ', ' + fail + ' introuvable' + (fail > 1 ? 's' : '') : '') + '.');
+    }
+  }catch(e){ if(!silent) toast('Préparation impossible pour le moment.'); }
+  finally{ prepBusy = false; }
+}
+function prepareOfflineAuto(){
+  if(state._prepAuto) return; state._prepAuto = true;
+  setTimeout(()=>{ const c = navigator.connection; if(c && (c.saveData || c.type === 'cellular')) return; prepareOffline(true); }, 8000);
+}
 function bodyNames(){ return BODY_RULES.map(r=>r[0]); }
 function bodyGroupFor(it){
   const c = it.course || '';
@@ -5867,6 +5902,7 @@ document.addEventListener('click', async e=>{
     case 'nt-blank': notesAddBlank(); break;
     case 'main-tab': setTab(el.dataset.t); break;
     case 'wp-open': openWallpaper(); break;
+    case 'prep-offline': prepareOffline(false); break;
     case 'wp-clear': wallpaperClear(); break;
     case 'go-notes': goFromHome('notes'); break;
     case 'go-rev': goFromHome('rev'); break;
