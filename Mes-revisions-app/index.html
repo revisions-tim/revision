@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.8.1">
+<meta name="app-version" content="3.9.0">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -533,6 +533,34 @@ main.quiz.wide{max-width:980px}
 .notes-full-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;color:#fff;flex:none}
 .notes-full-body{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:6px}
 .notes-full-body img{max-width:100%;max-height:100%;background:#fff;border-radius:6px;touch-action:pinch-zoom pan-x pan-y}
+/* ---- v3.9 : écrire sur les pages ---- */
+.ne{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ne-top,.ne-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);flex:none;overflow-x:auto;scrollbar-width:none;touch-action:pan-x}
+.ne-top{border-bottom:1px solid var(--line);padding-top:calc(env(safe-area-inset-top,0px) + 6px)}
+.ne-bar{border-top:1px solid var(--line);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 6px)}
+.ne .btn{min-height:40px;padding:6px 11px;white-space:nowrap;flex:none}
+.ne .btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.ne .btn:disabled{opacity:.4}
+.ne-title{margin:0 6px;white-space:nowrap;max-width:26ch;overflow:hidden;text-overflow:ellipsis}
+.ne-pos,.ne-zoom{white-space:nowrap;font-weight:600;font-size:14px;min-width:60px;text-align:center}
+.ne-save{white-space:nowrap;color:var(--muted);font-size:13px;margin-left:auto;padding-left:8px}
+.ne-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#7d7d7d;touch-action:none;cursor:crosshair}
+.ne-stage.hand{cursor:grab}
+.ne-img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.4);pointer-events:none;will-change:transform}
+.ne-cv{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+.ne-hl{mix-blend-mode:multiply;opacity:.4}
+.ne-sw{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);flex:none;cursor:pointer;margin:0 4px}
+.ne-bar input[type=range]{width:110px;flex:none}
+.ne-wv{min-width:22px;font-size:13px;font-weight:600}
+.ne-sub{display:none;gap:4px;flex:none}
+.ne-pop{position:absolute;left:10px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.3);display:grid;grid-template-columns:repeat(8,34px);gap:8px;max-width:calc(100vw - 20px)}
+.ne-pop[hidden],.ne-selbar[hidden]{display:none}
+.ne-c{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);padding:0;cursor:pointer}
+.ne-c.on{outline:3px solid var(--accent);outline-offset:1px}
+.ne-rl{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.ne-custom{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:14px}
+.ne-selbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 6px 22px rgba(0,0,0,.3)}
+.ne-text{position:absolute;z-index:3;min-width:140px;background:rgba(255,255,255,.9);border:1.5px dashed #1e88e5;outline:none;resize:none;padding:0 3px;font-family:-apple-system,Helvetica,Arial,sans-serif;user-select:text;-webkit-user-select:text}
 /* ---- v3.5 : examens, lecture audio, impression de schéma ---- */
 .exam-wrap{margin-top:14px}
 .exam-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -636,7 +664,7 @@ main.quiz.wide{max-width:980px}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.8.1';
+const APP_VERSION = '3.9.0';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -805,7 +833,7 @@ async function imgDel(id){
 }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
 function imageIds(it){
-  if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p));
+  if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p)).concat(Object.keys(it.payload.ink || {}).map(k=>it.payload.ink[k]).filter(Boolean));
   if(it.type==='schema') return it.payload.image && !/^data:/.test(it.payload.image) ? [it.payload.image] : [];
   const list = it.type==='quiz' ? it.payload.questions : it.type==='flashcards' ? it.payload.cards : it.type==='synthese' ? [].concat.apply([], it.payload.sections.map(s=>s.items)) : [];
   const out = []; list.forEach(x=>{ if(x.image && !/^data:/.test(x.image) && out.indexOf(x.image)<0) out.push(x.image); });
@@ -1270,7 +1298,7 @@ function renderResults(){
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
-    '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes synthÃ¨ses</span></button>'+
+    '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes synthèses</span></button>'+
     '<button class="btn sm" data-act="body-sort">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
@@ -1357,7 +1385,7 @@ function cardHTML(it){
         (state.dl ? '<button class="icon-btn" data-act="share" data-id="'+esc(it.id)+'" aria-label="Partager '+esc(it.title)+'" title="Partager (fichier)">'+ICON.share+'</button>' : '')+
         '<button class="icon-btn" data-act="delete-ask" data-id="'+esc(it.id)+'" aria-label="Supprimer '+esc(it.title)+'" title="Supprimer">'+ICON.trash+'</button></span>';
   return '<article class="card'+(isSel?' sel':'')+'">'+(state.sel ? '<span class="sel-box" aria-hidden="true"></span>' : '')+'<button class="card-main" data-act="'+(state.sel?'sel-item':'open')+'" data-id="'+esc(it.id)+'">'+
-    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'SynthÃ¨se manuscrite':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
+    '<span class="badge '+it.type+'">'+(isQ?'Quiz':isF?'Cartes à retourner':isS?'Synthèse':isG?'Schéma':isN?'Synthèse manuscrite':'Mindmap')+'</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(parts.join(' · '))+'</p></button>'+
     '<div class="card-foot">'+foot+'</div></article>';
 }
 
@@ -3327,16 +3355,16 @@ async function fitNotesPage(data){
 }
 function normNotes(o, course){
   const src = Array.isArray(o.pages) ? o.pages : (Array.isArray(o.images) ? o.images : []);
-  if(src.length > 120) throw new Error('SynthÃ¨se : 120 pages maximum.');
+  if(src.length > 120) throw new Error('Synthèse : 120 pages maximum.');
   const pages = src.map(p=>cleanImg(typeof p === 'string' ? p : (p && p.image))).filter(Boolean);
-  if(!pages.length) throw new Error('Cette synthÃ¨se ne contient aucune page (images en data URL).');
-  return { type:'notes', title: clip(o.title||o.titre||'SynthÃ¨se sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
+  if(!pages.length) throw new Error('Cette synthèse ne contient aucune page (images en data URL).');
+  return { type:'notes', title: clip(o.title||o.titre||'Synthèse sans titre',120), course: clip(course||o.course||o.cours||'',80), payload:{ pages }, meta:{ count:pages.length } };
 }
 function openNotesNew(){
   state.nnFiles = [];
   const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
-  openModal('Importer mes synthÃ¨ses manuscrites',
-    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthÃ¨se telle quelle, page par page, dans la bibliothèque.</p>'+
+  openModal('Importer mes synthèses manuscrites',
+    '<p class="hint">Exporte tes pages depuis Notes+, GoodNotes ou une autre appli (en PDF, ou en images), puis choisis-les ici. Tu retrouveras ta synthèse telle quelle, page par page, dans la bibliothèque.</p>'+
     '<label class="lbl" for="nnTitle">Titre</label><input class="txt" id="nnTitle" maxlength="100" placeholder="Ex. Ma synthèse : l\'ostéologie" autocomplete="off">'+
     '<label class="lbl" for="nnCourse">Dossier (facultatif)</label><input class="txt" id="nnCourse" list="folderList2" maxlength="80" placeholder="Ex. Anatomie" autocomplete="off"><datalist id="folderList2">'+opts+'</datalist>'+
     '<div style="margin-top:12px"><label class="btn sm" for="nnFiles">'+ICON.image+'<span>Choisir un PDF ou des images</span></label><input type="file" id="nnFiles" accept="image/*,application/pdf" multiple hidden> <span class="hint" id="nnName">Aucun fichier choisi</span></div>',
@@ -3386,7 +3414,7 @@ function renderNotes(){
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-add">＋ Ajouter des pages</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-add">＋ Ajouter des pages</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3416,16 +3444,509 @@ function notesGo(d, abs){
   if(!o) window.scrollTo(0, 0);
 }
 let notesTouchX = null;
-document.addEventListener('touchstart', e=>{ if(state.view==='notes' && !state.notes.grid && e.touches.length===1){ notesTouchX = e.touches[0].clientX; } else notesTouchX = null; }, { passive:true });
+document.addEventListener('touchstart', e=>{ if(state.view==='notes' && !document.getElementById('ne') && !state.notes.grid && e.touches.length===1){ notesTouchX = e.touches[0].clientX; } else notesTouchX = null; }, { passive:true });
 document.addEventListener('touchend', e=>{
   if(notesTouchX == null || state.view!=='notes') return;
   const img = document.getElementById('notesImg'); const dx = (e.changedTouches[0].clientX) - notesTouchX; notesTouchX = null;
   if(img && state.notes.zoom <= 1 && Math.abs(dx) > 90 && (window.visualViewport ? window.visualViewport.scale <= 1.02 : true)) notesGo(dx < 0 ? 1 : -1);
 }, { passive:true });
 document.addEventListener('keydown', e=>{
-  if(state.view!=='notes' || !state.notes) return; const tg = e.target && e.target.tagName; if(tg==='INPUT' || tg==='TEXTAREA' || document.querySelector('.modal')) return;
+  if(state.view!=='notes' || !state.notes || document.getElementById('ne')) return; const tg = e.target && e.target.tagName; if(tg==='INPUT' || tg==='TEXTAREA' || document.querySelector('.modal')) return;
   if(e.key==='ArrowRight'){ notesGo(1); } else if(e.key==='ArrowLeft'){ notesGo(-1); } else if(e.key==='Escape'){ notesCloseFull(); }
 });
+
+/* ================= v3.9 : écrire sur les pages (stylo, crayon, marqueur, fluo, gomme, sélection, formes, texte, zoom) ================= */
+const INK_PAL = ['#111111','#4b4b4b','#8a8a8a','#ffffff','#c62828','#e53935','#ff6f00','#f9a825','#fdd835','#c0ca33','#2e7d32','#00c853','#00897b','#00acc1','#1e88e5','#1565c0','#3949ab','#6a1b9a','#8e24aa','#d81b60','#ec407a','#6d4c41','#a1887f','#ff1744'];
+const INK_DEF = { pen:{c:'#111111',w:3}, pencil:{c:'#4b4b4b',w:2}, marker:{c:'#1e88e5',w:9}, hl:{c:'#fdd835',w:28}, shape:{c:'#c62828',w:3}, text:{c:'#111111',w:5}, eraser:{c:'#000000',w:16} };
+const INK_RANGE = { pen:[1,12], pencil:[1,8], marker:[3,30], hl:[10,60], shape:[1,14], text:[1,20], eraser:[6,48] };
+const INK_ALPHA = { pen:1, pencil:0.8, marker:1, hl:1 };
+const INK_TOOLS = ['hand','pen','pencil','marker','hl','eraser','select','shape','text'];
+const INK_W = 1000;
+let ink = null;
+function inkLoadPrefs(){ try{ return JSON.parse(localStorage.getItem('revisions:ink') || '{}') || {}; }catch(e){ return {}; } }
+function inkSavePrefs(){ const z = ink; if(!z) return; try{ localStorage.setItem('revisions:ink', JSON.stringify({ tc:z.tc, tool:z.tool, shape:z.shape, finger:z.finger, recent:z.recent })); }catch(e){} }
+function inkKey(t){ return t==='hand' || t==='select' ? null : t; }
+function inkPageKey(z){ return z.item.payload.pages[z.pos]; }
+
+async function inkOpen(){
+  const zn = state.notes; if(!zn || document.getElementById('ne')) return;
+  const pr = inkLoadPrefs(), tc = {};
+  Object.keys(INK_DEF).forEach(k=>{ tc[k] = Object.assign({}, INK_DEF[k], (pr.tc || {})[k] || {}); });
+  ink = { item:zn.item, pos:zn.pos, tool: INK_TOOLS.indexOf(pr.tool) >= 0 ? pr.tool : 'pen', shape: ['r','o','l','a'].indexOf(pr.shape) >= 0 ? pr.shape : 'r', finger: !!pr.finger, recent: Array.isArray(pr.recent) ? pr.recent.slice(0,8) : [], tc,
+    objs:[], undo:[], redo:[], sel:[], s:1, tx:0, ty:0, rs:1, rtx:0, rty:0, H:1414, ptrs:new Map(), gest:null, pan:null, act:null, penSeen:false, penDown:false, dirty:false, saving:Promise.resolve(), dpr:Math.min(window.devicePixelRatio || 1, 2), selColor:'#c62828', loaded:false };
+  const ov = document.createElement('div'); ov.id = 'ne'; ov.className = 'ne';
+  ov.innerHTML =
+    '<div class="ne-top"><button class="btn sm" data-ne="close">‹ Fermer</button><b class="ne-title">'+esc(ink.item.title)+'</b>'+
+    '<button class="btn sm" data-ne="prev" aria-label="Page précédente">‹</button><span class="ne-pos" id="nePos"></span><button class="btn sm" data-ne="next" aria-label="Page suivante">›</button>'+
+    '<button class="btn sm" data-ne="blank">＋ Page blanche</button>'+
+    '<button class="btn sm" data-ne="undo" id="neUndo" aria-label="Annuler">↶</button><button class="btn sm" data-ne="redo" id="neRedo" aria-label="Rétablir">↷</button>'+
+    '<button class="btn sm" data-ne="zout" aria-label="Dézoomer">−</button><span class="ne-zoom" id="neZoom">100 %</span><button class="btn sm" data-ne="zin" aria-label="Zoomer">＋</button>'+
+    '<button class="btn sm" data-ne="fitw">Largeur</button><button class="btn sm" data-ne="fitp">Page entière</button><span class="ne-save" id="neSave"></span></div>'+
+    '<div class="ne-stage" id="neStage"><img class="ne-img" id="neImg" alt="" draggable="false"><canvas class="ne-cv ne-hl" id="neHl"></canvas><canvas class="ne-cv" id="neInk"></canvas><canvas class="ne-cv" id="neLive"></canvas></div>'+
+    '<div class="ne-selbar" id="neSelbar" hidden><button class="btn sm" data-ne="del">Supprimer</button><button class="btn sm" data-ne="recolor">Appliquer la couleur</button><button class="btn sm" data-ne="dup">Dupliquer</button><button class="btn sm" data-ne="unsel">OK</button></div>'+
+    '<div class="ne-pop" id="nePop" hidden></div>'+
+    '<div class="ne-bar">'+
+      [['hand','Main'],['pen','Stylo'],['pencil','Crayon'],['marker','Marqueur'],['hl','Fluo'],['eraser','Gomme'],['select','Sélection'],['shape','Formes'],['text','Texte']].map(t=>'<button class="btn sm" data-tool="'+t[0]+'">'+t[1]+'</button>').join('')+
+      '<button class="btn sm" data-ne="dict" id="neDict">Dicter</button>'+
+      '<span class="ne-sub" id="neShapes"><button class="btn sm" data-shape="r">▭</button><button class="btn sm" data-shape="o">◯</button><button class="btn sm" data-shape="l">╱</button><button class="btn sm" data-shape="a">➚</button></span>'+
+      '<button class="btn sm" data-ne="selall" id="neSelAll">Tout sélectionner</button>'+
+      '<button class="ne-sw" id="neSw" data-ne="pal" aria-label="Couleur"></button>'+
+      '<input type="range" id="neW" min="1" max="12" step="1" aria-label="Épaisseur"><span class="ne-wv" id="neWv"></span>'+
+      '<button class="btn sm" data-ne="finger" id="neFinger">Doigt</button>'+
+    '</div>';
+  document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+  const z = ink; z.el = ov; z.stage = ov.querySelector('#neStage'); z.img = ov.querySelector('#neImg');
+  z.cv = { hl:ov.querySelector('#neHl'), ink:ov.querySelector('#neInk'), live:ov.querySelector('#neLive') };
+  z.ctx = { hl:z.cv.hl.getContext('2d'), ink:z.cv.ink.getContext('2d'), live:z.cv.live.getContext('2d') };
+  ov.addEventListener('click', inkClick);
+  const st = z.stage;
+  st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp);
+  st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
+  st.addEventListener('gesturestart', inkGStart); st.addEventListener('gesturechange', inkGChange); st.addEventListener('gestureend', e=>e.preventDefault());
+  z.onResize = ()=>{ inkResize(); }; window.addEventListener('resize', z.onResize);
+  z.onKey = inkKey2; document.addEventListener('keydown', z.onKey);
+  z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
+  inkResize(); await inkLoadPage(true); inkUpdateUI();
+}
+function inkResize(){
+  const z = ink; if(!z) return; const sw = z.stage.clientWidth, sh = z.stage.clientHeight; if(!sw || !sh) return;
+  ['hl','ink','live'].forEach(k=>{ const c = z.cv[k]; c.width = Math.round(sw*z.dpr); c.height = Math.round(sh*z.dpr); c.style.width = sw+'px'; c.style.height = sh+'px'; });
+  z.sw = sw; z.sh = sh; inkClamp(); inkApply(true);
+}
+async function inkLoadPage(fit){
+  const z = ink; if(!z) return;
+  const key = inkPageKey(z);
+  let data = state.imgCache[key] || await imgGet(key);
+  z.objs = []; z.undo = []; z.redo = []; z.sel = []; z.act = null; z.loaded = false;
+  const inkId = (z.item.payload.ink || {})[key];
+  if(inkId){ try{ const raw = state.imgCache[inkId] || await imgGet(inkId); const arr = raw ? JSON.parse(raw) : []; if(Array.isArray(arr)) z.objs = arr; }catch(e){ z.objs = []; } }
+  await new Promise(res=>{ const im = new Image(); im.onload = ()=>{ z.H = Math.max(200, Math.round(INK_W * im.naturalHeight / Math.max(1, im.naturalWidth))); res(); }; im.onerror = res; im.src = data || ''; });
+  z.img.src = data || ''; z.img.style.width = INK_W+'px'; z.img.style.height = z.H+'px';
+  z.loaded = true; if(fit) inkFit('w'); else { inkClamp(); inkApply(true); }
+  inkUpdateUI();
+}
+function inkFit(mode){
+  const z = ink; if(!z) return; z.sw = z.stage.clientWidth; z.sh = z.stage.clientHeight;
+  z.s = mode === 'p' ? Math.min(z.sw / INK_W, z.sh / z.H) : z.sw / INK_W; z.tx = 0; z.ty = 0; inkClamp(); inkApply(true);
+}
+function inkMinS(){ const z = ink; return Math.min(z.sw / INK_W, z.sh / z.H) * 0.6; }
+function inkClamp(){
+  const z = ink; if(!z) return; z.s = Math.min(10, Math.max(inkMinS(), z.s));
+  const pw = INK_W * z.s, ph = z.H * z.s;
+  z.tx = pw <= z.sw ? (z.sw - pw) / 2 : Math.min(40, Math.max(z.sw - pw - 40, z.tx));
+  z.ty = ph <= z.sh ? (z.sh - ph) / 2 : Math.min(40, Math.max(z.sh - ph - 40, z.ty));
+}
+function inkApply(now){
+  const z = ink; if(!z) return;
+  z.img.style.transform = 'translate('+z.tx+'px,'+z.ty+'px) scale('+z.s+')';
+  const k = z.s / z.rs, t = 'translate('+(z.tx - k*z.rtx)+'px,'+(z.ty - k*z.rty)+'px) scale('+k+')';
+  ['hl','ink','live'].forEach(n=>{ z.cv[n].style.transform = t; });
+  const zl = document.getElementById('neZoom'); if(zl) zl.textContent = Math.round(z.s / (z.sw / INK_W) * 100) + ' %';
+  clearTimeout(z.rt); if(now) inkRender(); else z.rt = setTimeout(inkRender, 130);
+}
+function inkSetT(g){ const z = ink, d = z.dpr; g.setTransform(d*z.s, 0, 0, d*z.s, d*z.tx, d*z.ty); }
+function inkRender(){
+  const z = ink; if(!z || !z.sw) return;
+  z.rs = z.s; z.rtx = z.tx; z.rty = z.ty;
+  ['hl','ink','live'].forEach(n=>{ z.cv[n].style.transform = ''; });
+  const d = z.dpr;
+  ['hl','ink'].forEach(n=>{ const g = z.ctx[n]; g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv[n].width, z.cv[n].height); inkSetT(g); });
+  z.objs.forEach(o=>inkDrawObj(o.tool === 'hl' ? z.ctx.hl : z.ctx.ink, o));
+  inkOverlay();
+}
+function inkDrawObj(g, o){
+  g.save(); g.strokeStyle = o.c; g.fillStyle = o.c; g.lineCap = o.tool === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round'; g.lineWidth = o.w || 3;
+  if(o.tool && INK_ALPHA[o.tool] != null) g.globalAlpha = INK_ALPHA[o.tool];
+  const p = o.p;
+  if(o.k === 's'){
+    let same = true; for(let i = 2; i < p.length; i += 2){ if(p[i] !== p[0] || p[i+1] !== p[1]){ same = false; break; } }
+    if(same){ g.beginPath(); g.arc(p[0]/10, p[1]/10, (o.w||3)/2, 0, Math.PI*2); g.fill(); }
+    else{
+      g.beginPath(); g.moveTo(p[0]/10, p[1]/10);
+      if(p.length === 4) g.lineTo(p[2]/10, p[3]/10);
+      else{
+        g.lineTo((p[0]+p[2])/20, (p[1]+p[3])/20);
+        for(let i = 2; i < p.length - 2; i += 2) g.quadraticCurveTo(p[i]/10, p[i+1]/10, (p[i]+p[i+2])/20, (p[i+1]+p[i+3])/20);
+        g.lineTo(p[p.length-2]/10, p[p.length-1]/10);
+      }
+      g.stroke();
+    }
+  }else if(o.k === 't'){
+    g.font = o.s+'px -apple-system,Helvetica,Arial,sans-serif'; g.textBaseline = 'top';
+    String(o.t).split('\n').forEach((ln, i)=>g.fillText(ln, p[0]/10, p[1]/10 + i*o.s*1.25));
+  }else inkShape(g, o.k, p[0]/10, p[1]/10, p[2]/10, p[3]/10, o.w);
+  g.restore();
+}
+function inkShape(g, k, x0, y0, x1, y1, w){
+  g.beginPath();
+  if(k === 'r'){ g.rect(Math.min(x0,x1), Math.min(y0,y1), Math.abs(x1-x0), Math.abs(y1-y0)); }
+  else if(k === 'o'){ g.ellipse((x0+x1)/2, (y0+y1)/2, Math.abs(x1-x0)/2, Math.abs(y1-y0)/2, 0, 0, Math.PI*2); }
+  else{
+    g.moveTo(x0, y0); g.lineTo(x1, y1);
+    if(k === 'a'){ const a = Math.atan2(y1-y0, x1-x0), L = Math.max(14, (w||3)*4.5); g.moveTo(x1, y1); g.lineTo(x1 - L*Math.cos(a-0.5), y1 - L*Math.sin(a-0.5)); g.moveTo(x1, y1); g.lineTo(x1 - L*Math.cos(a+0.5), y1 - L*Math.sin(a+0.5)); }
+  }
+  g.stroke();
+}
+function inkOverlay(){
+  const z = ink; if(!z) return; const g = z.ctx.live;
+  g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv.live.width, z.cv.live.height); z.cv.live.style.opacity = 1; z.cv.live.style.mixBlendMode = 'normal';
+  inkSetT(g);
+  if(z.sel.length){
+    const b = inkBBoxAll(z.sel.map(i=>z.objs[i]).filter(Boolean)); if(b){
+      g.save(); g.setLineDash([6/z.s, 4/z.s]); g.lineWidth = 1.6/z.s; g.strokeStyle = '#1e88e5'; g.fillStyle = 'rgba(30,136,229,.08)';
+      const pd = 6/z.s; g.fillRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd); g.strokeRect(b[0]-pd, b[1]-pd, b[2]-b[0]+2*pd, b[3]-b[1]+2*pd); g.restore();
+    }
+  }
+  const a = z.act;
+  if(a && a.kind === 'lasso'){ g.save(); g.setLineDash([6/z.s, 4/z.s]); g.lineWidth = 1.6/z.s; g.strokeStyle = '#1e88e5'; g.beginPath(); for(let i = 0; i < a.pts.length; i += 2){ if(i) g.lineTo(a.pts[i], a.pts[i+1]); else g.moveTo(a.pts[0], a.pts[1]); } g.closePath(); g.stroke(); g.restore(); }
+  if(a && a.kind === 'erase' && a.cx != null){ g.save(); g.lineWidth = 1.5/z.s; g.strokeStyle = '#555'; g.setLineDash([4/z.s, 3/z.s]); g.beginPath(); g.arc(a.cx, a.cy, z.tc.eraser.w / z.s, 0, Math.PI*2); g.stroke(); g.restore(); }
+  if(a && a.kind === 'shape'){ const tc = z.tc.shape; g.save(); g.strokeStyle = tc.c; g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = tc.w; inkShape(g, z.shape, a.x0, a.y0, a.x1, a.y1, tc.w); g.restore(); }
+}
+/* boîtes englobantes */
+let inkMeasure = null;
+function inkBBox(o){
+  const p = o.p;
+  if(o.k === 't'){
+    if(!inkMeasure) inkMeasure = document.createElement('canvas').getContext('2d');
+    inkMeasure.font = o.s+'px -apple-system,Helvetica,Arial,sans-serif';
+    const lines = String(o.t).split('\n'); let w = 0; lines.forEach(l=>{ w = Math.max(w, inkMeasure.measureText(l).width); });
+    return [p[0]/10, p[1]/10, p[0]/10 + w, p[1]/10 + lines.length*o.s*1.25];
+  }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for(let i = 0; i < p.length; i += 2){ x0 = Math.min(x0, p[i]/10); x1 = Math.max(x1, p[i]/10); y0 = Math.min(y0, p[i+1]/10); y1 = Math.max(y1, p[i+1]/10); }
+  const h = (o.w || 3) / 2; return [x0-h, y0-h, x1+h, y1+h];
+}
+function inkBBoxAll(list){
+  if(!list.length) return null; let r = [Infinity, Infinity, -Infinity, -Infinity];
+  list.forEach(o=>{ const b = inkBBox(o); r = [Math.min(r[0],b[0]), Math.min(r[1],b[1]), Math.max(r[2],b[2]), Math.max(r[3],b[3])]; });
+  return r;
+}
+function inkSeg(px, py, x1, y1, x2, y2){
+  const dx = x2-x1, dy = y2-y1, l2 = dx*dx + dy*dy; let t = l2 ? ((px-x1)*dx + (py-y1)*dy) / l2 : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t*dx), py - (y1 + t*dy));
+}
+function inkHit(o, x, y, r){
+  const p = o.p, rr = r + (o.w || 3) / 2;
+  if(o.k === 's'){
+    if(p.length <= 2) return Math.hypot(x - p[0]/10, y - p[1]/10) <= rr;
+    for(let i = 0; i < p.length - 2; i += 2) if(inkSeg(x, y, p[i]/10, p[i+1]/10, p[i+2]/10, p[i+3]/10) <= rr) return true;
+    return false;
+  }
+  if(o.k === 't'){ const b = inkBBox(o); return x >= b[0]-r && x <= b[2]+r && y >= b[1]-r && y <= b[3]+r; }
+  const x0 = p[0]/10, y0 = p[1]/10, x1 = p[2]/10, y1 = p[3]/10;
+  if(o.k === 'l' || o.k === 'a') return inkSeg(x, y, x0, y0, x1, y1) <= rr;
+  if(o.k === 'r') return inkSeg(x,y,x0,y0,x1,y0) <= rr || inkSeg(x,y,x1,y0,x1,y1) <= rr || inkSeg(x,y,x1,y1,x0,y1) <= rr || inkSeg(x,y,x0,y1,x0,y0) <= rr;
+  const a = Math.abs(x1-x0)/2, b = Math.abs(y1-y0)/2; if(a < 1 || b < 1) return Math.hypot(x - (x0+x1)/2, y - (y0+y1)/2) <= rr;
+  const e = Math.hypot((x - (x0+x1)/2) / a, (y - (y0+y1)/2) / b); return Math.abs(e - 1) * Math.min(a, b) <= rr;
+}
+function inkInPoly(x, y, pts){
+  let c = false; const n = pts.length / 2;
+  for(let i = 0, j = n - 1; i < n; j = i++){ const xi = pts[2*i], yi = pts[2*i+1], xj = pts[2*j], yj = pts[2*j+1]; if((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; }
+  return c;
+}
+
+/* ---------- gestes : dessin, déplacement, zoom ---------- */
+function inkPt(e){ const r = ink.stage.getBoundingClientRect(); const sx = e.clientX - r.left, sy = e.clientY - r.top; return { sx, sy, x:(sx - ink.tx) / ink.s, y:(sy - ink.ty) / ink.s }; }
+function inkTouches(){ return Array.from(ink.ptrs.values()).filter(v=>v.type === 'touch'); }
+function inkDown(e){
+  const z = ink; if(!z || !z.loaded) return; e.preventDefault();
+  const txt = z.stage.querySelector('.ne-text'); if(txt && txt._finish) txt._finish(true);
+  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; Array.from(z.ptrs.keys()).forEach(id=>{ if(z.ptrs.get(id).type === 'touch') z.ptrs.delete(id); }); z.gest = null; z.pan = null; }
+  if(e.pointerType === 'touch' && z.penDown) return;
+  z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY });
+  try{ z.stage.setPointerCapture(e.pointerId); }catch(_){}
+  const tt = inkTouches();
+  if(tt.length >= 2){ inkCancelAct(); inkStartGesture(); return; }
+  const draws = e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0) || (e.pointerType === 'touch' && z.finger);
+  if(z.tool === 'hand' || !draws){ z.pan = { id:e.pointerId, x0:e.clientX, y0:e.clientY, tx0:z.tx, ty0:z.ty }; return; }
+  inkToolDown(e);
+}
+function inkMove(e){
+  const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId);
+  if(!p){ return; } e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
+  if(z.gest){ inkUpdateGesture(); return; }
+  if(z.pan && z.pan.id === e.pointerId){ z.tx = z.pan.tx0 + e.clientX - z.pan.x0; z.ty = z.pan.ty0 + e.clientY - z.pan.y0; inkClamp(); inkApply(false); return; }
+  if(z.act && z.act.id === e.pointerId){
+    const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    (list.length ? list : [e]).forEach(ev=>inkToolMove(ev));
+  }
+}
+function inkUp(e){
+  const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId); if(!p) return;
+  z.ptrs.delete(e.pointerId); if(e.pointerType === 'pen') z.penDown = false;
+  try{ z.stage.releasePointerCapture(e.pointerId); }catch(_){}
+  if(z.gest){ if(inkTouches().length < 2){ z.gest = null; inkApply(true); } return; }
+  if(z.pan && z.pan.id === e.pointerId){ z.pan = null; inkApply(true); return; }
+  if(z.act && z.act.id === e.pointerId){ if(e.type === 'pointercancel') inkCancelAct(); else inkToolUp(e); }
+}
+function inkStartGesture(){
+  const z = ink, t = inkTouches(), a = t[0], b = t[1], r = z.stage.getBoundingClientRect();
+  z.pan = null; z.gest = { d0:Math.max(10, Math.hypot(a.x-b.x, a.y-b.y)), s0:z.s, tx0:z.tx, ty0:z.ty, cx0:(a.x+b.x)/2 - r.left, cy0:(a.y+b.y)/2 - r.top };
+}
+function inkUpdateGesture(){
+  const z = ink, g = z.gest, t = inkTouches(); if(!g || t.length < 2) return; const a = t[0], b = t[1], r = z.stage.getBoundingClientRect();
+  const cx = (a.x+b.x)/2 - r.left, cy = (a.y+b.y)/2 - r.top, d = Math.hypot(a.x-b.x, a.y-b.y);
+  const ns = Math.min(10, Math.max(inkMinS(), g.s0 * d / g.d0)); const px = (g.cx0 - g.tx0) / g.s0, py = (g.cy0 - g.ty0) / g.s0;
+  z.s = ns; z.tx = cx - px*ns; z.ty = cy - py*ns; inkClamp(); inkApply(false);
+}
+function inkZoomAt(sx, sy, k, now){
+  const z = ink; const ns = Math.min(10, Math.max(inkMinS(), z.s * k)); const px = (sx - z.tx) / z.s, py = (sy - z.ty) / z.s;
+  z.s = ns; z.tx = sx - px*ns; z.ty = sy - py*ns; inkClamp(); inkApply(!!now);
+}
+function inkWheel(e){
+  const z = ink; if(!z) return; e.preventDefault(); const r = z.stage.getBoundingClientRect();
+  if(e.ctrlKey) inkZoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.01));
+  else{ z.tx -= e.deltaX; z.ty -= e.deltaY; inkClamp(); inkApply(false); }
+}
+function inkGStart(e){ e.preventDefault(); if(ink) ink.gs0 = ink.s; }
+function inkGChange(e){ e.preventDefault(); const z = ink; if(!z) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
+
+/* ---------- outils ---------- */
+function inkLiveStyle(t){
+  const z = ink, c = z.cv.live; c.style.opacity = t === 'hl' ? 0.4 : (INK_ALPHA[t] || 1); c.style.mixBlendMode = t === 'hl' ? 'multiply' : 'normal';
+}
+function inkToolDown(e){
+  const z = ink, q = inkPt(e), t = z.tool;
+  if(t === 'pen' || t === 'pencil' || t === 'marker' || t === 'hl'){
+    z.act = { id:e.pointerId, kind:'stroke', pts:[q.x, q.y], last:[q.x, q.y] };
+    inkOverlay(); inkLiveStyle(t);
+    const g = z.ctx.live, tc = z.tc[t]; g.setTransform(1,0,0,1,0,0); inkSetT(g); g.fillStyle = tc.c; g.beginPath(); g.arc(q.x, q.y, tc.w/2, 0, Math.PI*2); g.fill();
+  }else if(t === 'eraser'){
+    z.act = { id:e.pointerId, kind:'erase', before:z.objs, cx:q.x, cy:q.y, changed:false }; inkErase(q.x, q.y);
+  }else if(t === 'shape'){
+    z.act = { id:e.pointerId, kind:'shape', x0:q.x, y0:q.y, x1:q.x, y1:q.y }; z.sel = []; inkOverlay();
+  }else if(t === 'select'){
+    const b = z.sel.length ? inkBBoxAll(z.sel.map(i=>z.objs[i]).filter(Boolean)) : null, pd = 8 / z.s;
+    if(b && q.x >= b[0]-pd && q.x <= b[2]+pd && q.y >= b[1]-pd && q.y <= b[3]+pd) z.act = { id:e.pointerId, kind:'move', x0:q.x, y0:q.y, base:z.objs, moved:false };
+    else{ z.sel = []; z.act = { id:e.pointerId, kind:'lasso', pts:[q.x, q.y] }; inkOverlay(); inkUpdateUI(); }
+  }else if(t === 'text'){ z.act = { id:e.pointerId, kind:'text', q }; }
+}
+function inkToolMove(e){
+  const z = ink, a = z.act; if(!a) return; const q = inkPt(e);
+  if(a.kind === 'stroke'){
+    const dx = q.x - a.last[0], dy = q.y - a.last[1]; if(dx*dx + dy*dy < Math.pow(1.1 / z.s, 2)) return;
+    a.pts.push(q.x, q.y); a.last = [q.x, q.y]; const p = a.pts, n = p.length / 2, g = z.ctx.live, tc = z.tc[z.tool];
+    g.strokeStyle = tc.c; g.lineWidth = tc.w; g.lineCap = z.tool === 'hl' ? 'butt' : 'round'; g.lineJoin = 'round'; g.beginPath();
+    if(n === 2){ g.moveTo(p[0], p[1]); g.lineTo((p[0]+p[2])/2, (p[1]+p[3])/2); }
+    else{ g.moveTo((p[2*n-6]+p[2*n-4])/2, (p[2*n-5]+p[2*n-3])/2); g.quadraticCurveTo(p[2*n-4], p[2*n-3], (p[2*n-4]+p[2*n-2])/2, (p[2*n-3]+p[2*n-1])/2); }
+    g.stroke();
+  }else if(a.kind === 'erase'){ a.cx = q.x; a.cy = q.y; inkErase(q.x, q.y); }
+  else if(a.kind === 'shape'){ a.x1 = q.x; a.y1 = q.y; inkOverlay(); }
+  else if(a.kind === 'lasso'){ a.pts.push(q.x, q.y); inkOverlay(); }
+  else if(a.kind === 'move'){
+    const dx = Math.round((q.x - a.x0) * 10), dy = Math.round((q.y - a.y0) * 10); a.moved = a.moved || Math.abs(dx) + Math.abs(dy) > 8;
+    z.objs = a.base.map((o, i)=> z.sel.indexOf(i) < 0 ? o : Object.assign({}, o, { p:o.p.map((v, k)=> v + (k % 2 ? dy : dx)) })); inkRender();
+  }
+}
+function inkToolUp(e){
+  const z = ink, a = z.act; if(!a) return; z.act = null;
+  if(a.kind === 'stroke'){
+    const tc = z.tc[z.tool], p = a.pts.length < 4 ? [a.pts[0], a.pts[1], a.pts[0], a.pts[1]] : a.pts;
+    inkCommit(z.objs.concat({ k:'s', tool:z.tool, c:tc.c, w:tc.w, p:p.map(v=>Math.round(v*10)) }));
+  }else if(a.kind === 'erase'){ if(a.changed){ z.undo.push(a.before); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } inkRender(); inkUpdateUI(); }
+  else if(a.kind === 'shape'){
+    if(Math.hypot(a.x1 - a.x0, a.y1 - a.y0) < 3){ inkRender(); return; }
+    const tc = z.tc.shape; inkCommit(z.objs.concat({ k:z.shape, c:tc.c, w:tc.w, p:[a.x0, a.y0, a.x1, a.y1].map(v=>Math.round(v*10)) }));
+  }else if(a.kind === 'text'){ inkTextAt(a.q);
+  }else if(a.kind === 'lasso'){
+    const pts = a.pts; let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(let i = 0; i < pts.length; i += 2){ x0 = Math.min(x0, pts[i]); x1 = Math.max(x1, pts[i]); y0 = Math.min(y0, pts[i+1]); y1 = Math.max(y1, pts[i+1]); }
+    z.sel = [];
+    if(Math.max(x1 - x0, y1 - y0) * z.s < 8){
+      const q = inkPt(e); for(let i = z.objs.length - 1; i >= 0; i--){ if(inkHit(z.objs[i], q.x, q.y, 10 / z.s)){ z.sel = [i]; break; } }
+    }else{
+      z.objs.forEach((o, i)=>{ const b = inkBBox(o); if(inkInPoly((b[0]+b[2])/2, (b[1]+b[3])/2, pts)) z.sel.push(i); });
+    }
+    inkOverlay(); inkUpdateUI();
+  }else if(a.kind === 'move'){
+    if(a.moved){ z.undo.push(a.base); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); } else z.objs = a.base;
+    inkRender(); inkUpdateUI();
+  }
+}
+function inkCancelAct(){ const z = ink; if(!z || !z.act) return; const a = z.act; z.act = null; if(a.kind === 'move' || a.kind === 'erase') z.objs = a.kind === 'move' ? a.base : a.before; inkRender(); }
+function inkErase(x, y){
+  const z = ink, a = z.act, r = z.tc.eraser.w / z.s; const keep = z.objs.filter(o=>!inkHit(o, x, y, r));
+  if(keep.length !== z.objs.length){ z.objs = keep; a.changed = true; z.sel = []; inkRender(); } else inkOverlay();
+}
+function inkCommit(next){
+  const z = ink; z.undo.push(z.objs); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.objs = next; z.sel = []; z.dirty = true;
+  inkSchedSave(); inkRender(); inkUpdateUI();
+}
+function inkUndo(){ const z = ink; if(!z || !z.undo.length) return; z.redo.push(z.objs); z.objs = z.undo.pop(); z.sel = []; z.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); }
+function inkRedo(){ const z = ink; if(!z || !z.redo.length) return; z.undo.push(z.objs); z.objs = z.redo.pop(); z.sel = []; z.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); }
+function inkWrap(txt, size, maxW){
+  if(!inkMeasure) inkMeasure = document.createElement('canvas').getContext('2d');
+  inkMeasure.font = size+'px -apple-system,Helvetica,Arial,sans-serif'; const out = [];
+  String(txt).split('\n').forEach(par=>{
+    let line = ''; par.split(/\s+/).forEach(w=>{ if(!w) return; const t = line ? line+' '+w : w; if(line && inkMeasure.measureText(t).width > maxW){ out.push(line); line = w; } else line = t; });
+    out.push(line);
+  });
+  return out.join('\n');
+}
+function inkTextAt(q, keep){
+  const z = ink, tc = z.tc.text, size = 10 + tc.w * 2;
+  const ta = document.createElement('textarea'); ta.className = 'ne-text'; ta.rows = 1; ta.placeholder = 'Texte…';
+  ta.style.left = q.sx + 'px'; ta.style.top = q.sy + 'px'; ta.style.fontSize = (size * z.s) + 'px'; ta.style.color = tc.c; ta.style.lineHeight = '1.25';
+  let done = false;
+  const finish = ok=>{
+    if(done) return; done = true; if(z.dict && z.dict.ta === ta) inkDictStop(true); const v = ta.value.replace(/\s+$/, ''); ta.remove();
+    if(ok && v) inkCommit(z.objs.concat({ k:'t', c:tc.c, s:size, t:inkWrap(v, size, Math.max(150, INK_W - q.x - 30)), p:[Math.round(q.x*10), Math.round(q.y*10)] }));
+  };
+  ta._dict = !!keep; ta._finish = finish; ta.addEventListener('blur', ()=>{ if(!ta._dict) finish(true); });
+  if(keep) ta.style.width = Math.max(180, Math.min(z.sw - 120, 460)) + 'px';
+  ta.addEventListener('keydown', ev=>{ ev.stopPropagation(); if(ev.key === 'Escape'){ finish(false); } });
+  ta.addEventListener('input', ()=>{ ta.rows = Math.max(1, ta.value.split('\n').length); });
+  z.stage.appendChild(ta); ta.focus(); setTimeout(()=>ta.focus(), 40); return ta;
+}
+function inkDictate(){
+  const z = ink; if(!z) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('La dictée n\'est pas disponible ici : essaie Safari ou Chrome.'); return; }
+  if(z.dict){ inkDictStop(); return; }
+  const old = z.stage.querySelector('.ne-text'); if(old && old._finish) old._finish(true);
+  const q = { sx:60, sy:60, x:(60 - z.tx) / z.s, y:(60 - z.ty) / z.s };
+  const ta = inkTextAt(q, true), rec = new SR(); rec.lang = 'fr-FR'; rec.continuous = true; rec.interimResults = true;
+  const d = z.dict = { rec, ta, base:'', stopping:false };
+  const fit = ()=>{ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  rec.onresult = ev=>{ let fin = '', itm = ''; for(let i = 0; i < ev.results.length; i++){ const r = ev.results[i]; if(r.isFinal) fin += r[0].transcript + ' '; else itm += r[0].transcript; } ta.value = (d.base + fin + itm).replace(/[ \t]+/g, ' ').replace(/^\s+/, ''); fit(); };
+  rec.onerror = ev=>{ if(ev.error === 'not-allowed' || ev.error === 'service-not-allowed'){ d.stopping = true; toast('Autorise le micro pour dicter.'); } };
+  rec.onend = ()=>{
+    if(d.stopping || ink !== z || z.dict !== d){ if(z.dict === d) inkDictStop(); return; }
+    d.base = ta.value.trim() ? ta.value.trim() + ' ' : ''; try{ rec.start(); }catch(e){ inkDictStop(); }
+  };
+  try{ rec.start(); }catch(e){ z.dict = null; toast('Impossible de lancer la dictée.'); return; }
+  inkUpdateUI(); toast('Parle : le texte s\'écrit sur la page. Touche « Arrêter la dictée » quand tu as fini.');
+}
+function inkDictStop(noFocus){
+  const z = ink; if(!z || !z.dict) return; const d = z.dict; z.dict = null; d.stopping = true; d.ta._dict = false;
+  try{ d.rec.stop(); }catch(e){}
+  inkUpdateUI(); if(!noFocus && d.ta.isConnected) d.ta.focus();
+}
+
+/* ---------- barre d'outils ---------- */
+function inkClick(e){
+  const z = ink; if(!z) return;
+  const tl = e.target.closest('[data-tool]'); if(tl){ z.tool = tl.dataset.tool; z.sel = []; inkCloseActs(); inkOverlay(); inkUpdateUI(); inkSavePrefs(); return; }
+  const sh = e.target.closest('[data-shape]'); if(sh){ z.shape = sh.dataset.shape; z.tool = 'shape'; inkUpdateUI(); inkSavePrefs(); return; }
+  const col = e.target.closest('[data-col]'); if(col){ inkPickColor(col.dataset.col); return; }
+  const b = e.target.closest('[data-ne]'); if(!b){ const pop = document.getElementById('nePop'); if(pop && !pop.hidden && !e.target.closest('#nePop')) pop.hidden = true; return; }
+  const a = b.dataset.ne;
+  if(a !== 'pal'){ const pop = document.getElementById('nePop'); if(pop) pop.hidden = true; }
+  if(a === 'close') inkClose();
+  else if(a === 'prev') inkGo(-1);
+  else if(a === 'next') inkGo(1);
+  else if(a === 'blank') inkBlank();
+  else if(a === 'undo') inkUndo();
+  else if(a === 'redo') inkRedo();
+  else if(a === 'zin') inkZoomAt(z.sw/2, z.sh/2, 1.25, true);
+  else if(a === 'zout') inkZoomAt(z.sw/2, z.sh/2, 0.8, true);
+  else if(a === 'fitw') inkFit('w');
+  else if(a === 'fitp') inkFit('p');
+  else if(a === 'finger'){ z.finger = !z.finger; inkUpdateUI(); inkSavePrefs(); }
+  else if(a === 'pal') inkTogglePalette();
+  else if(a === 'dict') inkDictate();
+  else if(a === 'del') inkDeleteSel();
+  else if(a === 'dup') inkDupSel();
+  else if(a === 'recolor') inkRecolor();
+  else if(a === 'unsel'){ z.sel = []; inkOverlay(); inkUpdateUI(); }
+  else if(a === 'selall'){ z.sel = z.objs.map((o, i)=>i); inkOverlay(); inkUpdateUI(); }
+}
+function inkCloseActs(){ const t = ink.stage.querySelector('.ne-text'); if(t && t._finish) t._finish(true); }
+function inkCurColor(){ const z = ink, k = inkKey(z.tool); return k ? z.tc[k].c : z.selColor; }
+function inkTogglePalette(){
+  const z = ink, pop = document.getElementById('nePop'); if(!pop) return; if(!pop.hidden){ pop.hidden = true; return; }
+  const cur = inkCurColor().toLowerCase();
+  pop.innerHTML = INK_PAL.map(c=>'<button class="ne-c'+(c === cur ? ' on' : '')+'" data-col="'+c+'" style="background:'+c+'" aria-label="'+c+'"></button>').join('')+
+    (z.recent.length ? '<div class="ne-rl">Récentes</div>'+z.recent.map(c=>'<button class="ne-c" data-col="'+c+'" style="background:'+c+'" aria-label="'+c+'"></button>').join('') : '')+
+    '<label class="ne-custom">Autre couleur <input type="color" id="neCustom" value="'+(/^#[0-9a-f]{6}$/i.test(cur) ? cur : '#000000')+'"></label>';
+  pop.hidden = false;
+  const inp = pop.querySelector('#neCustom'); inp.addEventListener('input', ()=>inkPickColor(inp.value, true));
+}
+function inkPickColor(c, keepOpen){
+  const z = ink; c = String(c).toLowerCase(); const k = inkKey(z.tool);
+  if(k) z.tc[k].c = c; else z.selColor = c;
+  if(INK_PAL.indexOf(c) < 0){ z.recent = [c].concat(z.recent.filter(x=>x !== c)).slice(0, 8); }
+  if(!k && z.sel.length) inkRecolor();
+  const pop = document.getElementById('nePop'); if(pop && !keepOpen) pop.hidden = true;
+  inkUpdateUI(); inkSavePrefs();
+}
+function inkRecolor(){
+  const z = ink; if(!z.sel.length) return; const c = inkCurColor(); const next = z.objs.slice();
+  z.sel.forEach(i=>{ if(next[i]) next[i] = Object.assign({}, next[i], { c }); }); const keep = z.sel.slice(); inkCommit(next); z.sel = keep; inkOverlay(); inkUpdateUI();
+}
+function inkDeleteSel(){ const z = ink; if(!z.sel.length) return; const s = z.sel; inkCommit(z.objs.filter((o, i)=>s.indexOf(i) < 0)); }
+function inkDupSel(){
+  const z = ink; if(!z.sel.length) return; const add = z.sel.map(i=>z.objs[i]).filter(Boolean).map(o=>Object.assign({}, o, { p:o.p.map(v=>v + 150) }));
+  const base = z.objs.length; inkCommit(z.objs.concat(add)); z.sel = add.map((o, i)=>base + i); inkOverlay(); inkUpdateUI();
+}
+function inkUpdateUI(){
+  const z = ink; if(!z) return; const el = z.el, k = inkKey(z.tool);
+  el.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on', b.dataset.tool === z.tool));
+  el.querySelectorAll('[data-shape]').forEach(b=>b.classList.toggle('on', b.dataset.shape === z.shape));
+  el.querySelector('#neShapes').style.display = z.tool === 'shape' ? 'inline-flex' : 'none';
+  el.querySelector('#neSelAll').style.display = z.tool === 'select' ? '' : 'none';
+  const sw = el.querySelector('#neSw'); sw.style.display = z.tool === 'eraser' || z.tool === 'hand' ? 'none' : ''; sw.style.background = inkCurColor();
+  const w = el.querySelector('#neW'), wv = el.querySelector('#neWv');
+  if(k){ const r = INK_RANGE[k]; w.min = r[0]; w.max = r[1]; w.value = z.tc[k].w; w.style.display = ''; wv.textContent = z.tc[k].w; wv.style.display = ''; }
+  else{ w.style.display = 'none'; wv.style.display = 'none'; }
+  w.oninput = ()=>{ const kk = inkKey(z.tool); if(kk){ z.tc[kk].w = Number(w.value); wv.textContent = w.value; inkSavePrefs(); } };
+  el.querySelector('#neFinger').classList.toggle('on', z.finger);
+  const dk = el.querySelector('#neDict'); dk.classList.toggle('on', !!z.dict); dk.textContent = z.dict ? 'Arrêter la dictée' : 'Dicter';
+  el.querySelector('#neSelbar').hidden = !z.sel.length;
+  el.querySelector('#neUndo').disabled = !z.undo.length; el.querySelector('#neRedo').disabled = !z.redo.length;
+  el.querySelector('#nePos').textContent = 'Page ' + (z.pos + 1) + ' / ' + z.item.payload.pages.length;
+  z.stage.classList.toggle('hand', z.tool === 'hand');
+}
+function inkKey2(e){
+  const z = ink; if(!z) return; const tg = e.target && e.target.tagName; if(tg === 'TEXTAREA' || tg === 'INPUT') return;
+  const mod = e.metaKey || e.ctrlKey;
+  if(mod && (e.key === 'z' || e.key === 'Z')){ e.preventDefault(); if(e.shiftKey) inkRedo(); else inkUndo(); }
+  else if(mod && (e.key === 'y' || e.key === 'Y')){ e.preventDefault(); inkRedo(); }
+  else if((e.key === 'Backspace' || e.key === 'Delete') && z.sel.length){ e.preventDefault(); inkDeleteSel(); }
+  else if(e.key === 'Escape'){ if(z.sel.length){ z.sel = []; inkOverlay(); inkUpdateUI(); } else inkClose(); }
+  else if(e.key === 'PageDown' || (e.key === 'ArrowRight' && mod)){ e.preventDefault(); inkGo(1); }
+  else if(e.key === 'PageUp' || (e.key === 'ArrowLeft' && mod)){ e.preventDefault(); inkGo(-1); }
+}
+
+/* ---------- enregistrement et pages ---------- */
+function inkSchedSave(){ const z = ink; if(!z) return; const s = document.getElementById('neSave'); if(s) s.textContent = 'Modifications…'; clearTimeout(z.st); z.st = setTimeout(inkSave, 1400); }
+function inkSave(){
+  const z = ink; if(!z || !z.dirty) return z ? z.saving : Promise.resolve();
+  clearTimeout(z.st); z.dirty = false;
+  const key = inkPageKey(z), objs = z.objs, id = z.item.id;
+  z.saving = z.saving.then(async ()=>{
+    try{
+      const cur = state.items.find(i=>i.id === id) || z.item; const oldId = (cur.payload.ink || {})[key]; let newId = '';
+      if(objs.length){ const json = JSON.stringify(objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); await imgPut(newId, json); }
+      const saved = await updateItem(id, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[key] = newId; else delete it.payload.ink[key]; return it; });
+      if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
+      if(oldId) imgDel(oldId);
+      const s = document.getElementById('neSave'); if(s) s.textContent = 'Enregistré';
+    }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
+  });
+  return z.saving;
+}
+async function inkGo(d){
+  const z = ink; if(!z) return; const np = z.pos + d; if(np < 0 || np >= z.item.payload.pages.length) return;
+  inkCloseActs(); await inkSave(); z.pos = np; if(state.notes) state.notes.pos = np; await inkLoadPage(true);
+}
+async function inkBlank(){
+  const z = ink; if(!z) return; await inkSave();
+  const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+  const id = uid('i'); await imgPut(id, c.toDataURL('image/jpeg', 0.8));
+  const at = z.pos + 1;
+  try{
+    const saved = await updateItem(z.item.id, it=>{ it.payload.pages.splice(at, 0, id); it.meta = { count:it.payload.pages.length }; return it; });
+    z.item = saved; if(state.notes){ state.notes.item = saved; state.notes.pos = at; }
+    z.pos = at; await inkLoadPage(true);
+  }catch(e){ toast('Impossible d\'ajouter la page.'); }
+}
+async function inkClose(){
+  const z = ink; if(!z) return; inkCloseActs(); await inkSave();
+  window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
+  z.el.remove(); document.body.style.overflow = ''; ink = null;
+  if(state.notes){ state.notes.item = state.items.find(i=>i.id === z.item.id) || z.item; state.notes.pos = z.pos; renderNotes(); }
+}
 
 /* ================= v3.8 : choisir un dossier directement, déplacer en groupe, classer par partie du corps ================= */
 const BODY_RULES = [
@@ -4300,15 +4821,16 @@ document.addEventListener('click', async e=>{
     case 'nt-zin': { const z = state.notes; if(z){ z.zoom = Math.min(3, Math.round((z.zoom + 0.25)*100)/100); renderNotes(); } break; }
     case 'nt-zout': { const z = state.notes; if(z){ z.zoom = Math.max(0.5, Math.round((z.zoom - 0.25)*100)/100); renderNotes(); } break; }
     case 'nt-full': notesOpenFull(); break;
+    case 'nt-edit': inkOpen(); break;
     case 'nt-fclose': notesCloseFull(); break;
     case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
-    case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer ma synthÃ¨se', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
+    case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer ma synthèse', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
     case 'nt-delpage': {
       const z = state.notes; if(!z) break;
       if(z.item.payload.pages.length < 2){ toast('C\'est la seule page : supprime plutôt les notes depuis la bibliothèque.'); break; }
       openModal('Retirer la page '+(z.pos+1)+' ?', '<p>Cette page sera supprimée de tes notes.</p>', 'Retirer', async ()=>{
         const pid = z.item.payload.pages[z.pos];
-        try{ await updateItem(z.item.id, it=>{ it.payload.pages.splice(z.pos, 1); it.meta = { count: it.payload.pages.length }; return it; }); imgDel(pid); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }
+        try{ await updateItem(z.item.id, it=>{ it.payload.pages.splice(z.pos, 1); it.meta = { count: it.payload.pages.length }; if(it.payload.ink && it.payload.ink[pid]){ imgDel(it.payload.ink[pid]); delete it.payload.ink[pid]; } return it; }); imgDel(pid); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }
         catch(e){ modalError('Suppression impossible.'); } });
       break;
     }
