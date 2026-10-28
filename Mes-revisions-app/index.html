@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.7">
+<meta name="app-version" content="3.10.8">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -572,6 +572,14 @@ body.has-wall{background:transparent}
 .nh-hint{margin:0 0 14px;font-size:13px}
 .nt-snip{margin:8px 0 0;font-size:13px;line-height:1.4;background:var(--accent-soft);border-radius:8px;padding:6px 9px;text-align:left}
 .nt-snip mark{background:#fdd835;color:#111;border-radius:3px;padding:0 2px}
+.tpl-row{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 6px}
+.tpl{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;font-size:13px}
+.tpl input{position:absolute;opacity:0;pointer-events:none}
+.tpl canvas{border:2px solid var(--line);border-radius:6px;background:#fff}
+.tpl input:checked + canvas{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tpl-or{display:flex;gap:16px;margin:4px 0 8px}
+.ne-mtpl{flex-wrap:wrap}
+.ne-mtpl span{flex:1 0 100%;text-align:left;padding-left:34px}
 /* ---- v3.9 : éditeur façon Notes+ ---- */
 .ne,.ne *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .ne textarea.ne-text,.ne input[type=number],.ne input[type=color],.ne #neCalcIn{-webkit-user-select:text;user-select:text}
@@ -804,7 +812,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.7';
+const APP_VERSION = '3.10.8';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3590,7 +3598,7 @@ function renderNotes(){
   }else{
     h += '<div class="notes-view" id="notesView"><img id="notesImg" style="width:'+Math.round(z.zoom*100)+'%" src="'+(data||'')+'" alt="Page '+(z.pos+1)+'"></div>';
   }
-  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Page blanche</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm" data-act="nt-print">'+ICON.print+'<span>Imprimer</span></button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
+  h += '<input type="file" id="ntAddFiles" accept="image/*,application/pdf" multiple hidden><div class="row notes-tools"><button class="btn sm primary" data-act="nt-edit">'+ICON.edit+'<span>Écrire sur les pages</span></button><button class="btn sm" data-act="nt-full">'+ICON.expand+'<span>Plein écran</span></button><button class="btn sm" data-act="nt-blank">＋ Nouvelle page</button><button class="btn sm" data-act="nt-add">＋ Importer des pages (PDF, images)</button><button class="btn sm" data-act="nt-rename">Renommer</button><button class="btn sm" data-act="nt-print">'+ICON.print+'<span>Imprimer</span></button>'+(isCours(it) ? '<button class="btn sm" data-act="nt-send">Envoyer dans Mes révisions</button>' : '<button class="btn sm" data-act="nt-send">Mettre dans Prendre des notes</button>')+'<button class="btn sm ghost" data-act="nt-delpage">Retirer cette page</button></div></main>';
   $('#app').innerHTML = h;
 }
 async function notesAddPages(files){
@@ -3691,7 +3699,8 @@ const INK_ICON = {
   trash:'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/>',
   fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
-  redo:'<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>'
+  redo:'<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  rot:'<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/>'
 };
 function inkSvg(k){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(INK_ICON[k] || '')+'</svg>'; }
 function penSvg(base, c, ls){
@@ -4449,7 +4458,12 @@ function inkClick(e){
   else if(a === 'mruler'){ z.ruler.on = !z.ruler.on; if(z.ruler.on){ z.ruler.cx = (z.sw / 2 - z.tx) / z.s; z.ruler.cy = (z.sh / 2 - z.ty) / z.s; } inkRulerPos(); inkUpdateUI(); }
   else if(a === 'mhand'){ z.tool = 'hand'; z.sel = []; inkUpdateUI(); inkSavePrefs(); }
   else if(a === 'subpop') inkPenPop(b);
+  else if(a.indexOf('tpl-') === 0) inkSetTpl(a.slice(4));
   else if(a === 'blank') inkBlank();
+  else if(a === 'blankl') inkBlank(true);
+  else if(a === 'mrotr') inkRotate(false, 1);
+  else if(a === 'mrotl') inkRotate(false, -1);
+  else if(a === 'mrota') inkRotate(true, 1);
   else if(a === 'addfiles'){ const fi = document.getElementById('neFiles'); if(fi) fi.click(); }
   else if(a === 'rmpage') inkRemovePage();
   else if(a === 'mprint'){ inkSave().then(()=>{ if(ink) printNotes([ink.item]); }); }
@@ -4538,6 +4552,7 @@ function inkUpdateUI(){
   el.querySelector('#neSelbar').hidden = !z.sel.length;
   { const so = z.sel.length === 1 ? z.objs[z.sel[0]] : null, tc = el.querySelector('#neTblCtl'); if(tc){ tc.hidden = !(so && so.k === 'g'); if(so && so.k === 'g') el.querySelector('#neTblInfo').textContent = (so.r || 3) + ' × ' + (so.n || 3); } }
   el.querySelector('#neUndo').disabled = !z.undo.length; el.querySelector('#neRedo').disabled = !z.redo.length;
+  { const cur = z.item.payload.tpl || 'blank'; el.querySelectorAll('[data-ne^="tpl-"]').forEach(x=>x.classList.toggle('on', x.dataset.ne === 'tpl-' + cur)); }
   inkPosUI(); z.stage.classList.toggle('hand', z.tool === 'hand');
 }
 function inkKey2(e){
@@ -4614,9 +4629,53 @@ async function inkRemovePage(){
     await notesRemoveAt(at); z.item = state.notes.item; await inkLoadDoc(Math.min(at, z.item.payload.pages.length - 1)); inkPagesRefresh();
   }catch(e){ toast('Suppression impossible.'); }
 }
-async function inkBlank(){
+/* ---------- orientation des pages : pivoter (l'écriture suit) ---------- */
+function inkRotObj(o, dir, H, s){
+  const tp = (x, y)=> dir > 0 ? [(H - y) * s, x * s] : [y * s, (1000 - x) * s];
+  const n = Object.assign({}, o), p = o.p, pts = [];
+  for(let i = 0; i < p.length; i += 2){ const t = tp(p[i] / 10, p[i+1] / 10); pts.push(t[0], t[1]); }
+  if(o.k === 'r' || o.k === 'o' || o.k === 'i' || o.k === 'g') n.p = [Math.min(pts[0], pts[2]), Math.min(pts[1], pts[3]), Math.max(pts[0], pts[2]), Math.max(pts[1], pts[3])].map(v=>Math.round(v * 10));
+  else n.p = pts.map(v=>Math.round(v * 10));
+  if(o.w) n.w = Math.round(o.w * s * 100) / 100;
+  if(o.s) n.s = Math.round(o.s * s * 100) / 100;
+  return n;
+}
+async function inkRotateImage(data, dir){
+  const im = await new Promise(res=>{ const x = new Image(); x.onload = ()=>res(x); x.onerror = ()=>res(null); x.src = data; }); if(!im) return '';
+  const c = document.createElement('canvas'); c.width = im.naturalHeight; c.height = im.naturalWidth; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.translate(c.width / 2, c.height / 2); g.rotate(dir > 0 ? Math.PI / 2 : -Math.PI / 2); g.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight / 2);
+  return await fitNotesPage(c.toDataURL('image/jpeg', 0.85));
+}
+async function inkRotate(all, dir){
+  const z = ink; if(!z) return; inkCloseActs(); await inkSave();
+  const idx = all ? z.P.map((p, i)=>i) : [z.pos];
+  if(all && !window.confirm('Pivoter les ' + idx.length + ' pages de ce document ?')) return;
+  toast(all ? 'Rotation de ' + idx.length + ' pages…' : 'Rotation de la page…');
+  const changes = [];
+  try{
+    for(const i of idx){
+      const p = z.P[i]; if(!p) continue;
+      await inkEnsureInk(i); for(let k = 0; k < 20 && !p.objs; k++) await new Promise(r=>setTimeout(r, 150));
+      const old = p.key, data = state.imgCache[old] || await imgGet(old); if(!data) continue;
+      const rot = await inkRotateImage(data, dir); if(!rot) continue;
+      const nk = uid('i'); await imgPut(nk, rot); const H = p.H, s = 1000 / H, d2 = inkImgDims(rot);
+      changes.push({ i, old, nk, objs:(p.objs || []).map(o=>inkRotObj(o, dir, H, s)), H:d2 && d2[0] ? Math.round(1000 * d2[1] / d2[0]) : Math.round(1000000 / H) });
+    }
+    if(!changes.length){ toast('Rien à pivoter.'); return; }
+    const saved = await updateItem(z.item.id, it=>{ changes.forEach(c=>{ it.payload.pages[c.i] = c.nk; const m = Object.assign({}, it.payload.ink || {}); if(m[c.old]){ imgDel(m[c.old]); delete m[c.old]; } it.payload.ink = m; }); return it; });
+    changes.forEach(c=>{ const p = z.P[c.i]; p.key = c.nk; p.objs = c.objs; p.H = c.H; p.undo = []; p.redo = []; p.dirty = c.objs.length > 0; p.img = null; });
+    z.item = saved; if(state.notes) state.notes.item = saved; changes.forEach(c=>imgDel(c.old));
+    await inkLoadDoc(z.pos); await inkSave(); inkPagesRefresh(); toast(all ? 'Pages pivotées.' : 'Page pivotée.');
+  }catch(err){ toast('Rotation impossible : ' + (err.message || 'erreur')); }
+}
+async function inkSetTpl(t){
+  const z = ink; if(!z) return; const lab = (PAGE_TPLS.filter(x=>x[0] === t)[0] || [t, t])[1];
+  const saved = await updateItem(z.item.id, it=>{ it.payload.tpl = t; return it; }); if(saved){ z.item = saved; if(state.notes) state.notes.item = saved; }
+  try{ localStorage.setItem('revisions:tpl', t); }catch(e){} inkUpdateUI(); toast('Les nouvelles pages seront : ' + lab.toLowerCase() + '.');
+}
+async function inkBlank(land){
   const z = ink; if(!z) return; await inkSave();
-  const id = uid('i'); await imgPut(id, blankPageData());
+  const id = uid('i'); await imgPut(id, blankPageData(land === true, z.item.payload.tpl));
   const at = z.pos + 1;
   try{
     const saved = await updateItem(z.item.id, it=>{ it.payload.pages.splice(at, 0, id); it.meta = { count:it.payload.pages.length }; return it; });
@@ -4675,7 +4734,7 @@ async function inkOpen(){
     '<div class="ne-pop" id="nePop" hidden></div>'+
     '<div class="ne-cfg" id="neCfg" hidden></div>'+
     '<div class="ne-menu" id="neMenu" hidden>'+
-      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Page blanche')+mi('addfiles','file','Importer un PDF ou des images')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+
+      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+mi('blankl','plus','Nouvelle page en paysage')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page à droite (90°)')+mi('mrotl','rot','Pivoter la page à gauche (90°)')+mi('mrota','rot','Pivoter toutes les pages (90°)')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+
       '<div class="ne-mh">Affichage</div>'+mi('fitw','fit','Ajuster à la largeur')+mi('fitp','fit','Page entière')+
       '<div class="ne-mrow"><button class="btn sm" data-ne="zout">− Zoom</button><span id="neZoomLbl">100 %</span><button class="btn sm" data-ne="zin">＋ Zoom</button></div>'+
     '</div>'+
@@ -4930,9 +4989,17 @@ async function renderNotesList(){
   if(tok !== noteSearchTok) return;
   box.innerHTML = found.length ? '<div class="grid">' + found.map(x=>noteCardHTML(x.it, x.snip)).join('') + '</div>' : '<p class="none">Aucune note trouvée pour « ' + esc(state.nq) + ' ».</p>';
 }
-function blankPageData(){
-  const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.8);
+const PAGE_TPLS = [['blank','Blanche'],['grid','Petits carreaux'],['lines','Lignes'],['big','Grands carreaux']];
+function pageTemplate(g, w, h, tpl){
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); if(!tpl || tpl === 'blank') return;
+  const mm = Math.max(w, h) / 297, px = Math.max(1, w / 1240), line = (x0, y0, x1, y1)=>{ g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+  if(tpl === 'grid'){ const s = 5 * mm; g.strokeStyle = '#c9d6ec'; g.lineWidth = Math.max(1, 1.3 * px); for(let x = s; x < w; x += s) line(x, 0, x, h); for(let y = s; y < h; y += s) line(0, y, w, y); }
+  else if(tpl === 'lines'){ const s = 8 * mm; g.strokeStyle = '#bdd0ea'; g.lineWidth = Math.max(1, 1.3 * px); for(let y = 3 * s; y < h - s / 2; y += s) line(0, y, w, y); g.strokeStyle = '#e59a9a'; line(24 * mm, 0, 24 * mm, h); }
+  else if(tpl === 'big'){ const s = 8 * mm; g.lineWidth = Math.max(1, px); g.strokeStyle = '#e6e2f3'; for(let y = s / 4; y < h; y += s / 4) line(0, y, w, y); g.strokeStyle = '#b6b0da'; g.lineWidth = Math.max(1, 1.5 * px); for(let y = s; y < h; y += s) line(0, y, w, y); for(let x = s; x < w; x += s) line(x, 0, x, h); g.strokeStyle = '#e59a9a'; line(4 * s, 0, 4 * s, h); }
+}
+function blankPageData(land, tpl){
+  const c = document.createElement('canvas'); c.width = land ? 1754 : 1240; c.height = land ? 1240 : 1754; pageTemplate(c.getContext('2d'), c.width, c.height, tpl);
+  return c.toDataURL('image/jpeg', 0.85);
 }
 async function notesRemoveAt(i){
   const z = state.notes; if(!z) return; const pid = z.item.payload.pages[i]; if(!pid) return;
@@ -4955,7 +5022,7 @@ async function notesMove(i, d){
 async function notesAddBlank(){
   const z = state.notes; if(!z) return;
   if(z.item.payload.pages.length >= 120){ toast('120 pages au maximum.'); return; }
-  const id = uid('i'); await imgPut(id, blankPageData());
+  const id = uid('i'); await imgPut(id, blankPageData(false, z.item.payload.tpl));
   try{
     await updateItem(z.item.id, it=>{ it.payload.pages.push(id); it.meta = { count: it.payload.pages.length }; return it; });
     z.item = state.items.find(x=>x.id === z.item.id) || z.item; z.pos = z.item.payload.pages.length - 1; z.grid = false; renderNotes(); toast('Page blanche ajoutée.');
@@ -5103,20 +5170,27 @@ function openFoldersManage(){
     });
 }
 function openNoteBlank(){
+  let lastTpl = 'blank'; try{ lastTpl = localStorage.getItem('revisions:tpl') || 'blank'; }catch(e){}
   const opts = folderNames().map(n=>'<option value="'+esc(n)+'"></option>').join('');
   openModal('Prendre des notes',
     '<p class="hint">Une page blanche s\'ouvre pour écrire avec ton Apple Pencil, ton doigt, la souris ou la dictée. Tu pourras ajouter des pages ou importer le PDF du cours.</p>'+
     '<label class="lbl" for="nbTitle">Titre</label><input class="txt" id="nbTitle" maxlength="100" placeholder="Ex. Chimie : cours du 28 octobre" autocomplete="off" data-enter="1">'+
-    '<label class="lbl" for="nbCourse">Dossier (facultatif)</label><input class="txt" id="nbCourse" list="nbList" maxlength="80" value="'+esc(state.fold && state.fold !== '__none__' ? state.fold : '')+'" placeholder="Ex. Chimie" autocomplete="off"><datalist id="nbList">'+opts+'</datalist>',
+    '<label class="lbl" for="nbCourse">Dossier (facultatif)</label><input class="txt" id="nbCourse" list="nbList" maxlength="80" value="'+esc(state.fold && state.fold !== '__none__' ? state.fold : '')+'" placeholder="Ex. Chimie" autocomplete="off"><datalist id="nbList">'+opts+'</datalist>'+
+    '<label class="lbl">Modèle de page</label><div class="tpl-row">'+PAGE_TPLS.map(t=>'<label class="tpl"><input type="radio" name="nbTpl" value="'+t[0]+'"'+(t[0] === lastTpl ? ' checked' : '')+'><canvas width="96" height="136" data-tpl="'+t[0]+'"></canvas><span>'+t[1]+'</span></label>').join('')+'</div>'+
+    '<label class="lbl">Orientation</label><div class="tpl-or"><label><input type="radio" name="nbOr" value="p" checked> Portrait</label><label><input type="radio" name="nbOr" value="l"> Paysage</label></div>',
     'Commencer', submitNoteBlank);
+  setTimeout(()=>{ document.querySelectorAll('canvas[data-tpl]').forEach(c=>{ pageTemplate(c.getContext('2d'), c.width, c.height, c.dataset.tpl); }); }, 30);
 }
 async function submitNoteBlank(){
   const title = ($('#nbTitle').value || '').trim(), course = ($('#nbCourse').value || '').trim();
   if(!title){ modalError('Donne un titre à tes notes.'); return; }
+  const tplSel0 = document.querySelector('input[name="nbTpl"]:checked'), orSel0 = document.querySelector('input[name="nbOr"]:checked');
   const btn = $('#submitBtn'); if(btn) btn.disabled = true; closeModal();
   try{
-    const id = uid('i'); await imgPut(id, blankPageData());
-    const full = await addNewItem({ type:'notes', kind:'cours', title:clip(title,120), course:clip(course,80), payload:{ pages:[id] }, meta:{ count:1 } }, course);
+    const tplSel = tplSel0, orSel = orSel0; const tpl = tplSel ? tplSel.value : 'blank', land = !!(orSel && orSel.value === 'l');
+    try{ localStorage.setItem('revisions:tpl', tpl); }catch(e){}
+    const id = uid('i'); await imgPut(id, blankPageData(land, tpl));
+    const full = await addNewItem({ type:'notes', kind:'cours', title:clip(title,120), course:clip(course,80), payload:{ pages:[id], tpl }, meta:{ count:1 } }, course);
     if(curTab() !== 'notes') setTab('notes'); else refreshLibrary();
     await openItem(full.id); inkOpen();
   }catch(err){ toast('Création impossible : ' + (err.message || 'erreur')); }
