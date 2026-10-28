@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.2">
+<meta name="app-version" content="3.10.3">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -564,6 +564,10 @@ body.has-wall{background:transparent}
 .fm-row span{flex:1;font-weight:600}
 .fm-row small{color:var(--muted)}
 .fm-chk{width:20px;height:20px;flex:none}
+.nh-search{width:100%;margin:0 0 6px}
+.nh-hint{margin:0 0 14px;font-size:13px}
+.nt-snip{margin:8px 0 0;font-size:13px;line-height:1.4;background:var(--accent-soft);border-radius:8px;padding:6px 9px;text-align:left}
+.nt-snip mark{background:#fdd835;color:#111;border-radius:3px;padding:0 2px}
 /* ---- v3.9 : éditeur façon Notes+ ---- */
 .ne{position:fixed;inset:0;z-index:90;background:#6f6f73;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;color:var(--ink)}
 .ne .btn{min-height:38px;padding:5px 12px;white-space:nowrap;flex:none}
@@ -794,7 +798,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.2';
+const APP_VERSION = '3.10.3';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1387,7 +1391,7 @@ function renderLibrary(){
   '<div id="results"></div>')+
   '<p class="foot">Version '+APP_VERSION+'</p>';
   updatePersistLabel();
-  if(curTab() === 'notes') return;
+  if(curTab() === 'notes'){ if(state.nq) renderNotesList(); return; }
   renderToday();
   renderResults();
   maybeAutoBackup();
@@ -4828,10 +4832,10 @@ function tabsHTML(){
   const t = curTab(), b = (k, label)=>'<button class="mtab'+(t === k ? ' on' : '')+'" role="tab" aria-selected="'+(t === k)+'" data-act="main-tab" data-t="'+k+'">'+label+'</button>';
   return '<nav class="mtabs" role="tablist">'+b('rev','Mes révisions')+b('notes','Prendre des notes')+'<button class="mtab mhome" data-act="home">⌂ Accueil</button></nav>';
 }
-function noteCardHTML(it){
+function noteCardHTML(it, snip){
   const d = it.createdAt ? new Date(it.createdAt).toLocaleDateString('fr',{day:'numeric',month:'short'}) : '';
   const nInk = Object.keys((it.payload && it.payload.ink) || {}).length;
-  return '<article class="card"><button class="card-main" data-act="open" data-id="'+esc(it.id)+'"><span class="badge notes">Cours</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(plural(it.payload.pages.length,'page')+(nInk ? ' · '+plural(nInk,'page annotée') : ''))+'</p></button>'+
+  return '<article class="card"><button class="card-main" data-act="'+(snip ? 'open-note-at' : 'open')+'" data-id="'+esc(it.id)+'" data-i="'+(snip ? snip.i : 0)+'"><span class="badge notes">Cours</span><h3>'+esc(it.title)+'</h3><p class="meta">'+esc(plural(it.payload.pages.length,'page')+(nInk ? ' · '+plural(nInk,'page annotée') : ''))+'</p>'+(snip ? '<p class="nt-snip">Page '+(snip.i+1)+' : '+snip.h+'</p>' : '')+'</button>'+
     '<div class="card-foot"><span>'+esc(d)+'</span><span class="ca">'+
       '<button class="icon-btn" data-act="nc-send" data-id="'+esc(it.id)+'" aria-label="Envoyer '+esc(it.title)+' dans Mes révisions" title="Envoyer dans Mes révisions (synthèse manuscrite)">'+ICON.up+'</button>'+
       '<button class="icon-btn" data-act="nc-rename" data-id="'+esc(it.id)+'" aria-label="Renommer '+esc(it.title)+'" title="Renommer">'+ICON.edit+'</button>'+
@@ -4843,9 +4847,47 @@ function notesHomeHTML(){
   const head = '<section class="nh-head"><div><h2>Prendre des notes</h2><p class="hint">Écris pendant le cours à l\'Apple Pencil, au clavier ou à la voix, sur une page blanche ou sur le PDF du cours. Tu peux ajouter des pages quand tu veux.</p></div>'+
     '<div class="row"><button class="btn primary" data-act="note-blank">'+ICON.plus+'<span>Nouvelle note</span></button><button class="btn" data-act="course-import">'+ICON.upload+'<span>Importer un cours (PDF)</span></button></div></section>';
   if(!list.length) return head + '<div class="empty"><div class="empty-art" aria-hidden="true">'+MARK(52)+'</div><h2>Aucune note pour l\'instant</h2><p>Commence par « Nouvelle note » pour écrire sur une page blanche, ou par « Importer un cours » pour écrire sur le PDF de ton cours.</p></div>';
+  const search = '<input id="noteSearch" class="search nh-search" type="search" placeholder="Rechercher une note, un dossier ou du texte tapé" aria-label="Rechercher dans mes notes" value="'+esc(state.nq || '')+'"><p class="hint nh-hint">La recherche porte sur les titres, les dossiers et le texte tapé au clavier ou à la voix. L\'écriture à la main n\'est pas reconnue.</p>';
+  return head + search + '<div id="notesList">' + notesGroupsHTML(list) + '</div>';
+}
+function notesGroupsHTML(list){
   const groups = new Map(); list.forEach(i=>{ const k = i.course || ''; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
   const keys = Array.from(groups.keys()).sort((a,b)=> a===''?1 : b===''?-1 : a.localeCompare(b,'fr'));
-  return head + keys.map(k=>'<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+groups.get(k).length+'</span></h2><div class="grid">'+groups.get(k).map(noteCardHTML).join('')+'</div></section>').join('');
+  return keys.map(k=>'<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+groups.get(k).length+'</span></h2><div class="grid">'+groups.get(k).map(x=>noteCardHTML(x)).join('')+'</div></section>').join('');
+}
+const noteTxtCache = {}; let noteSearchTok = 0;
+async function noteInkTexts(it){
+  const out = [], ink = (it.payload && it.payload.ink) || {}, pages = (it.payload && it.payload.pages) || [];
+  for(let i = 0; i < pages.length; i++){
+    const id = ink[pages[i]]; if(!id) continue;
+    if(noteTxtCache[id] === undefined){
+      let t = ''; try{ const raw = state.imgCache[id] || await imgGet(id); const a = raw ? JSON.parse(raw) : []; t = a.filter(o=>o && o.k === 't').map(o=>o.t).join('\n'); }catch(e){}
+      noteTxtCache[id] = t;
+    }
+    if(noteTxtCache[id]) out.push({ i, t:noteTxtCache[id] });
+  }
+  return out;
+}
+function noteSnipHTML(text, term){
+  const n = plainTxt(text), i = n.indexOf(term); if(i < 0) return esc(text.slice(0, 80));
+  const a = Math.max(0, i - 28), b = Math.min(text.length, i + term.length + 40);
+  return (a > 0 ? '…' : '') + esc(text.slice(a, i)) + '<mark>' + esc(text.slice(i, i + term.length)) + '</mark>' + esc(text.slice(i + term.length, b)) + (b < text.length ? '…' : '');
+}
+async function renderNotesList(){
+  const box = $('#notesList'); if(!box) return; const tok = ++noteSearchTok;
+  const terms = plainTxt(state.nq || '').trim().split(/\s+/).filter(Boolean);
+  const list = state.items.filter(isCours).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(!terms.length){ box.innerHTML = notesGroupsHTML(list); return; }
+  const found = [];
+  for(const it of list){
+    const base = plainTxt(it.title + ' ' + (it.course || '')), tx = await noteInkTexts(it); if(tok !== noteSearchTok) return;
+    const all = base + ' ' + tx.map(x=>plainTxt(x.t)).join(' ');
+    if(!terms.every(t=>all.indexOf(t) >= 0)) continue;
+    const f = tx.filter(x=>plainTxt(x.t).indexOf(terms[0]) >= 0)[0];
+    found.push({ it, snip: f ? { i:f.i, h:noteSnipHTML(f.t, terms[0]) } : null });
+  }
+  if(tok !== noteSearchTok) return;
+  box.innerHTML = found.length ? '<div class="grid">' + found.map(x=>noteCardHTML(x.it, x.snip)).join('') + '</div>' : '<p class="none">Aucune note trouvée pour « ' + esc(state.nq) + ' ».</p>';
 }
 function blankPageData(){
   const c = document.createElement('canvas'); c.width = 1240; c.height = 1754; const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
@@ -5878,6 +5920,7 @@ document.addEventListener('click', async e=>{
     case 'nc-send': openNoteSend(id); break;
     case 'nt-send': { const z = state.notes; if(z) openNoteSend(z.item.id); break; }
     case 'nc-del': openNoteDelete(id); break;
+    case 'open-note-at': { const pg = Number(el.dataset.i) || 0; openItem(id).then(()=>{ if(state.notes){ state.notes.pos = pg; inkOpen(); } }); break; }
     case 'nt-fclose': notesCloseFull(); break;
     case 'nt-add': { const inp = $('#ntAddFiles'); if(inp) inp.click(); break; }
     case 'nt-rename': { const z = state.notes; if(!z) break; openModal('Renommer ma synthèse', '<label class="lbl" for="ntName">Titre</label><input class="txt" id="ntName" maxlength="100" value="'+esc(z.item.title)+'" data-enter="1">', 'Enregistrer', async ()=>{ const v = ($('#ntName').value || '').trim(); if(!v){ modalError('Écris un titre.'); return; } try{ await updateItem(z.item.id, it=>{ it.title = v; return it; }); z.item = state.items.find(x=>x.id===z.item.id) || z.item; closeModal(); renderNotes(); }catch(e){ modalError('Enregistrement impossible.'); } }); break; }
@@ -6060,6 +6103,7 @@ document.addEventListener('change', e=>{
 });
 document.addEventListener('input', e=>{
   if(e.target && e.target.id==='search'){ state.q = e.target.value; renderResults(); }
+  if(e.target && e.target.id==='noteSearch'){ state.nq = e.target.value; renderNotesList(); }
   if(e.target && e.target.classList && (e.target.classList.contains('sch-lab') || e.target.classList.contains('sch-pop')) && state.sedit){ const k = Number(e.target.dataset.i); if(state.sedit.labels[k]) state.sedit.labels[k].label = e.target.value; }
 });
 document.addEventListener('paste', e=>{
