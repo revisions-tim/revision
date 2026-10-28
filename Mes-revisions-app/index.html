@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.10.1">
+<meta name="app-version" content="3.10.2">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -502,8 +502,6 @@ main.quiz.wide{max-width:980px}
 .leg-hint{margin:0 0 8px}
 .leg-handle{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:rgba(255,255,255,.55);border:2.5px solid var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.25);cursor:grab;touch-action:none;z-index:6;display:grid;place-items:center;font-size:11px;font-weight:700;color:#111}
 .folder-sel{width:auto;max-width:260px;padding:6px 10px;border-radius:999px;font-size:13.5px;font-weight:500}
-.bodylist details{margin:6px 0}
-.bodylist ul{margin:6px 0 0;padding-left:20px;font-size:13.5px}
 .leg-poly{fill-opacity:.2;stroke-opacity:1;stroke-width:3.2;stroke-dasharray:9 5;paint-order:stroke;vector-effect:non-scaling-stroke;pointer-events:none}
 .leg-poly.on{fill:var(--bad)!important;stroke:var(--bad)!important;fill-opacity:.2}
 .leg-polysvg{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
@@ -560,6 +558,12 @@ html{background:var(--bg)}
 body.has-wall{background:transparent}
 .home-links{margin:22px 0 0}
 .ne-cell-i svg:not(.pen){width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.fm-list{max-height:46vh;overflow:auto;border:1.5px solid var(--line);border-radius:12px;margin:10px 0 12px}
+.fm-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.fm-row:last-child{border-bottom:0}
+.fm-row span{flex:1;font-weight:600}
+.fm-row small{color:var(--muted)}
+.fm-chk{width:20px;height:20px;flex:none}
 /* ---- v3.9 : éditeur façon Notes+ ---- */
 .ne{position:fixed;inset:0;z-index:90;background:#6f6f73;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;color:var(--ink)}
 .ne .btn{min-height:38px;padding:5px 12px;white-space:nowrap;flex:none}
@@ -790,7 +794,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.10.1';
+const APP_VERSION = '3.10.2';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1420,7 +1424,6 @@ function refreshLibrary(){
   if(state.fold && state.fold!=='__none__' && !folderNames().some(n=>n===state.fold)) state.fold = ''; if($('#results')){ renderResults(); renderToday(); updatePersistLabel(); } else renderLibrary(); }
 
 function renderResults(){
-  if(state.bodyView === undefined){ try{ state.bodyView = localStorage.getItem('revisions:bodyview') === '1'; }catch(e){ state.bodyView = false; } }
   const all = state.items.filter(i=>!isCours(i));
   const nQ = all.filter(i=>i.type==='quiz').length, nM = all.filter(i=>i.type==='mindmap').length, nF = all.filter(i=>i.type==='flashcards').length, nS = all.filter(i=>i.type==='synthese').length, nSc = all.filter(i=>i.type==='schema').length, nNt = all.filter(i=>i.type==='notes').length;
   const chip = (f,label,n) => '<button class="chip'+(state.filter===f?' on':'')+'" data-act="filter" data-f="'+f+'">'+label+'<span>'+n+'</span></button>';
@@ -1428,10 +1431,9 @@ function renderResults(){
   const nb = notebookCount();
   $('#tools').innerHTML = state.sel ? selBarHTML() :
     '<button class="btn sm" data-act="folder-new">'+ICON.folder+'<span>Nouveau dossier</span></button>'+
+    '<button class="btn sm" data-act="folders-manage">'+ICON.trash+'<span>Supprimer des dossiers</span></button>'+
     '<button class="btn sm" data-act="ptable">'+ICON.table+'<span>Tableau périodique</span></button>'+
     '<button class="btn sm" data-act="notes-new">'+ICON.edit+'<span>Importer mes synthèses</span></button>'+
-    '<button class="btn sm'+(state.bodyView ? ' on' : '')+'" data-act="body-sort" aria-pressed="'+(state.bodyView ? 'true' : 'false')+'">'+ICON.folder+'<span>Classer par partie du corps</span></button>'+
-    (bodyMovedCount() ? '<button class="btn sm" data-act="body-undo">'+ICON.folder+'<span>Annuler le classement</span></button>' : '')+
     '<button class="btn sm" data-act="sch-new">'+ICON.image+'<span>Nouveau schéma à légender</span></button>'+
     '<button class="btn sm" data-act="dec-open">'+ICON.book+'<span>Décodeur de termes</span></button>'+
     (nQ > 0 ? '<button class="btn sm" data-act="mock-open">'+ICON.exam+'<span>Examen blanc</span></button>' : '')+
@@ -1450,20 +1452,20 @@ function renderResults(){
     return;
   }
   const q = state.q.trim().toLowerCase(), filtered = state.filter !== 'all' || !!q || !!state.fold;
-  const courseOf = i => state.bodyView ? (bodyGroupFor(i) || (i.course||'')) : (i.course||'');
+  const courseOf = i => (i.course||'');
   const foldOk = i => !state.fold || courseOf(i) === (state.fold==='__none__' ? '' : state.fold);
   const list = all.filter(i => (state.filter==='all' || i.type===state.filter) && foldOk(i) && (!q || searchMatches(i, q)))
                   .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const groups = new Map();
   list.forEach(i=>{ const k = courseOf(i); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(i); });
-  if(!filtered && !state.bodyView) folderNames().forEach(n=>{ if(!groups.has(n)) groups.set(n,[]); });
+  if(!filtered) folderNames().forEach(n=>{ if(!groups.has(n)) groups.set(n,[]); });
   if(!groups.size){ box.innerHTML = '<p class="none">Aucun résultat.</p>'; return; }
   const keys = Array.from(groups.keys()).sort((a,b)=> a===''?1 : b===''?-1 : a.localeCompare(b,'fr'));
   box.innerHTML = keys.map(k => {
     const g = groups.get(k);
     const m = folderMastery(g);
-    const selBtn = state.sel && g.length && !state.bodyView ? '<button class="btn sm ghost" data-act="sel-folder" data-name="'+esc(k)+'">Tout le dossier</button>' : '';
-    const tools = k && !state.bodyView ? '<span class="gt-actions"><button class="icon-btn" data-act="folder-rename" data-name="'+esc(k)+'" aria-label="Renommer le dossier '+esc(k)+'">'+ICON.edit+'</button>'+
+    const selBtn = state.sel && g.length ? '<button class="btn sm ghost" data-act="sel-folder" data-name="'+esc(k)+'">Tout le dossier</button>' : '';
+    const tools = k ? '<span class="gt-actions"><button class="icon-btn" data-act="folder-rename" data-name="'+esc(k)+'" aria-label="Renommer le dossier '+esc(k)+'">'+ICON.edit+'</button>'+
       '<button class="icon-btn" data-act="folder-delete" data-name="'+esc(k)+'" aria-label="Supprimer le dossier '+esc(k)+'">'+ICON.trash+'</button></span>' : '';
     return '<section class="group"><h2 class="group-title"><span class="gname">'+esc(k || 'Sans dossier')+'</span><span class="count">'+g.length+'</span>'+selBtn+
       (m!=null ? '<span class="mastery">Maîtrise : <b>'+m+' %</b></span>' : '')+tools+'</h2>'+
@@ -4817,18 +4819,6 @@ function inkPadDraw(a, b){
 }
 
 /* ================= v3.8 : choisir un dossier directement, déplacer en groupe, classer par partie du corps ================= */
-const BODY_RULES = [
-  ['Main', /\bmain\b|poignet|carpe|metacarp/],
-  ['Avant-bras et coude', /avant-bras|coude/],
-  ['Épaule', /scapula|clavicule|epaule/],
-  ['Bras (humérus)', /humerus/],
-  ['Genou', /genou/],
-  ['Cuisse', /femur|patella|rotule|cuisse/],
-  ['Jambe', /jambe|tibia|fibula|cheville/],
-  ['Pied', /\bpied|arches/],
-  ['Bassin', /bassin|pelvis|coxal/],
-  ['Tissu osseux', /osteon|ossification|os long|os court|os plat|foetus|os compact/]
-];
 function plainTxt(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/œ/g,'oe'); }
 /* ================= v3.9.3 : onglet « Prendre des notes » ================= */
 function isCours(i){ return !!(i && i.type === 'notes' && i.kind === 'cours'); }
@@ -4990,30 +4980,27 @@ function prepareOfflineAuto(){
   if(state._prepAuto) return; state._prepAuto = true;
   setTimeout(()=>{ const c = navigator.connection; if(c && (c.saveData || c.type === 'cellular')) return; prepareOffline(true); }, 8000);
 }
-function bodyNames(){ return BODY_RULES.map(r=>r[0]); }
-function bodyGroupFor(it){
-  const c = it.course || '';
-  if(!/^anatomie/i.test(c) && bodyNames().indexOf(c) < 0) return null;
-  const t = plainTxt(it.title), hits = BODY_RULES.filter(([n, rx])=>rx.test(t));
-  if(it.type !== 'schema' && hits.length !== 1) return null;
-  return hits.length ? hits[0][0] : null;
-}
-function bodyMovedCount(){ const n = bodyNames(); return state.items.filter(i=>n.indexOf(i.course || '') >= 0).length; }
-function bodyViewSet(on){ state.bodyView = !!on; try{ localStorage.setItem('revisions:bodyview', on ? '1' : '0'); }catch(e){} }
-function openBodyUndo(){
-  const n = bodyNames(), items = state.items.filter(i=>n.indexOf(i.course || '') >= 0);
-  if(!items.length){ toast('Rien à annuler.'); return; }
-  const opts = folderNames().filter(x=>n.indexOf(x) < 0).map(x=>'<option value="'+esc(x)+'"></option>').join('');
-  openModal('Annuler le classement',
-    '<p class="hint">'+plural(items.length,'élément')+' rangé'+(items.length>1?'s':'')+' par partie du corps (dossiers Main, Genou, Pied…) vont revenir dans un seul dossier. Les dossiers vides seront retirés.</p>'+
-    '<label class="lbl" for="bdName">Remettre dans le dossier</label><input class="txt" id="bdName" list="bdList" maxlength="80" value="Anatomie" autocomplete="off"><datalist id="bdList">'+opts+'</datalist>',
-    'Remettre', async ()=>{
-      const name = clip($('#bdName').value, 80); if(!name){ modalError('Donne un nom de dossier.'); return; }
+/* ================= v3.10.2 : supprimer plusieurs dossiers d'un coup ================= */
+function openFoldersManage(){
+  const names = folderNames(); if(!names.length){ toast('Tu n\'as aucun dossier.'); return; }
+  const cnt = n=>state.items.filter(i=>(i.course || '') === n).length;
+  const rows = names.map(n=>'<label class="fm-row"><input type="checkbox" class="fm-chk" value="'+esc(n)+'"><span>'+esc(n)+'</span><small>'+esc(plural(cnt(n), 'élément'))+'</small></label>').join('');
+  const opts = '<option value="">Sans dossier</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+  openModal('Supprimer des dossiers',
+    '<p class="hint">Coche les dossiers à supprimer. <b>Les éléments qu\'ils contiennent ne sont pas supprimés</b> : ils sont rangés dans le dossier de ton choix.</p>'+
+    '<div class="fm-list">'+rows+'</div>'+
+    '<label class="lbl" for="fmDest">Ranger les éléments dans</label><select class="txt" id="fmDest">'+opts+'</select>',
+    'Supprimer les dossiers cochés', async ()=>{
+      const sel = Array.from(document.querySelectorAll('.fm-chk')).filter(c=>c.checked).map(c=>c.value);
+      if(!sel.length){ modalError('Coche au moins un dossier.'); return; }
+      const dest = $('#fmDest').value;
+      if(sel.indexOf(dest) >= 0){ modalError('Choisis un dossier de destination qui ne fait pas partie des dossiers supprimés.'); return; }
       try{
-        for(const it of items) await moveItem(it.id, name);
-        for(const f of state.folders.slice()){ if(n.indexOf(f.name) >= 0 && !state.items.some(i=>i.course === f.name)) await removeItem(f.id); }
-        closeModal(); toast(plural(items.length,'élément')+' remis dans « '+name+' ».'); refreshLibrary();
-      }catch(e){ modalError('Opération impossible pour le moment.'); }
+        let nIt = 0;
+        for(const name of sel){ for(const it of state.items.filter(i=>(i.course || '') === name)){ await moveItem(it.id, dest); nIt++; } await deleteFolder(name); }
+        closeModal(); refreshLibrary();
+        toast(plural(sel.length, 'dossier') + ' supprimé' + (sel.length > 1 ? 's' : '') + (nIt ? ' · ' + plural(nIt, 'élément') + ' conservé' + (nIt > 1 ? 's' : '') + (dest ? ' dans « ' + dest + ' »' : ' (sans dossier)') : '') + '.');
+      }catch(e){ modalError('Suppression impossible pour le moment.'); }
     });
 }
 function openNoteBlank(){
@@ -5034,26 +5021,6 @@ async function submitNoteBlank(){
     if(curTab() !== 'notes') setTab('notes'); else refreshLibrary();
     await openItem(full.id); inkOpen();
   }catch(err){ toast('Création impossible : ' + (err.message || 'erreur')); }
-}
-function bodyFolderFor(it){
-  if(!/^anatomie/i.test(it.course || '')) return null;
-  if(it.type==='folder') return null;
-  const t = plainTxt(it.title), hits = BODY_RULES.filter(([n, rx])=>rx.test(t));
-  if(it.type !== 'schema' && hits.length !== 1) return null;
-  return hits.length ? hits[0][0] : null;
-}
-function openBodySort(){
-  const moves = state.items.map(it=>({ it, to: bodyFolderFor(it) })).filter(x=>x.to && x.to !== x.it.course);
-  if(!moves.length){ toast('Rien à classer : tes éléments d\'anatomie sont déjà rangés.'); return; }
-  const by = {}; moves.forEach(m=>{ (by[m.to] = by[m.to] || []).push(m.it.title.replace(/ : schéma à légender$/, '')); });
-  state.bodyMoves = moves;
-  openModal('Classer par partie du corps',
-    '<p class="hint">'+plural(moves.length,'élément')+' d\'anatomie vont être rangés dans un dossier par partie du corps. Rien n\'est supprimé : tu peux toujours les redéplacer.</p>'+
-    '<div class="bodylist">'+Object.keys(by).map(k=>'<details><summary><b>'+esc(k)+'</b> <small>'+plural(by[k].length,'élément')+'</small></summary><ul>'+by[k].map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></details>').join('')+'</div>',
-    'Classer', async ()=>{
-      try{ let n = 0; for(const m of state.bodyMoves){ await moveItem(m.it.id, m.to); n++; } state.bodyMoves = null; closeModal(); toast(plural(n,'élément')+' rangé'+(n>1?'s':'')+'.'); refreshLibrary(); }
-      catch(e){ modalError('Classement impossible pour le moment.'); }
-    });
 }
 function openSelMove(){
   const ids = selIds(); if(!ids.length) return;
@@ -5860,6 +5827,7 @@ document.addEventListener('click', async e=>{
     case 'move': openMove(id); break;
     case 'share': shareItem(id); break;
     case 'folder-new': openFolderNew(); break;
+    case 'folders-manage': openFoldersManage(); break;
     case 'folder-rename': openFolderRename(el.dataset.name); break;
     case 'folder-delete': openFolderDelete(el.dataset.name); break;
     case 'mix': openMix(); break;
@@ -5885,8 +5853,6 @@ document.addEventListener('click', async e=>{
     case 'ls-prev': listenMove(-1); break;
     case 'ls-stop': stopListen(); break;
     case 'notes-new': openNotesNew(); break;
-    case 'body-sort': bodyViewSet(!state.bodyView); renderResults(); break;
-    case 'body-undo': openBodyUndo(); break;
     case 'note-blank': openNoteBlank(); break;
     case 'sel-move': openSelMove(); break;
     case 'nt-prev': notesGo(-1); break;
