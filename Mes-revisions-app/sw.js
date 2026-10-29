@@ -1,6 +1,6 @@
 /* Service worker de « Mes révisions » : fonctionne hors ligne et se met à jour tout seul.
    Change VERSION à chaque nouvelle version de l'appli pour déclencher la mise à jour. */
-const VERSION = '3.15.0';
+const VERSION = '3.16.1';
 const CACHE = 'mes-revisions-' + VERSION;
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'firebase-config.js'];
 
