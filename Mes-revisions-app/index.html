@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.7">
+<meta name="app-version" content="3.18.9">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -610,6 +610,10 @@ body.has-wall{background:transparent}
 .ne-mtpl span{flex:1 0 100%;text-align:left;padding-left:34px}
 .ne.has-ref .ne-stage{margin-left:var(--ref-w)}
 .ne.has-ref .ne-pages{left:var(--ref-w)}
+.ne.pg-open .ne-stage{margin-left:152px}
+.ne.pg-open.has-ref .ne-stage{margin-left:calc(var(--ref-w) + 152px)}
+.ne.pg-open .ne-dock,.ne.pg-open .ne-subrow,.ne.pg-open .ne-selbar,.ne.pg-open .ne-menu.up{left:calc(152px + (100% - 152px) / 2)}
+.ne.pg-open.has-ref .ne-dock,.ne.pg-open.has-ref .ne-subrow,.ne.pg-open.has-ref .ne-selbar,.ne.pg-open.has-ref .ne-menu.up{left:calc(var(--ref-w) + 152px + (100% - var(--ref-w) - 152px) / 2)}
 .ne.has-ref .ne-dock,.ne.has-ref .ne-subrow,.ne.has-ref .ne-selbar,.ne.has-ref .ne-menu.up{left:calc(var(--ref-w) + (100% - var(--ref-w)) / 2)}
 .ne.has-ref .ne-dock{max-width:calc(100% - var(--ref-w) - 12px)}
 .ne.has-ref .ne-dp{overflow-x:auto;scrollbar-width:none}
@@ -873,7 +877,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.7';
+const APP_VERSION = '3.18.9';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4898,7 +4902,7 @@ function inkSave(){
       }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
     }
     const s = document.getElementById('neSave'); if(s) s.textContent = 'Enregistré';
-    z.nSave = Math.max(0, (z.nSave || 1) - 1); inkRemoteChanged();
+    z.nSave = Math.max(0, (z.nSave || 1) - 1); inkPagesRefresh(); inkRemoteChanged();
   });
   return z.saving;
 }
@@ -5338,16 +5342,16 @@ async function inkOpen(){
 
 /* ---------- pages (volet de gauche), menu ⋯, calculatrice, brouillon ---------- */
 const inkThumbs = {};
-function inkMakeThumb(d){
-  return new Promise(res=>{ const im = new Image(); im.onload = ()=>{ const k = 170 / Math.max(1, im.naturalWidth), c = document.createElement('canvas'); c.width = 170; c.height = Math.max(1, Math.round(im.naturalHeight * k)); const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.6)); }; im.onerror = ()=>res(''); im.src = d; });
+function inkMakeThumb(d, objs){
+  return new Promise(res=>{ const im = new Image(); im.onload = ()=>{ const k = 170 / Math.max(1, im.naturalWidth), c = document.createElement('canvas'); c.width = 170; c.height = Math.max(1, Math.round(im.naturalHeight * k)); const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); if(objs && objs.length){ g.save(); g.scale(c.width / INK_W, c.width / INK_W); objs.forEach(o=>{ try{ inkDrawObj(g, o); }catch(e){} }); g.restore(); } res(c.toDataURL('image/jpeg', 0.6)); }; im.onerror = ()=>res(''); im.src = d; });
 }
 async function inkThumbsFill(){
   const z = ink, box = document.getElementById('nePages'); if(!z || !box) return;
   const list = Array.from(box.querySelectorAll('img[data-p]')).map((im, i)=>({ im, i })).sort((a, b)=>Math.abs(a.i - z.pos) - Math.abs(b.i - z.pos));
   for(const it of list){
-    const im = it.im, p = im.dataset.p; if(inkThumbs[p]){ im.src = inkThumbs[p]; continue; }
+    const im = it.im, p = im.dataset.p, k = im.dataset.k; if(inkThumbs[k]){ im.src = inkThumbs[k]; continue; }
     if(ink !== z || box.hidden || !im.isConnected) return;
-    const d = state.imgCache[p] || await imgGet(p); if(!d) continue; const t = await inkMakeThumb(d); if(t) inkThumbs[p] = t; if(ink !== z) return; if(im.isConnected && t) im.src = t;
+    const d = state.imgCache[p] || await imgGet(p); if(!d) continue; let objs = null; const iid = (z.item.payload.ink || {})[p]; if(iid){ try{ const raw = state.imgCache[iid] || await imgGet(iid); objs = raw ? JSON.parse(raw) : null; }catch(e){} } const t = await inkMakeThumb(d, objs); if(t) inkThumbs[k] = t; if(ink !== z) return; if(im.isConnected && t) im.src = t;
     await new Promise(r=>setTimeout(r, 24));
   }
 }
@@ -5362,7 +5366,7 @@ function inkToggleImp(){ const z = ink; if(!z || !z.P[z.pos]) return; noteToggle
 function inkPagesBuild(){
   const z = ink, box = document.getElementById('nePages'); if(!z || !box) return;
   const pages = z.item.payload.pages, inks = z.item.payload.ink || {};
-  box.innerHTML = pages.map((p, i)=>'<button class="ne-pg'+(i === z.pos ? ' on' : '')+((z.item.payload.imp || {})[p] ? ' imp' : '')+'" data-pg="'+i+'" aria-label="Page '+(i+1)+'"><img data-p="'+esc(p)+'" alt="" src="'+(inkThumbs[p] || '')+'"><span>'+(i+1)+(inks[p] ? ' ✎' : '')+((z.item.payload.imp || {})[p] ? ' ⚠' : '')+'</span></button>').join('');
+  box.innerHTML = pages.map((p, i)=>'<button class="ne-pg'+(i === z.pos ? ' on' : '')+((z.item.payload.imp || {})[p] ? ' imp' : '')+'" data-pg="'+i+'" aria-label="Page '+(i+1)+'"><img data-p="'+esc(p)+'" data-k="'+esc(p + '|' + (inks[p] || ''))+'" alt="" src="'+(inkThumbs[p + '|' + (inks[p] || '')] || '')+'"><span>'+(i+1)+(inks[p] ? ' ✎' : '')+((z.item.payload.imp || {})[p] ? ' ⚠' : '')+'</span></button>').join('');
   inkThumbsFill(); const on = box.children[z.pos]; if(on && on.scrollIntoView) on.scrollIntoView({ block:'nearest' });
 }
 function inkPagesMark(){
@@ -5372,7 +5376,10 @@ function inkPagesMark(){
 }
 function inkPagesToggle(){
   const z = ink, box = document.getElementById('nePages'); if(!box) return;
+  const fit = Math.abs(z.s - z.sw / INK_W) < 0.02, yTop = -z.ty / z.s;
   if(box.hidden){ box.style.top = z.stage.offsetTop + 'px'; box.hidden = false; inkPagesBuild(); } else box.hidden = true;
+  z.el.classList.toggle('pg-open', !box.hidden);
+  setTimeout(()=>{ if(ink !== z) return; z.sw = z.stage.clientWidth; if(fit){ z.s = z.sw / INK_W; z.tx = 0; z.ty = -yTop * z.s; } inkClamp(); inkApply(true); }, 80);
   const bt = document.getElementById('nePagesBtn'); if(bt) bt.classList.toggle('on', !box.hidden);
 }
 function inkPanelTop(box){ box.style.top = (ink.stage.offsetTop + 8) + 'px'; inkPanelsLayout(); }
