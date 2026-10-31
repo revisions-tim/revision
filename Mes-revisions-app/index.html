@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.5">
+<meta name="app-version" content="3.18.7">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -873,7 +873,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.5';
+const APP_VERSION = '3.18.7';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4262,9 +4262,9 @@ function inkDown(e){
     if(lc && now - lc.t < 380 && Math.hypot(e.clientX - lc.x, e.clientY - lc.y) < 8 && !(z.ruler.on && inkRulerHit(inkPtDoc(e)).inside)){ z.lastClick = null; inkDoubleClick(e); return; }
     z.lastClick = { t:now, x:e.clientX, y:e.clientY };
   }
-  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; z.penT = e.timeStamp; Array.from(z.ptrs.keys()).forEach(id=>{ if(z.ptrs.get(id).type === 'touch') z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
+  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; z.penT = e.timeStamp; if(z.act && z.act.id !== e.pointerId) inkCancelAct(); Array.from(z.ptrs.keys()).forEach(id=>{ const q = z.ptrs.get(id); if(q.type === 'touch' || (q.type === 'pen' && id !== e.pointerId)) z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
   if(e.pointerType === 'touch' && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200)) return;
-  z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY });
+  z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY, t:e.timeStamp });
   try{ z.stage.setPointerCapture(e.pointerId); }catch(_){}
   if(z.ruler.on){
     const q0 = inkPtDoc(e), h = inkRulerHit(q0), touch = e.pointerType === 'touch';
@@ -4284,7 +4284,7 @@ function inkDown(e){
 }
 function inkMove(e){
   const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId);
-  if(!p){ return; } if(e.pointerType === 'pen') z.penT = e.timeStamp; e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
+  if(!p){ return; } p.t = e.timeStamp; if(e.pointerType === 'pen') z.penT = e.timeStamp; e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
   if(z.rrot){
     const a = z.ptrs.get(z.rrot.id1), b = z.ptrs.get(z.rrot.id2), R = z.ruler, r = z.rrot;
     if(a && b){ R.ang = r.ang0 + (Math.atan2(b.y - a.y, b.x - a.x) - r.a0); R.cx = r.cx0 + ((a.x + b.x)/2 - r.mx0) / z.s; R.cy = r.cy0 + ((a.y + b.y)/2 - r.my0) / z.s; inkRulerPos(); }
@@ -4334,7 +4334,7 @@ function inkWheel(e){
   if(e.ctrlKey) inkZoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.01));
   else{ z.tx -= e.deltaX; z.ty -= e.deltaY; inkClamp(); inkApply(false); }
 }
-function inkPenOn(z){ for(const v of z.ptrs.values()) if(v.type === 'pen') return true; return false; }
+function inkPenOn(z){ const now = performance.now(); for(const v of z.ptrs.values()) if(v.type === 'pen' && now - (v.t || 0) < 3000) return true; return false; }
 function inkPenBusy(e){ const z = ink; return !!z && z.penSeen && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200); }
 function inkGStart(e){ e.preventDefault(); if(ink) ink.gs0 = ink.s; }
 function inkGChange(e){ e.preventDefault(); const z = ink; if(!z || inkPenBusy(e)) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
@@ -4891,7 +4891,7 @@ function inkSave(){
     for(const j of jobs){
       try{
         const cur = state.items.find(i=>i.id === id) || z.item; const oldId = (cur.payload.ink || {})[j.key]; let newId = '';
-        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
+        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); (z.own = z.own || new Set()).add(newId); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
         const saved = await updateItem(id, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[j.key] = newId; else delete it.payload.ink[j.key]; return it; });
         if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
         if(oldId) imgDel(oldId);
@@ -4996,7 +4996,7 @@ function inkRemoteChanged(){
   }
   z.item = it; if(state.notes) state.notes.item = it;
   let n = 0;
-  z.P.forEach((p, i)=>{ const nid = (it.payload.ink || {})[p.key] || ''; if(p.objs !== null && nid !== (p.inkId || '') && !p.dirty && !p.loading){ p.objs = null; p.undo = []; p.redo = []; p.inkId = nid; if(z.cur === i) z.sel = []; n++; } });
+  z.P.forEach((p, i)=>{ const nid = (it.payload.ink || {})[p.key] || ''; if(p.objs !== null && nid !== (p.inkId || '') && !p.dirty && !p.loading && !(z.own && z.own.has(nid))){ p.objs = null; p.undo = []; p.redo = []; p.inkId = nid; if(z.cur === i) z.sel = []; n++; } });
   if(n){ z.P.forEach((p, i)=>{ if(p.objs === null) inkEnsureInk(i); }); toast('Page mise à jour depuis un autre appareil.'); }
 }
 /* --- amélioration automatique de l'écriture (lisse, redresse, garde les angles) --- */
@@ -5315,7 +5315,7 @@ async function inkOpen(){
   ov.querySelector('#neFiles').addEventListener('change', e=>{ const f = Array.from(e.target.files || []); e.target.value = ''; if(f.length) inkAddFiles(f); });
   ov.querySelector('#neImgFile').addEventListener('change', e=>{ const f = e.target.files && e.target.files[0]; e.target.value = ''; if(f) inkAddImage(f); });
   const st = z.stage;
-  st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp);
+  st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp); st.addEventListener('lostpointercapture', inkUp);
   st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
   ov.addEventListener('contextmenu', e=>{ if(!e.target.closest('textarea,input')) e.preventDefault(); });
   ov.addEventListener('selectstart', e=>{ if(!e.target.closest('textarea,input')) e.preventDefault(); });
