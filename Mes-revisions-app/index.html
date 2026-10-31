@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.3">
+<meta name="app-version" content="3.18.4">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -873,7 +873,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.3';
+const APP_VERSION = '3.18.4';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4263,7 +4263,7 @@ function inkDown(e){
     z.lastClick = { t:now, x:e.clientX, y:e.clientY };
   }
   if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; z.penT = e.timeStamp; Array.from(z.ptrs.keys()).forEach(id=>{ if(z.ptrs.get(id).type === 'touch') z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
-  if(e.pointerType === 'touch' && (z.penDown || e.timeStamp - (z.penT || -1e9) < 1600)) return;
+  if(e.pointerType === 'touch' && (z.penDown || e.timeStamp - (z.penT || -1e9) < 2500)) return;
   z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY });
   try{ z.stage.setPointerCapture(e.pointerId); }catch(_){}
   if(z.ruler.on){
@@ -4294,6 +4294,7 @@ function inkMove(e){
   if(z.gest){ inkUpdateGesture(); return; }
   if(z.pan && z.pan.id === e.pointerId && !z.pan.armed){
     const dist = Math.hypot(e.clientX - z.pan.x0, e.clientY - z.pan.y0), dt = Math.max(1, e.timeStamp - (z.pan.t0 || e.timeStamp));
+    if(z.penSeen && z.tool !== 'hand') return;
     if(z.penSeen){ if(dt > 450){ z.pan.x0 = e.clientX; z.pan.y0 = e.clientY; z.pan.t0 = e.timeStamp; return; } if(dist < 18 || dist / dt < 0.05) return; }
     else if(dist < 14) return;
     z.pan.armed = true; z.pan.x0 = e.clientX; z.pan.y0 = e.clientY; z.pan.tx0 = z.tx; z.pan.ty0 = z.ty; return; }
@@ -4333,8 +4334,9 @@ function inkWheel(e){
   if(e.ctrlKey) inkZoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.01));
   else{ z.tx -= e.deltaX; z.ty -= e.deltaY; inkClamp(); inkApply(false); }
 }
+function inkPenBusy(e){ const z = ink; return !!z && z.penSeen && (z.penDown || e.timeStamp - (z.penT || -1e9) < 2500); }
 function inkGStart(e){ e.preventDefault(); if(ink) ink.gs0 = ink.s; }
-function inkGChange(e){ e.preventDefault(); const z = ink; if(!z) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
+function inkGChange(e){ e.preventDefault(); const z = ink; if(!z || inkPenBusy(e)) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
 
 /* ---------- outils ---------- */
 function inkLiveStyle(b){
