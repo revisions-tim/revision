@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.9">
+<meta name="app-version" content="3.18.12">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -877,7 +877,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.9';
+const APP_VERSION = '3.18.12';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4266,8 +4266,8 @@ function inkDown(e){
     if(lc && now - lc.t < 380 && Math.hypot(e.clientX - lc.x, e.clientY - lc.y) < 8 && !(z.ruler.on && inkRulerHit(inkPtDoc(e)).inside)){ z.lastClick = null; inkDoubleClick(e); return; }
     z.lastClick = { t:now, x:e.clientX, y:e.clientY };
   }
-  if(e.pointerType === 'pen'){ z.penSeen = true; z.penDown = true; z.penT = e.timeStamp; if(z.act && z.act.id !== e.pointerId) inkCancelAct(); Array.from(z.ptrs.keys()).forEach(id=>{ const q = z.ptrs.get(id); if(q.type === 'touch' || (q.type === 'pen' && id !== e.pointerId)) z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
-  if(e.pointerType === 'touch' && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200)) return;
+  if(e.pointerType === 'pen'){ inkPagesClose(); z.penSeen = true; z.penDown = true; z.penT = e.timeStamp; if(z.act && z.act.id !== e.pointerId) inkCancelAct(); Array.from(z.ptrs.keys()).forEach(id=>{ const q = z.ptrs.get(id); if(q.type === 'touch' || (q.type === 'pen' && id !== e.pointerId)) z.ptrs.delete(id); }); z.gest = null; z.pan = null; z.rdrag = null; z.rrot = null; }
+  if(e.pointerType === 'touch' && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200 || (z.penSeen && e.timeStamp - (z.hoverT || -1e9) < 800))) return;
   z.ptrs.set(e.pointerId, { type:e.pointerType, x:e.clientX, y:e.clientY, t:e.timeStamp });
   try{ z.stage.setPointerCapture(e.pointerId); }catch(_){}
   if(z.ruler.on){
@@ -4288,7 +4288,8 @@ function inkDown(e){
 }
 function inkMove(e){
   const z = ink; if(!z) return; const p = z.ptrs.get(e.pointerId);
-  if(!p){ return; } p.t = e.timeStamp; if(e.pointerType === 'pen') z.penT = e.timeStamp; e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
+  if(e.pointerType === 'pen' && !p) z.hoverT = e.timeStamp;
+  if(!p){ return; } if(e.pointerType === 'touch' && z.penSeen && e.timeStamp - (z.hoverT || -1e9) < 800) return; p.t = e.timeStamp; if(e.pointerType === 'pen') z.penT = e.timeStamp; e.preventDefault(); p.x = e.clientX; p.y = e.clientY;
   if(z.rrot){
     const a = z.ptrs.get(z.rrot.id1), b = z.ptrs.get(z.rrot.id2), R = z.ruler, r = z.rrot;
     if(a && b){ R.ang = r.ang0 + (Math.atan2(b.y - a.y, b.x - a.x) - r.a0); R.cx = r.cx0 + ((a.x + b.x)/2 - r.mx0) / z.s; R.cy = r.cy0 + ((a.y + b.y)/2 - r.my0) / z.s; inkRulerPos(); }
@@ -4324,10 +4325,10 @@ function inkStartGesture(){
 }
 function inkUpdateGesture(){
   const z = ink, g = z.gest, t = inkTouches(); if(!g || t.length < 2) return; const a = t[0], b = t[1], r = z.stage.getBoundingClientRect();
-  const cx = (a.x+b.x)/2 - r.left, cy = (a.y+b.y)/2 - r.top, d = Math.hypot(a.x-b.x, a.y-b.y);
-  if(!g.on){ if(Math.abs(d / g.d0 - 1) < 0.14 && Math.hypot(cx - g.cx0, cy - g.cy0) < 28) return; g.on = true; g.d0 = Math.max(10, d); g.s0 = z.s; g.tx0 = z.tx; g.ty0 = z.ty; g.cx0 = cx; g.cy0 = cy; return; }
+  const cx = (a.x+b.x)/2 - r.left, cy = (a.y+b.y)/2 - r.top, d = Math.hypot(a.x-b.x, a.y-b.y), lock = z.penSeen && z.tool !== 'hand';
+  if(!g.on){ if(Math.abs(d / g.d0 - 1) < (lock ? 0.25 : 0.14) && (lock || Math.hypot(cx - g.cx0, cy - g.cy0) < 28)) return; g.on = true; g.d0 = Math.max(10, d); g.s0 = z.s; g.tx0 = z.tx; g.ty0 = z.ty; if(!lock){ g.cx0 = cx; g.cy0 = cy; } return; }
   const ns = Math.min(10, Math.max(inkMinS(), g.s0 * d / g.d0)); const px = (g.cx0 - g.tx0) / g.s0, py = (g.cy0 - g.ty0) / g.s0;
-  z.s = ns; z.tx = cx - px*ns; z.ty = cy - py*ns; inkClamp(); inkApply(false);
+  z.s = ns; z.tx = (lock ? g.cx0 : cx) - px*ns; z.ty = (lock ? g.cy0 : cy) - py*ns; inkClamp(); inkApply(false);
 }
 function inkZoomAt(sx, sy, k, now){
   const z = ink; const ns = Math.min(10, Math.max(inkMinS(), z.s * k)); const px = (sx - z.tx) / z.s, py = (sy - z.ty) / z.s;
@@ -4339,7 +4340,7 @@ function inkWheel(e){
   else{ z.tx -= e.deltaX; z.ty -= e.deltaY; inkClamp(); inkApply(false); }
 }
 function inkPenOn(z){ const now = performance.now(); for(const v of z.ptrs.values()) if(v.type === 'pen' && now - (v.t || 0) < 3000) return true; return false; }
-function inkPenBusy(e){ const z = ink; return !!z && z.penSeen && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200); }
+function inkPenBusy(e){ const z = ink; return !!z && z.penSeen && (inkPenOn(z) || e.timeStamp - (z.penT || -1e9) < 1200 || e.timeStamp - (z.hoverT || -1e9) < 800); }
 function inkGStart(e){ e.preventDefault(); if(ink) ink.gs0 = ink.s; }
 function inkGChange(e){ e.preventDefault(); const z = ink; if(!z || inkPenBusy(e)) return; const r = z.stage.getBoundingClientRect(); inkZoomAt(e.clientX - r.left, e.clientY - r.top, ((z.gs0 || z.s) * e.scale) / z.s); }
 
@@ -4717,7 +4718,7 @@ function inkMenuToggle(id, anchor){
 function inkClick(e){
   const z = ink; if(!z) return;
   const cf = e.target.closest('[data-cfg]'); if(cf){ inkCfgToggle(cf.dataset.cfg); return; }
-  const pg = e.target.closest('[data-pg]'); if(pg){ inkScrollTo(Number(pg.dataset.pg)); return; }
+  const pg = e.target.closest('[data-pg]'); if(pg){ inkScrollTo(Number(pg.dataset.pg)); inkPagesClose(); return; }
   const ck = e.target.closest('[data-ck]'); if(ck){ inkCalcKey(ck.dataset.ck); return; }
   const pc = e.target.closest('[data-pdc]'); if(pc){ inkPad.color = pc.dataset.pdc; inkPad.erase = false; document.querySelectorAll('.ne-pc').forEach(x=>x.classList.toggle('on', x === pc)); const er = document.getElementById('nePdEr'); if(er) er.classList.remove('on'); return; }
   const tl = e.target.closest('[data-tool]');
@@ -5374,6 +5375,7 @@ function inkPagesMark(){
   if(box.children.length !== z.item.payload.pages.length){ inkPagesBuild(); return; }
   Array.prototype.forEach.call(box.children, (c, i)=>c.classList.toggle('on', i === z.pos)); const on = box.children[z.pos]; if(on && on.scrollIntoView) on.scrollIntoView({ block:'nearest' });
 }
+function inkPagesClose(){ const box = document.getElementById('nePages'); if(box && !box.hidden) inkPagesToggle(); }
 function inkPagesToggle(){
   const z = ink, box = document.getElementById('nePages'); if(!box) return;
   const fit = Math.abs(z.s - z.sw / INK_W) < 0.02, yTop = -z.ty / z.s;
