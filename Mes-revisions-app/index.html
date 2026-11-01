@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.15">
+<meta name="app-version" content="3.18.17">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -881,7 +881,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.15';
+const APP_VERSION = '3.18.17';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -3988,7 +3988,7 @@ function inkMakeImg(p){
 }
 async function inkEnsureInk(i){
   const z = ink, p = z.P[i]; if(!p || p.objs !== null || p.loading) return; p.loading = true; let arr = [];
-  const id = (z.item.payload.ink || {})[p.key]; p.inkId = id || '';
+  const id = (z.item.payload.ink || {})[p.key]; p.inkId = id || ''; if(id) (z.own = z.own || new Set()).add(id);
   if(id){ try{ const raw = state.imgCache[id] || await imgGet(id); const a = raw ? JSON.parse(raw) : []; if(Array.isArray(a)) arr = a; }catch(e){} }
   if(ink !== z) return; if(p.objs === null) p.objs = arr; p.loading = false; inkRender(); inkUpdateUI();
 }
@@ -4464,8 +4464,12 @@ function inkToolMove(e){
   else if(a.kind === 'shape'){ a.x1 = q.x; a.y1 = q.y; inkOverlay(); }
   else if(a.kind === 'lasso'){ a.pts.push(q.x, q.y); inkOverlay(); }
   else if(a.kind === 'resize'){
-    const o0 = a.base[a.i], x0 = o0.p[0]/10, y0 = o0.p[1]/10, nx = Math.max(x0 + 30, q.x), ny = a.free ? Math.max(y0 + 30, q.y) : y0 + (nx - x0) / a.ratio; a.moved = true;
-    z.objs = a.base.map((o, i)=> i !== a.i ? o : Object.assign({}, o, { p:[o.p[0], o.p[1], Math.round(nx*10), Math.round(ny*10)] })); inkRender();
+    a.moved = true; a.rq = q;
+    if(!a.raf) a.raf = requestAnimationFrame(()=>{
+      a.raf = 0; if(ink !== z || z.act !== a) return; const q = a.rq;
+      const o0 = a.base[a.i], x0 = o0.p[0]/10, y0 = o0.p[1]/10, nx = Math.max(x0 + 30, q.x), ny = a.free ? Math.max(y0 + 30, q.y) : y0 + (nx - x0) / a.ratio;
+      z.objs = a.base.map((o, i)=> i !== a.i ? o : Object.assign({}, o, { p:[o.p[0], o.p[1], Math.round(nx*10), Math.round(ny*10)] })); a.cur = z.objs; inkRender();
+    });
   }else if(a.kind === 'move'){
     inkMoveStep(z, a, e);
     const r = a.rect || z.stage.getBoundingClientRect(), edge = 70, v0 = e.clientY < r.top + edge ? -1 : e.clientY > r.bottom - edge ? 1 : 0;
@@ -4504,6 +4508,7 @@ function inkToolUp(e){
     inkOverlay(); inkUpdateUI();
   }else if(a.kind === 'move' || a.kind === 'resize'){
     if(a.auto){ clearInterval(a.auto); a.auto = 0; } if(a.raf){ cancelAnimationFrame(a.raf); a.raf = 0; }
+    if(a.kind === 'resize' && a.moved && a.rq){ const q = a.rq, o0 = a.base[a.i], x0 = o0.p[0]/10, y0 = o0.p[1]/10, nx = Math.max(x0 + 30, q.x), ny = a.free ? Math.max(y0 + 30, q.y) : y0 + (nx - x0) / a.ratio; z.objs = a.base.map((o, i)=> i !== a.i ? o : Object.assign({}, o, { p:[o.p[0], o.p[1], Math.round(nx*10), Math.round(ny*10)] })); a.cur = z.objs; }
     if(a.kind === 'move' && a.moved){
       const dx = Math.round((a.mx || 0) * 10), dy = Math.round((a.my || 0) * 10), src = z.P[z.cur], moved = z.sel.map(i=>a.base[i]).filter(Boolean), selIdx = z.sel.slice(), mb = inkBBoxAll(moved);
       const j = inkPageAt(mb ? src.y0 + (mb[1] + mb[3]) / 2 + (a.my || 0) : inkPtDoc(e).y), tgt = z.P[j];
@@ -4525,7 +4530,8 @@ function inkToolUp(e){
         z.objs = a.base.map((o, i)=> z.sel.indexOf(i) < 0 ? o : Object.assign({}, o, { p:o.p.map((v, k)=> v + (k % 2 ? dy : dx)) }));
         z.undo.push(a.base); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave();
       }
-    }else z.objs = a.base;
+    }else if(a.kind === 'resize' && a.moved){ z.undo.push(a.base); if(z.undo.length > 80) z.undo.shift(); z.redo = []; z.dirty = true; inkSchedSave(); }
+    else z.objs = a.base;
     inkRender(); inkUpdateUI();
   }
 }
