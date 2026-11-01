@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.17">
+<meta name="app-version" content="3.18.18">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -881,7 +881,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.17';
+const APP_VERSION = '3.18.18';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4309,8 +4309,7 @@ function inkMove(e){
   if(z.gest){ inkUpdateGesture(); return; }
   if(z.pan && z.pan.id === e.pointerId && !z.pan.armed){
     const dist = Math.hypot(e.clientX - z.pan.x0, e.clientY - z.pan.y0), dt = Math.max(1, e.timeStamp - (z.pan.t0 || e.timeStamp));
-    if(z.penSeen && z.dockOpen && z.tool !== 'hand') return;
-    if(z.penSeen && z.dockOpen){ if(dt > 450){ z.pan.x0 = e.clientX; z.pan.y0 = e.clientY; z.pan.t0 = e.timeStamp; return; } if(dist < 18 || dist / dt < 0.05) return; }
+    if(z.penSeen && z.dockOpen){ if(dt > 450){ z.pan.x0 = e.clientX; z.pan.y0 = e.clientY; z.pan.t0 = e.timeStamp; return; } if(dist < 40 || dist / dt < 0.12) return; }
     else if(dist < 14) return;
     z.pan.armed = true; z.pan.x0 = e.clientX; z.pan.y0 = e.clientY; z.pan.tx0 = z.tx; z.pan.ty0 = z.ty; return; }
   if(z.pan && z.pan.id === e.pointerId){ z.tx = z.pan.tx0 + e.clientX - z.pan.x0; z.ty = z.pan.ty0 + e.clientY - z.pan.y0; inkClamp(); inkApply(false); return; }
@@ -4336,9 +4335,9 @@ function inkStartGesture(){
 function inkUpdateGesture(){
   const z = ink, g = z.gest, t = inkTouches(); if(!g || t.length < 2) return; const a = t[0], b = t[1], r = z.stage.getBoundingClientRect();
   const cx = (a.x+b.x)/2 - r.left, cy = (a.y+b.y)/2 - r.top, d = Math.hypot(a.x-b.x, a.y-b.y), lock = z.penSeen && z.dockOpen && z.tool !== 'hand';
-  if(!g.on){ if(Math.abs(d / g.d0 - 1) < (lock ? 0.25 : 0.14) && (lock || Math.hypot(cx - g.cx0, cy - g.cy0) < 28)) return; g.on = true; g.d0 = Math.max(10, d); g.s0 = z.s; g.tx0 = z.tx; g.ty0 = z.ty; if(!lock){ g.cx0 = cx; g.cy0 = cy; } return; }
+  if(!g.on){ if(Math.abs(d / g.d0 - 1) < (lock ? 0.25 : 0.14) && Math.hypot(cx - g.cx0, cy - g.cy0) < (lock ? 40 : 28)) return; g.on = true; g.d0 = Math.max(10, d); g.s0 = z.s; g.tx0 = z.tx; g.ty0 = z.ty; g.cx0 = cx; g.cy0 = cy; return; }
   const ns = Math.min(10, Math.max(inkMinS(), g.s0 * d / g.d0)); const px = (g.cx0 - g.tx0) / g.s0, py = (g.cy0 - g.ty0) / g.s0;
-  z.s = ns; z.tx = (lock ? g.cx0 : cx) - px*ns; z.ty = (lock ? g.cy0 : cy) - py*ns; inkClamp(); inkApply(false);
+  z.s = ns; z.tx = cx - px*ns; z.ty = cy - py*ns; inkClamp(); inkApply(false);
 }
 function inkZoomAt(sx, sy, k, now){
   const z = ink; const ns = Math.min(10, Math.max(inkMinS(), z.s * k)); const px = (sx - z.tx) / z.s, py = (sy - z.ty) / z.s;
