@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.20">
+<meta name="app-version" content="3.18.21">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -888,7 +888,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.20';
+const APP_VERSION = '3.18.21';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1023,8 +1023,15 @@ function idbOpen(){
     if(IMG.db) return res(IMG.db);
     let req; try{ req = indexedDB.open('revisions-img', 1); }catch(e){ return rej(e); }
     req.onupgradeneeded = ()=>{ req.result.createObjectStore('img'); };
-    req.onsuccess = ()=>{ IMG.db = req.result; res(IMG.db); };
+    req.onsuccess = ()=>{ IMG.db = req.result; IMG.db.onclose = ()=>{ IMG.db = null; }; IMG.db.onversionchange = ()=>{ try{ IMG.db.close(); }catch(e){} IMG.db = null; }; res(IMG.db); };
     req.onerror = ()=>rej(req.error || new Error('IndexedDB indisponible'));
+  });
+}
+/* iPad : IndexedDB peut se figer sans erreur. On abandonne au bout de 6 s et on rouvre la base, au lieu de bloquer l'enregistrement. */
+function idbRun(fn){
+  return new Promise((res, rej)=>{
+    const t = setTimeout(()=>{ try{ if(IMG.db) IMG.db.close(); }catch(e){} IMG.db = null; rej(new Error('IndexedDB ne répond pas')); }, 6000);
+    idbOpen().then(db=>fn(db)).then(v=>{ clearTimeout(t); res(v); }, e=>{ clearTimeout(t); rej(e); });
   });
 }
 async function imgPut(id, data){
@@ -1033,15 +1040,13 @@ async function imgPut(id, data){
 async function imgPutLocal(id, data){
   state.imgCache[id] = data;
   try{
-    const db = await idbOpen();
-    await new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').put(data, id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); });
+    await idbRun(db=>new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').put(data, id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); tx.onabort = ()=>rej(tx.error); }));
   }catch(e){ /* reste en mémoire pour cette session */ }
 }
 async function imgGet(id){
   if(state.imgCache[id]) return state.imgCache[id];
   try{
-    const db = await idbOpen();
-    const v = await new Promise((res, rej)=>{ const r = db.transaction('img').objectStore('img').get(id); r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error); });
+    const v = await idbRun(db=>new Promise((res, rej)=>{ const r = db.transaction('img').objectStore('img').get(id); r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error); }));
     if(v){ state.imgCache[id] = v; return v; }
   }catch(e){}
   if(state.imgCol){
@@ -1053,8 +1058,7 @@ async function imgDel(id){
   delete state.imgCache[id];
   if(state.imgCol){ try{ state.imgCol.doc(id).delete().catch(()=>{}); }catch(e){} }
   try{
-    const db = await idbOpen();
-    await new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').delete(id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); });
+    await idbRun(db=>new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').delete(id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); }));
   }catch(e){}
 }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
@@ -5390,7 +5394,7 @@ async function inkOpen(){
   z.onResize = ()=>{ inkResize(); }; window.addEventListener('resize', z.onResize);
   if(window.ResizeObserver){ z.ro = new ResizeObserver(()=>inkResize()); z.ro.observe(z.stage); }
   z.onKey = inkKey2; document.addEventListener('keydown', z.onKey);
-  z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
+  z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); else { try{ if(IMG.db) IMG.db.close(); }catch(e){} IMG.db = null; if(ink === z){ z.ptrs.clear(); z.gest = null; z.pan = null; z.penDown = false; inkCancelAct(); } } }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
   inkBuildTools(); inkResize(); await inkLoadDoc(pos0); inkUpdateUI();
   try{ const m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}, rid = m[z.item.id]; if(rid && state.items.some(i=>i.id === rid) && ink === z) inkRefOpen(rid); }catch(e){}
 }
