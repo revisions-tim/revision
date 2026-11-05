@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.23">
+<meta name="app-version" content="3.18.25">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -893,7 +893,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.23';
+const APP_VERSION = '3.18.25';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4117,7 +4117,7 @@ function inkImgEl(id){
   return null;
 }
 function inkRender(){
-  const z = ink; if(!z || !z.sw) return;
+  const z = ink; if(!z || !z.sw) return; const t0 = performance.now();
   z.rs = z.s; z.rtx = z.tx; z.rty = z.ty;
   ['hl','ink','live'].forEach(n=>{ z.cv[n].style.transform = ''; });
   ['hl','ink'].forEach(n=>{ const g = z.ctx[n]; g.setTransform(1,0,0,1,0,0); g.clearRect(0, 0, z.cv[n].width, z.cv[n].height); });
@@ -4130,7 +4130,7 @@ function inkRender(){
     p.objs.forEach(o=>{ if(o.k !== 'i' && !(skip && skip.has(o))) inkDrawObj(o.tool === 'hl' ? z.ctx.hl : z.ctx.ink, o); });
     ['hl','ink'].forEach(n=>z.ctx[n].restore());
   });
-  inkOverlay();
+  inkOverlay(); inkPerf('dessin de la page', performance.now() - t0);
 }
 
 /* largeur : plume = pression + vitesse ; calame = pointe plate */
@@ -4858,7 +4858,6 @@ function inkClick(e){
   else if(a === 'beautp') inkBeautify(true);
   else if(a === 'mref'){ if(z.ref) inkRefClose(); else openRefChooser(); }
   else if(a === 'refpick') openRefChooser();
-  else if(a === 'refpen'){ if(z.ref){ z.ref.draw = !z.ref.draw; const bx = document.getElementById('neRef'); if(bx) bx.classList.toggle('draw', z.ref.draw); b.classList.toggle('primary', z.ref.draw); toast(z.ref.draw ? 'Tu peux écrire sur le cours avec le Pencil. Le doigt fait défiler le cours.' : 'Écriture sur le cours désactivée.'); } }
   else if(a === 'refundo') inkRefUndo();
   else if(a === 'refwin') inkRefPopOut();
   else if(a === 'refx') inkRefClose();
@@ -4935,6 +4934,7 @@ function inkDupSel(){
 }
 function inkUpdateUI(){
   const z = ink; if(!z) return; const el = z.el, b = inkBase(z.tool);
+  const rb = document.getElementById('neRef'); if(rb) rb.classList.toggle('draw', !!z.dockOpen);
   el.querySelectorAll('#neTools [data-tool]').forEach(btn=>{
     const id = btn.dataset.tool; btn.classList.toggle('on', id === z.tool);
     if(INK_BY[id]){ const c = z.tc[id].c; if(btn._c !== c){ btn._c = c; btn.innerHTML = inkIconFor(id); } }
@@ -4978,13 +4978,24 @@ function inkKey2(e){
 }
 
 /* ---------- enregistrement et pages ---------- */
-function inkSchedSave(){ const z = ink; if(!z) return; const s = document.getElementById('neSave'); if(s) s.textContent = 'Modifications…'; clearTimeout(z.st); z.st = setTimeout(inkSave, 1400); }
+const INK_PERF = [];
+function inkPerf(name, ms){ if(ms < 120) return; INK_PERF.push({ n:name, ms:Math.round(ms), t:Date.now() }); if(INK_PERF.length > 12) INK_PERF.shift(); }
+function inkHeartbeat(){
+  const z = ink; if(!z) return; const n = performance.now(), gap = n - (z.hbT || n); z.hbT = n; if(document.hidden || gap < 2500) return;
+  const recent = INK_PERF.filter(x=>Date.now() - x.t < 60000).map(x=>x.n + ' ' + (x.ms / 1000).toFixed(1) + ' s').join(', ');
+  const info = 'Blocage de ' + Math.round(gap / 1000) + ' s détecté. ' + (recent ? 'Tâches lourdes : ' + recent + '. ' : '') + 'Enregistrement : ' + (z.nSave > 0 ? 'en cours' : 'non') + ', traits sur la page : ' + ((z.objs || []).length) + '.';
+  try{ const l = JSON.parse(localStorage.getItem('revisions:freezes') || '[]'); l.push({ t:new Date().toISOString(), info }); localStorage.setItem('revisions:freezes', JSON.stringify(l.slice(-20))); }catch(e){}
+  toast(info);
+}
+function inkSchedSave(){ const z = ink; if(!z) return; const s = document.getElementById('neSave'); if(s) s.textContent = 'Modifications…'; clearTimeout(z.st); if(!z.st0) z.st0 = Date.now(); z.st = setTimeout(inkSaveQuiet, 2500); }
+function inkUserBusy(z){ const n = performance.now(); return !!(z.act || z.penDown || n - (z.penT || -1e9) < 2000 || (z.penSeen && n - (z.hoverT || -1e9) < 1500) || (z.ptrs && z.ptrs.size)); }
+function inkSaveQuiet(){ const z = ink; if(!z) return; if(inkUserBusy(z) && Date.now() - (z.st0 || 0) < 25000){ z.st = setTimeout(inkSaveQuiet, 1000); return; } inkSave(); }
 function inkSave(){
   const z = ink; if(!z) return Promise.resolve();
   const dirty = z.P.filter(p=>p.dirty && p.objs); if(!dirty.length) return z.saving;
-  clearTimeout(z.st); const jobs = dirty.map(p=>{ p.dirty = false; return { key:p.key, objs:p.objs }; }), id = z.item.id;
+  clearTimeout(z.st); z.st0 = 0; const jobs = dirty.map(p=>{ p.dirty = false; return { key:p.key, objs:p.objs }; }), id = z.item.id;
   z.nSave = (z.nSave || 0) + 1;
-  z.saving = z.saving.then(async ()=>{
+  z.saving = z.saving.then(async ()=>{ const t0 = performance.now();
     for(const j of jobs){
       try{
         const cur = state.items.find(i=>i.id === id) || z.item; const oldId = (cur.payload.ink || {})[j.key]; let newId = '';
@@ -4995,7 +5006,7 @@ function inkSave(){
       }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
     }
     const s = document.getElementById('neSave'); if(s) s.textContent = 'Enregistré';
-    z.nSave = Math.max(0, (z.nSave || 1) - 1); inkPagesRefresh(); inkRemoteChanged();
+    z.nSave = Math.max(0, (z.nSave || 1) - 1); inkPerf('enregistrement', performance.now() - t0); inkPagesRefresh(); inkRemoteChanged();
   });
   return z.saving;
 }
@@ -5257,72 +5268,90 @@ function inkRefSavePref(){
   if(z.ref) m[z.item.id] = z.ref.id; else delete m[z.item.id];
   try{ localStorage.setItem('revisions:refby', JSON.stringify(m)); localStorage.setItem('revisions:refw', String(z.refW || 0.5)); }catch(e){}
 }
-/* écrire au Pencil sur le cours affiché à côté */
-function inkRefDrawInit(box, it0){
+/* écrire sur le cours affiché à côté, avec les outils du volet de droite (stylos, surligneur, gomme) */
+function inkRefCanDraw(z){ return !!z.dockOpen && (z.tool === 'eraser' || INK_STROKE.indexOf(inkBase(z.tool)) >= 0); }
+function inkRefDrawInit(box){
   const z = ink, r = z.ref, inn = box.querySelector('#neRefIn'), body = box.querySelector('#neRefB'); if(!inn) return;
   let cur = null, pan = null;
   const pageAt = (x, y)=>{ for(const el of inn.querySelectorAll('.ne-ref-p')){ const b = el.getBoundingClientRect(); if(x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) return el; } return null; };
-  const pt = (e, c)=>[Math.max(0, Math.min(1000, (e.clientX - c.b.left) / c.b.width * 1000)), Math.max(0, Math.min(1000 * c.b.height / c.b.width, (e.clientY - c.b.top) / c.b.height * 1000))];
+  /* coordonnées du document : 1000 de large, même échelle en x et en y */
+  const pt = (e, c)=>[Math.max(0, Math.min(1000, (e.clientX - c.b.left) / c.b.width * 1000)), Math.max(0, Math.min(1000 * c.b.height / c.b.width, (e.clientY - c.b.top) / c.b.width * 1000))];
   const seg = (c, a, b)=>{ const k = c.b.width / 1000, g = c.g; g.beginPath(); g.moveTo(a[0] * k, a[1] * k); g.lineTo(b[0] * k, b[1] * k); g.stroke(); };
+  const startPan = e=>{ cancelAnimationFrame(r.inert); pan = { id:e.pointerId, x:e.clientX, y:e.clientY, t:e.timeStamp, vx:0, vy:0 }; try{ inn.setPointerCapture(e.pointerId); }catch(_){} };
   inn.addEventListener('pointerdown', e=>{
-    if(!r.draw || z.ref !== r) return;
-    if(e.pointerType === 'touch'){ if(performance.now() - (r.penT || -1e9) < 1200) return; pan = { id:e.pointerId, y:e.clientY, x:e.clientX }; try{ inn.setPointerCapture(e.pointerId); }catch(_){} return; }
-    const el = pageAt(e.clientX, e.clientY); if(!el) return; e.preventDefault(); r.penT = performance.now();
-    const tid = INK_STROKE.indexOf(inkBase(z.tool)) >= 0 && z.tc[z.tool] ? z.tool : 'stylo', tc = z.tc[tid] || { c:'#000000', w:3 }, base = inkBase(tid), b = el.getBoundingClientRect();
+    if(!z.dockOpen || z.ref !== r) return;
+    if(e.pointerType === 'pen') r.penT = performance.now();
+    if(e.pointerType === 'touch'){ if(performance.now() - (r.penT || -1e9) < 1200) return; startPan(e); return; }
+    if(!inkRefCanDraw(z)){ startPan(e); return; }
+    const el = pageAt(e.clientX, e.clientY); if(!el) return; e.preventDefault();
+    const erase = z.tool === 'eraser', tid = erase ? 'eraser' : z.tool, tc = z.tc[tid] || { c:'#000000', w:3 }, base = inkBase(tid), b = el.getBoundingClientRect();
     let cv = el.querySelector('.ne-ref-ov'); const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if(!cv){ cv = document.createElement('canvas'); cv.className = 'ne-ref-ov'; el.appendChild(cv); }
     cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr); const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.strokeStyle = tc.c; g.lineWidth = Math.max(1, tc.w * b.width / 1000); g.lineCap = 'round'; g.lineJoin = 'round'; g.globalAlpha = base === 'hl' ? 0.35 : 1;
-    cur = { id:e.pointerId, el, i:Number(el.dataset.i), b, g, cv, tid, tc, base, pts:[] }; const p = pt(e, cur); cur.pts.push(p); seg(cur, p, p);
+    g.strokeStyle = erase ? 'rgba(120,120,120,.5)' : tc.c; g.lineWidth = erase ? 14 * b.width / 1000 : Math.max(1, tc.w * b.width / 1000); g.lineCap = 'round'; g.lineJoin = 'round'; g.globalAlpha = base === 'hl' ? 0.35 : 1;
+    cur = { id:e.pointerId, el, i:Number(el.dataset.i), b, g, cv, tid, tc, base, erase, pts:[] }; const p = pt(e, cur); cur.pts.push(p); seg(cur, p, p);
     try{ inn.setPointerCapture(e.pointerId); }catch(_){}
   });
   inn.addEventListener('pointermove', e=>{
-    if(pan && pan.id === e.pointerId){ body.scrollTop -= e.clientY - pan.y; body.scrollLeft -= e.clientX - pan.x; pan.y = e.clientY; pan.x = e.clientX; return; }
+    if(pan && pan.id === e.pointerId){
+      const dt = Math.max(1, e.timeStamp - pan.t); pan.vx = (e.clientX - pan.x) / dt; pan.vy = (e.clientY - pan.y) / dt;
+      body.scrollTop -= e.clientY - pan.y; body.scrollLeft -= e.clientX - pan.x; pan.x = e.clientX; pan.y = e.clientY; pan.t = e.timeStamp; return;
+    }
     if(!cur || cur.id !== e.pointerId) return; e.preventDefault(); r.penT = performance.now();
-    const lst = e.getCoalescedEvents ? e.getCoalescedEvents() : []; (lst.length ? lst : [e]).forEach(ev=>{ const p = pt(ev, cur), l = cur.pts[cur.pts.length - 1]; if(Math.hypot(p[0] - l[0], p[1] - l[1]) < 0.4) return; cur.pts.push(p); seg(cur, l, p); });
+    const lst = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    (lst.length ? lst : [e]).forEach(ev=>{ const p = pt(ev, cur), l = cur.pts[cur.pts.length - 1]; if(Math.hypot(p[0] - l[0], p[1] - l[1]) < 0.4) return; cur.pts.push(p); seg(cur, l, p); });
   });
   const up = e=>{
-    if(pan && pan.id === e.pointerId){ pan = null; return; }
+    if(pan && pan.id === e.pointerId){
+      const v = pan; pan = null; if(e.pointerType !== 'touch' || e.type === 'pointercancel' || e.timeStamp - v.t > 80) return;
+      const step = ()=>{ if(Math.abs(v.vy) < 0.02 && Math.abs(v.vx) < 0.02) return; body.scrollTop -= v.vy * 16; body.scrollLeft -= v.vx * 16; v.vy *= 0.94; v.vx *= 0.94; r.inert = requestAnimationFrame(step); };
+      r.inert = requestAnimationFrame(step); return;
+    }
     if(!cur || cur.id !== e.pointerId) return; const c = cur; cur = null; r.penT = performance.now();
     if(e.type === 'pointercancel'){ c.g.clearRect(0, 0, c.cv.width, c.cv.height); return; }
+    if(c.erase){
+      const pts = c.pts; inkRefApply(r.id, c.i, arr=>{ const keep = arr.filter(o=>!pts.some(p=>inkHit(o, p[0], p[1], 10))); return keep.length === arr.length ? null : keep; }, c.cv); return;
+    }
     if(c.pts.length < 2) c.pts.push(c.pts[0]);
     const o = { k:'s', tool:c.base, c:c.tc.c, w:c.tc.w, p:c.pts.reduce((a, p)=>a.concat([Math.round(p[0] * 10), Math.round(p[1] * 10)]), []) };
     if(c.base === 'plume') o.q = c.pts.map(()=>20);
     if(c.base === 'dash') o.ls = (INK_BY[c.tid] || {}).ls;
-    inkRefSaveStroke(r.id, c.i, o, c.cv);
+    inkRefApply(r.id, c.i, arr=>arr.concat(o), c.cv);
   };
   inn.addEventListener('pointerup', up); inn.addEventListener('pointercancel', up);
 }
-function inkRefSaveStroke(itemId, i, obj, cv){
+/* modifie l'écriture d'une page du cours à côté (ajout d'un trait, gomme) et rafraîchit l'image */
+function inkRefApply(itemId, i, mut, cv, noHist){
   const z = ink, r = z && z.ref; if(!r) return;
   r.q = (r.q || Promise.resolve()).then(async ()=>{
+    const clearOv = ()=>{ if(cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); };
     try{
-      const cur = state.items.find(x=>x.id === itemId); if(!cur) return; const key = cur.payload.pages[i], oldId = (cur.payload.ink || {})[key]; let arr = [];
-      if(oldId){ const raw = state.imgCache[oldId] || await imgGet(oldId); if(!raw){ toast('Écriture du cours introuvable sur cet appareil : réessaie dans un instant.'); if(cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); return; } arr = JSON.parse(raw); if(!Array.isArray(arr)) arr = []; }
-      if(obj) arr.push(obj); else if(arr.length) arr.pop(); else return;
-      const newId = uid('i'); await imgPut(newId, JSON.stringify(arr));
-      const saved = await updateItem(itemId, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(arr.length) it.payload.ink[key] = newId; else delete it.payload.ink[key]; return it; });
+      const cur = state.items.find(x=>x.id === itemId); if(!cur){ clearOv(); return; } const key = cur.payload.pages[i], oldId = (cur.payload.ink || {})[key]; let arr = [], prev = '[]';
+      if(oldId){ const raw = state.imgCache[oldId] || await imgGet(oldId); if(!raw){ toast('Écriture du cours introuvable sur cet appareil : réessaie dans un instant.'); clearOv(); return; } prev = raw; arr = JSON.parse(raw); if(!Array.isArray(arr)) arr = []; }
+      const out = mut(arr); if(!out){ clearOv(); return; }
+      const newId = out.length ? uid('i') : ''; if(newId) await imgPut(newId, JSON.stringify(out));
+      const saved = await updateItem(itemId, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[key] = newId; else delete it.payload.ink[key]; return it; });
       if(oldId) imgDel(oldId);
-      if(obj){ r.hist = (r.hist || []).concat({ id:itemId, i }); } else r.hist = (r.hist || []).slice(0, -1);
+      if(!noHist) r.hist = (r.hist || []).concat({ id:itemId, i, prev }).slice(-30);
       const upd = saved || state.items.find(x=>x.id === itemId); const s = await notePageImage(upd, i, true);
       const el = document.querySelector('#neRef .ne-ref-p[data-i="' + i + '"]'); if(el){ if(s) el.firstChild.src = s; const c2 = el.querySelector('.ne-ref-ov'); if(c2) c2.getContext('2d').clearRect(0, 0, c2.width, c2.height); }
-    }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
+    }catch(err){ clearOv(); toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
   });
 }
 function inkRefUndo(){
-  const z = ink, r = z && z.ref; if(!r) return; const h = (r.hist || [])[(r.hist || []).length - 1]; if(!h){ toast('Rien à annuler sur le cours.'); return; }
-  inkRefSaveStroke(h.id, h.i, null, null);
+  const z = ink, r = z && z.ref; if(!r) return; const h = (r.hist || []).pop(); if(!h){ toast('Rien à annuler sur le cours.'); return; }
+  inkRefApply(h.id, h.i, ()=>{ try{ const a = JSON.parse(h.prev); return Array.isArray(a) ? a : []; }catch(e){ return null; } }, null, true);
 }
 function inkRefBuild(){
   const z = ink, r = z.ref, it = state.items.find(i=>i.id === r.id); if(!it){ inkRefClose(); return; }
   let box = document.getElementById('neRef'); if(!box){ box = document.createElement('div'); box.id = 'neRef'; box.className = 'ne-ref'; z.el.appendChild(box); }
   if(box._io) box._io.disconnect(); box.style.top = z.stage.offsetTop + 'px'; z.el.classList.add('has-ref'); z.el.style.setProperty('--ref-w', (r.w * 100).toFixed(1) + '%');
-  box.innerHTML = '<div class="ne-ref-h"><b>'+esc(it.title)+'</b><span class="ne-ref-c"><button class="btn sm ne-s" data-ne="refzo" aria-label="Dézoomer">−</button><button class="btn sm ne-s" data-ne="refzi" aria-label="Zoomer">＋</button><button class="btn sm'+(r.draw ? ' primary' : '')+'" data-ne="refpen" title="Écrire sur le cours avec le Pencil">✎ Écrire</button><button class="btn sm ne-s" data-ne="refundo" aria-label="Annuler le dernier trait sur le cours">↶</button><button class="btn sm" data-ne="refpick">Changer</button><button class="btn sm" data-ne="refwin" title="Mettre ce cours dans une fenêtre à glisser sur l’autre écran">Autre écran</button><button class="btn sm ne-s" data-ne="refx" aria-label="Fermer le cours à côté">✕</button></span></div>'+
+  box.innerHTML = '<div class="ne-ref-h"><b>'+esc(it.title)+'</b><span class="ne-ref-c"><button class="btn sm ne-s" data-ne="refzo" aria-label="Dézoomer">−</button><button class="btn sm ne-s" data-ne="refzi" aria-label="Zoomer">＋</button><button class="btn sm ne-s" data-ne="refundo" aria-label="Annuler le dernier trait sur le cours">↶</button><button class="btn sm" data-ne="refpick">Changer</button><button class="btn sm" data-ne="refwin" title="Mettre ce cours dans une fenêtre à glisser sur l’autre écran">Autre écran</button><button class="btn sm ne-s" data-ne="refx" aria-label="Fermer le cours à côté">✕</button></span></div>'+
     '<div class="ne-ref-b" id="neRefB"><div class="ne-ref-in" id="neRefIn" style="width:'+Math.round(r.zoom * 100)+'%">'+it.payload.pages.map((p, i)=>{ const d = inkImgDims(state.imgCache[p]); return '<div class="ne-ref-p" data-i="'+i+'" style="aspect-ratio:'+(d && d[0] ? d[0]+'/'+d[1] : '1/1.414')+'"><img alt=""></div>'; }).join('')+'</div></div><div class="ne-ref-r" id="neRefR"></div>';
   const body = box.querySelector('#neRefB');
   const io = new IntersectionObserver(es=>es.forEach(e=>{ if(!e.isIntersecting) return; const d = e.target; if(d._done) return; d._done = true; notePageImage(it, Number(d.dataset.i), true).then(s=>{ if(s) d.firstChild.src = s; }); }), { root:body, rootMargin:'700px' });
   box.querySelectorAll('.ne-ref-p').forEach(p=>io.observe(p)); box._io = io;
-  box.classList.toggle('draw', !!r.draw); inkRefDrawInit(box, it);
+  box.classList.toggle('draw', !!z.dockOpen); inkRefDrawInit(box);
   const rz = box.querySelector('#neRefR');
   rz.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ rz.setPointerCapture(e.pointerId); }catch(_){} rz._d = true; });
   rz.addEventListener('pointermove', e=>{ if(!rz._d) return; const w = Math.max(0.2, Math.min(0.75, e.clientX / z.el.clientWidth)); r.w = w; z.refW = w; z.el.style.setProperty('--ref-w', (w * 100).toFixed(1) + '%'); });
@@ -5384,10 +5413,13 @@ async function inkBlank(land){
     await inkLoadDoc(at); inkPagesRefresh();
   }catch(e){ toast('Impossible d\'ajouter la page.'); }
 }
-function inkPagesRefresh(){ const box = document.getElementById('nePages'); if(box && !box.hidden) inkPagesBuild(); }
+function inkPagesRefresh(){
+  const z = ink; if(!z) return; clearTimeout(z.pgT);
+  z.pgT = setTimeout(function again(){ const zz = ink; if(!zz) return; const box = document.getElementById('nePages'); if(!box || box.hidden) return; if(inkUserBusy(zz)){ zz.pgT = setTimeout(again, 1500); return; } inkPagesBuild(); }, 3000);
+}
 async function inkClose(){
   const z = ink; if(!z) return; if(z.rec) await inkRecStop(); inkCloseActs(); inkSavePrefs(); await inkSave();
-  clearInterval(z.wd); clearTimeout(z.ignTm);
+  clearInterval(z.wd); clearInterval(z.hb); clearTimeout(z.ignTm); clearTimeout(z.pgT);
   if(z.ro) z.ro.disconnect(); window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
   z.el.remove(); document.body.style.overflow = ''; ink = null;
   if(state.notes){ state.notes.item = state.items.find(i=>i.id === z.item.id) || z.item; state.notes.pos = z.pos; renderNotes(); }
@@ -5479,7 +5511,7 @@ async function inkOpen(){
     const sbEnd = e=>{ const d = z.sbDrag; if(!d || d.id !== e.pointerId) return; e.stopPropagation(); z.sbDrag = null; inkApply(true); };
     sbT.addEventListener('pointerup', sbEnd); sbT.addEventListener('pointercancel', sbEnd);
   }
-  z.wd = setInterval(inkWatchdog, 700);
+  z.wd = setInterval(inkWatchdog, 700); z.hb = setInterval(inkHeartbeat, 500);
   st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp); st.addEventListener('lostpointercapture', inkUp);
   st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
   ov.addEventListener('contextmenu', e=>{ if(!e.target.closest('textarea,input')) e.preventDefault(); });
@@ -5503,8 +5535,8 @@ async function inkOpen(){
 
 /* ---------- pages (volet de gauche), menu ⋯, calculatrice, brouillon ---------- */
 const inkThumbs = {};
-function inkMakeThumb(d, objs){
-  return new Promise(res=>{ const im = new Image(); im.onload = ()=>{ const k = 320 / Math.max(1, im.naturalWidth), c = document.createElement('canvas'); c.width = 320; c.height = Math.max(1, Math.round(im.naturalHeight * k)); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); if(objs && objs.length){ g.save(); g.scale(c.width / INK_W, c.width / INK_W); objs.forEach(o=>{ try{ inkDrawObj(g, o); }catch(e){} }); g.restore(); } res(c.toDataURL('image/jpeg', 0.82)); }; im.onerror = ()=>res(''); im.src = d; });
+function inkMakeThumb(d, objs, el){
+  return new Promise(res=>{ const t0 = performance.now(), im = el || new Image(), go = ()=>{ const k = 320 / Math.max(1, im.naturalWidth), c = document.createElement('canvas'); c.width = 320; c.height = Math.max(1, Math.round(im.naturalHeight * k)); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); if(objs && objs.length){ g.save(); g.scale(c.width / INK_W, c.width / INK_W); objs.forEach(o=>{ try{ inkDrawObj(g, o); }catch(e){} }); g.restore(); } res(c.toDataURL('image/jpeg', 0.82)); inkPerf('vignette', performance.now() - t0); }; if(el){ go(); return; } im.onload = go; im.onerror = ()=>res(''); im.src = d; });
 }
 async function inkThumbsFill(){
   const z = ink, box = document.getElementById('nePages'); if(!z || !box) return;
@@ -5512,7 +5544,7 @@ async function inkThumbsFill(){
   for(const it of list){
     const im = it.im, p = im.dataset.p, k = im.dataset.k; if(inkThumbs[k]){ im.src = inkThumbs[k]; continue; }
     if(ink !== z || box.hidden || !im.isConnected) return;
-    const d = state.imgCache[p] || await imgGet(p); if(!d) continue; let objs = null; const iid = (z.item.payload.ink || {})[p]; if(iid){ try{ const raw = state.imgCache[iid] || await imgGet(iid); objs = raw ? JSON.parse(raw) : null; }catch(e){} } const t = await inkMakeThumb(d, objs); if(t) inkThumbs[k] = t; if(ink !== z) return; if(im.isConnected && t) im.src = t;
+    const d = state.imgCache[p] || await imgGet(p); if(!d) continue; let objs = null; const iid = (z.item.payload.ink || {})[p]; if(iid){ try{ const raw = state.imgCache[iid] || await imgGet(iid); objs = raw ? JSON.parse(raw) : null; }catch(e){} } while(ink === z && inkUserBusy(z)) await new Promise(r=>setTimeout(r, 400)); if(ink !== z) return; const pp = z.P.filter(x=>x.key === p)[0], el = pp && pp.img && pp.img.complete && pp.img.naturalWidth ? pp.img : null; const t = await inkMakeThumb(d, objs, el); if(t) inkThumbs[k] = t; if(ink !== z) return; if(im.isConnected && t) im.src = t;
     await new Promise(r=>setTimeout(r, 24));
   }
 }
