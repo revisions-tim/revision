@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="app-version" content="3.18.25">
+<meta name="app-version" content="3.18.26">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -893,7 +893,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.25';
+const APP_VERSION = '3.18.26';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4314,7 +4314,7 @@ function inkRuleProj(r, q){
 function inkPtDoc(e){ const r = ink.stage.getBoundingClientRect(); const sx = e.clientX - r.left, sy = e.clientY - r.top; return { sx, sy, x:(sx - ink.tx) / ink.s, y:(sy - ink.ty) / ink.s }; }
 function inkPt(e){ const q = inkPtDoc(e), p = ink.P[ink.cur]; q.y -= p ? p.y0 : 0; return q; }
 function inkIgnored(msg){
-  const z = ink, s = document.getElementById('neSave'); if(!z || !s) return;
+  const z = ink, s = document.getElementById('neSave'); if(z) z.lastIgn = { m:msg, t:performance.now() }; if(!z || !s) return;
   s.textContent = msg; clearTimeout(z.ignTm);
   z.ignTm = setTimeout(()=>{ const t = document.getElementById('neSave'); if(t) t.textContent = ink && ink.P.some(p=>p.dirty) ? 'Modifications…' : 'Enregistré'; }, 1500);
 }
@@ -4980,6 +4980,17 @@ function inkKey2(e){
 /* ---------- enregistrement et pages ---------- */
 const INK_PERF = [];
 function inkPerf(name, ms){ if(ms < 120) return; INK_PERF.push({ n:name, ms:Math.round(ms), t:Date.now() }); if(INK_PERF.length > 12) INK_PERF.shift(); }
+function inkDbgStart(z){
+  const box = document.createElement('div'); box.id = 'neDbg';
+  box.style.cssText = 'position:absolute;left:6px;top:' + (z.stage.offsetTop + 4) + 'px;z-index:60;font:10px/1.35 ui-monospace,Menlo,monospace;background:rgba(0,0,0,.62);color:#fff;padding:2px 6px;border-radius:6px;pointer-events:none;max-width:78%;white-space:normal';
+  z.el.appendChild(box); z.dbg = { box, n:0, last:'-', t:0, cnt:{} };
+  const rec = e=>{ const d = z.dbg; if(!d) return; d.n++; d.t = performance.now(); d.last = e.type.replace('pointer', 'p.') + '/' + (e.pointerType || 'touch'); const k = (e.pointerType || 'touch'); d.cnt[k] = (d.cnt[k] || 0) + (e.type === 'pointerdown' || e.type === 'touchstart' ? 1 : 0); };
+  z.dbgL = rec; ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','touchstart','touchend','touchcancel'].forEach(t=>window.addEventListener(t, rec, true));
+  z.dbgT = setInterval(()=>{
+    if(ink !== z || !z.dbg) return; const d = z.dbg, p = z.P[z.cur], age = d.t ? ((performance.now() - d.t) / 1000).toFixed(1) : '-';
+    d.box.textContent = 'dernier geste ' + d.last + ' il y a ' + age + ' s · appuis ' + Object.keys(d.cnt).map(k=>k + ' ' + d.cnt[k]).join(', ') + ' · trait en cours: ' + (z.act ? z.act.kind : 'non') + ' · doigts/stylet suivis: ' + z.ptrs.size + ' · enregistrement: ' + (z.nSave > 0 ? 'en cours' : 'non') + ' · page: ' + (p ? (p.objs ? 'prête' : 'VIDE' + (p.loading ? ' (charge)' : '')) : '?') + ' · écriture: ' + (z.dockOpen ? 'oui' : 'non') + (z.lastIgn ? ' · ignoré: ' + z.lastIgn.m + ' (' + ((performance.now() - z.lastIgn.t) / 1000).toFixed(1) + ' s)' : '');
+  }, 400);
+}
 function inkHeartbeat(){
   const z = ink; if(!z) return; const n = performance.now(), gap = n - (z.hbT || n); z.hbT = n; if(document.hidden || gap < 2500) return;
   const recent = INK_PERF.filter(x=>Date.now() - x.t < 60000).map(x=>x.n + ' ' + (x.ms / 1000).toFixed(1) + ' s').join(', ');
@@ -5419,7 +5430,7 @@ function inkPagesRefresh(){
 }
 async function inkClose(){
   const z = ink; if(!z) return; if(z.rec) await inkRecStop(); inkCloseActs(); inkSavePrefs(); await inkSave();
-  clearInterval(z.wd); clearInterval(z.hb); clearTimeout(z.ignTm); clearTimeout(z.pgT);
+  clearInterval(z.wd); clearInterval(z.hb); clearInterval(z.dbgT); if(z.dbgL) ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','touchstart','touchend','touchcancel'].forEach(t=>window.removeEventListener(t, z.dbgL, true)); z.dbg = null; clearTimeout(z.ignTm); clearTimeout(z.pgT);
   if(z.ro) z.ro.disconnect(); window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
   z.el.remove(); document.body.style.overflow = ''; ink = null;
   if(state.notes){ state.notes.item = state.items.find(i=>i.id === z.item.id) || z.item; state.notes.pos = z.pos; renderNotes(); }
@@ -5511,7 +5522,7 @@ async function inkOpen(){
     const sbEnd = e=>{ const d = z.sbDrag; if(!d || d.id !== e.pointerId) return; e.stopPropagation(); z.sbDrag = null; inkApply(true); };
     sbT.addEventListener('pointerup', sbEnd); sbT.addEventListener('pointercancel', sbEnd);
   }
-  z.wd = setInterval(inkWatchdog, 700); z.hb = setInterval(inkHeartbeat, 500);
+  z.wd = setInterval(inkWatchdog, 700); z.hb = setInterval(inkHeartbeat, 500); inkDbgStart(z);
   st.addEventListener('pointerdown', inkDown); st.addEventListener('pointermove', inkMove); st.addEventListener('pointerup', inkUp); st.addEventListener('pointercancel', inkUp); st.addEventListener('lostpointercapture', inkUp);
   st.addEventListener('wheel', inkWheel, { passive:false }); st.addEventListener('contextmenu', e=>e.preventDefault());
   ov.addEventListener('contextmenu', e=>{ if(!e.target.closest('textarea,input')) e.preventDefault(); });
