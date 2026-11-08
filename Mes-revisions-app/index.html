@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.34">
+<meta name="app-version" content="3.18.35">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -900,7 +900,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.34';
+const APP_VERSION = '3.18.35';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1576,6 +1576,7 @@ function renderResults(){
     (nQ + nF > 0 ? '<button class="btn sm" data-act="mix">'+ICON.mix+'<span>Mélanger des thèmes</span></button>' : '')+
     (nb > 0 ? '<button class="btn sm" data-act="notebook">'+ICON.book+'<span>Carnet d\'erreurs · '+nb+'</span></button>' : '')+
     '<button class="btn sm" data-act="exams-open">'+ICON.exam+'<span>Examens'+(examsUpcoming().length ? ' · '+examsUpcoming().length : '')+'</span></button>'+
+    (dupDrops(false).length ? '<button class="btn sm" data-act="dups"><span>Doublons · '+dupDrops(false).length+'</span></button>' : '')+
     (all.length ? '<button class="btn sm" data-act="sel-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Sélectionner</span></button>' : '');
   const box = $('#results');
   if(!all.length && !state.folders.length){
@@ -1746,6 +1747,34 @@ function findDuplicate(it){
 function dupSuffix(dupTitles){
   if(!dupTitles.length) return '';
   return ' — attention : ' + (dupTitles.length>1 ? 'ces titres existaient déjà' : 'ce titre existait déjà') + ' dans ce dossier : ' + dupTitles.slice(0,2).map(t=>'« '+t+' »').join(', ') + (dupTitles.length>2 ? '…' : '');
+}
+/* Doublons déjà présents : même type et même nom (comme à l'import). On garde soit le plus ancien (garde tes retouches et ta progression), soit le plus récent. */
+function dupDrops(keepNewest){
+  const arr = state.items.filter(i=>i.type !== 'notes').slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  if(keepNewest) arr.reverse();
+  const kept = [], drop = [];
+  arr.forEach(it=>{
+    const k = nameKey(it.title); if(!k){ kept.push(it); return; }
+    const hit = kept.find(x=>x.type===it.type && nameKey(x.title)===k && (!x.course || !it.course || sameName(x.course, it.course)));
+    if(hit) drop.push(it); else kept.push(it);
+  });
+  return drop;
+}
+function openDups(){
+  const n = dupDrops(false).length;
+  if(!n){ toast('Aucun doublon dans ta bibliothèque.'); return; }
+  const ex = dupDrops(false).slice(0, 5).map(i=>'<li>'+esc(i.title)+'</li>').join('') + (n > 5 ? '<li>… et '+(n-5)+' autre'+(n-5>1?'s':'')+'</li>' : '');
+  openModal(plural(n,'doublon'),
+    '<p>Ces éléments existent en double (même type et même nom) :</p><ul class="sel-list">'+ex+'</ul>'+
+    '<label class="fm-row" style="border:0;padding:6px 0"><input type="radio" name="dupKeep" value="old" checked><span><b>Garder les plus anciens</b> : tu conserves tes retouches (flèches déplacées) et ta progression.</span></label>'+
+    '<label class="fm-row" style="border:0;padding:6px 0"><input type="radio" name="dupKeep" value="new"><span><b>Garder les plus récents</b> : tu gardes la dernière version importée.</span></label>'+
+    '<p class="hint">Les autres sont supprimés définitivement.</p>',
+    'Supprimer les doublons', async ()=>{
+      const r = document.querySelector('input[name="dupKeep"]:checked');
+      const list = dupDrops(!!(r && r.value === 'new'));
+      try{ for(const it of list) await removeItem(it.id); closeModal(); toast(plural(list.length,'doublon')+' supprimé'+(list.length>1?'s':'')+'.'); refreshLibrary(); }
+      catch(e){ modalError('Suppression impossible pour le moment.'); }
+    });
 }
 async function submitAdd(){
   if(state.modalTab==='generate') return generate();
@@ -6937,6 +6966,7 @@ document.addEventListener('click', async e=>{
     case 'sel-all': if(state.sel){ visibleItems().forEach(i=>{ state.sel[i.id] = true; }); renderResults(); } break;
     case 'sel-none': if(state.sel){ state.sel = {}; renderResults(); } break;
     case 'sel-folder': if(state.sel){ const nm = el.dataset.name || ''; const grp = visibleItems().filter(i=>(i.course||'')===nm); const all = grp.every(i=>state.sel[i.id]); grp.forEach(i=>{ state.sel[i.id] = !all; }); renderResults(); } break;
+    case 'dups': openDups(); break;
     case 'sel-del': openSelDelete(); break;
     case 'today-schemas': startSchemaQueue(schStructs(state.items)); break;
     case 'exams-open': openExams(); break;
