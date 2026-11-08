@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.33">
+<meta name="app-version" content="3.18.34">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -900,7 +900,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.33';
+const APP_VERSION = '3.18.34';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1737,9 +1737,11 @@ function setTab(t){
   $('#submitBtn').textContent = t==='paste' ? 'Ajouter' : 'Générer';
   $('#modalMsg').innerHTML = '';
 }
-/* Détection de doublons à l'import : même type, même titre, même dossier (insensible à la casse/espaces). */
+/* Détection de doublons à l'import : même type et même nom (sans tenir compte des majuscules, accents ou ponctuation) ; deux dossiers différents et nommés ne comptent pas comme doublon. */
+function nameKey(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
 function findDuplicate(it){
-  return state.items.find(x=>x.type===it.type && sameName(x.title, it.title) && sameName(x.course||'', it.course||''));
+  const k = nameKey(it.title); if(!k) return null;
+  return state.items.find(x=>x.type===it.type && nameKey(x.title)===k && (!x.course || !it.course || sameName(x.course, it.course))) || null;
 }
 function dupSuffix(dupTitles){
   if(!dupTitles.length) return '';
@@ -1753,12 +1755,12 @@ async function submitAdd(){
   try{ list = extractItems(raw).map(o=>normalizeItem(o, course)); }
   catch(err){ modalError(err.message); return; }
   if(!list.length){ modalError('Rien à ajouter.'); return; }
-  const dups = list.filter(findDuplicate).map(it=>it.title);
   const btn = $('#submitBtn'); btn.disabled = true;
-  try{ for(const it of list) await addNewItem(it); }
+  let added = 0, skipped = 0;
+  try{ for(const it of list){ if(findDuplicate(it)){ skipped++; continue; } await addNewItem(it); added++; } }
   catch(err){ btn.disabled = false; modalError('Enregistrement impossible : ' + ((err && (err.message||err.code)) || 'erreur inconnue')); return; }
   closeModal();
-  toast(plural(list.length,'élément')+' ajouté'+(list.length>1?'s':'')+dupSuffix(dups));
+  toast((added ? plural(added,'élément')+' ajouté'+(added>1?'s':'') : 'Rien d\'ajouté') + (skipped ? ' · ' + skipped + ' déjà présent' + (skipped>1?'s':'') + ' (ignoré' + (skipped>1?'s':'') + ', même nom)' : ''));
 }
 
 /* Dossiers */
@@ -2144,7 +2146,7 @@ async function importFiles(fileList, course){
   }
   const okN = report.filter(r=>r.ok).length;
   openModal('Import terminé',
-    '<p class="hint"><b>' + plural(added,'élément') + '</b> ajouté' + (added>1?'s':'') + ' depuis ' + plural(okN,'fichier') + ' sur ' + files.length + '. Un élément qui porte le même titre dans le même dossier est ignoré (pas de doublon).</p>' +
+    '<p class="hint"><b>' + plural(added,'élément') + '</b> ajouté' + (added>1?'s':'') + ' depuis ' + plural(okN,'fichier') + ' sur ' + files.length + '. Un élément qui porte le même nom qu\'un élément déjà présent est ignoré (pas de doublon).</p>' +
     '<div class="imp">' + report.map(r=> r.ok
       ? '<div class="imp-row ok"><b>' + esc(r.name) + '</b> — ' + plural(r.n,'élément') + ' ajouté' + (r.n>1?'s':'') + (r.skipped ? ' · ' + r.skipped + ' déjà présent' + (r.skipped>1?'s':'') : '') + '</div>'
       : '<div class="imp-row ko"><b>' + esc(r.name) + '</b> — non importé : ' + esc(r.msg) + '</div>').join('') + '</div>',
