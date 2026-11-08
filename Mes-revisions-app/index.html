@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.35">
+<meta name="app-version" content="3.18.36">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -900,7 +900,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.35';
+const APP_VERSION = '3.18.36';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1738,11 +1738,11 @@ function setTab(t){
   $('#submitBtn').textContent = t==='paste' ? 'Ajouter' : 'Générer';
   $('#modalMsg').innerHTML = '';
 }
-/* Détection de doublons à l'import : même type et même nom (sans tenir compte des majuscules, accents ou ponctuation) ; deux dossiers différents et nommés ne comptent pas comme doublon. */
+/* Détection de doublons à l'import : même type et même nom (sans tenir compte des majuscules, accents ou ponctuation) ; le dossier n'entre pas en compte. */
 function nameKey(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
 function findDuplicate(it){
   const k = nameKey(it.title); if(!k) return null;
-  return state.items.find(x=>x.type===it.type && nameKey(x.title)===k && (!x.course || !it.course || sameName(x.course, it.course))) || null;
+  return state.items.find(x=>x.type===it.type && nameKey(x.title)===k) || null;
 }
 function dupSuffix(dupTitles){
   if(!dupTitles.length) return '';
@@ -1755,7 +1755,7 @@ function dupDrops(keepNewest){
   const kept = [], drop = [];
   arr.forEach(it=>{
     const k = nameKey(it.title); if(!k){ kept.push(it); return; }
-    const hit = kept.find(x=>x.type===it.type && nameKey(x.title)===k && (!x.course || !it.course || sameName(x.course, it.course)));
+    const hit = kept.find(x=>x.type===it.type && nameKey(x.title)===k);
     if(hit) drop.push(it); else kept.push(it);
   });
   return drop;
@@ -1763,7 +1763,7 @@ function dupDrops(keepNewest){
 function openDups(){
   const n = dupDrops(false).length;
   if(!n){ toast('Aucun doublon dans ta bibliothèque.'); return; }
-  const ex = dupDrops(false).slice(0, 5).map(i=>'<li>'+esc(i.title)+'</li>').join('') + (n > 5 ? '<li>… et '+(n-5)+' autre'+(n-5>1?'s':'')+'</li>' : '');
+  const ex = dupDrops(false).slice(0, 5).map(i=>'<li>'+esc(i.title)+(i.course ? ' <small>('+esc(i.course)+')</small>' : '')+'</li>').join('') + (n > 5 ? '<li>… et '+(n-5)+' autre'+(n-5>1?'s':'')+'</li>' : '');
   openModal(plural(n,'doublon'),
     '<p>Ces éléments existent en double (même type et même nom) :</p><ul class="sel-list">'+ex+'</ul>'+
     '<label class="fm-row" style="border:0;padding:6px 0"><input type="radio" name="dupKeep" value="old" checked><span><b>Garder les plus anciens</b> : tu conserves tes retouches (flèches déplacées) et ta progression.</span></label>'+
