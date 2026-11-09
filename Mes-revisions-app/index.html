@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.36">
+<meta name="app-version" content="3.18.37">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -900,7 +900,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.36';
+const APP_VERSION = '3.18.37';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1062,13 +1062,13 @@ async function imgGet(id){
     if(v){ state.imgCache[id] = v; return v; }
   }catch(e){}
   if(state.imgCol){
-    try{ const sn = await state.imgCol.doc(id).get(); if(sn.exists){ const d = sn.data().data; if(d){ await imgPutLocal(id, d); return d; } } }catch(e){}
+    try{ const sn = await state.imgCol.doc(id).get(); if(sn.exists){ let d = sn.data().data; const n = sn.data().n || 1; if(d && n > 1) d = await cloudJoin(id, d, n); if(d){ await imgPutLocal(id, d); return d; } } }catch(e){}
   }
   return null;
 }
 async function imgDel(id){
   delete state.imgCache[id];
-  if(state.imgCol){ try{ state.imgCol.doc(id).delete().catch(()=>{}); }catch(e){} }
+  if(state.imgCol){ try{ state.imgCol.doc(id).delete().catch(()=>{}); const n = (state.imgN || {})[id] || 1; for(let k = 1; k < n; k++) state.imgCol.doc(id + '~' + k).delete().catch(()=>{}); }catch(e){} }
   try{
     await idbRun(db=>new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').delete(id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); }));
   }catch(e){}
@@ -3152,10 +3152,35 @@ async function uploadLocalToCloud(auto){
     toast(plural(n,'élément') + ' de cet appareil envoyé' + (n>1?'s':'') + ' vers ton compte.');
   }catch(e){ toast('Envoi impossible pour le moment.'); }
 }
+/* Un document du cloud ne peut pas dépasser ~1 Mo : les gros blocs (page très chargée, page de PDF dense) sont découpés en morceaux de 800 000 caractères. */
+const CLOUD_CH = 800000;
 function cloudImgPut(id, data){
   if(!state.imgCol || !data) return;
-  if(String(data).length > 950000){ toast('Image trop lourde pour la synchronisation : elle reste sur cet appareil.'); return; }
-  state.imgCol.doc(id).set({ data }).catch(cloudErr);
+  const s = String(data);
+  if(s.length > 12000000){ toast('Cette page est vraiment trop lourde (plus de 12 Mo) : elle reste sur cet appareil.'); return; }
+  if(s.length <= 950000){ state.imgCol.doc(id).set({ data: s }).catch(cloudErr); return; }
+  const n = Math.ceil(s.length / CLOUD_CH); state.imgN = state.imgN || {}; state.imgN[id] = n;
+  const jobs = []; for(let k = 1; k < n; k++) jobs.push(state.imgCol.doc(id + '~' + k).set({ data: s.slice(k * CLOUD_CH, (k + 1) * CLOUD_CH) }));
+  Promise.all(jobs).then(()=>state.imgCol.doc(id).set({ data: s.slice(0, CLOUD_CH), n })).catch(cloudErr);
+}
+async function cloudJoin(id, first, n){
+  const rest = await Promise.all(Array.from({ length: n - 1 }, (_, i)=>state.imgCol.doc(id + '~' + (i + 1)).get()));
+  if(rest.some(r=>!r.exists || !r.data().data)) return null;
+  return first + rest.map(r=>r.data().data).join('');
+}
+/* Les pages déjà trop lourdes avant cette version restent sur l'appareil : on les renvoie en morceaux à la première ouverture de la fiche. */
+async function cloudRepush(it){
+  if(!state.imgCol || !it || !it.payload || !navigator.onLine) return;
+  state._rp = state._rp || {}; if(state._rp[it.id]) return; state._rp[it.id] = 1;
+  const ink = it.payload.ink || {}, ids = (it.payload.pages || []).concat(Object.keys(ink).map(k=>ink[k])).filter(Boolean);
+  for(const id of ids){
+    try{
+      let d = state.imgCache[id];
+      if(!d) d = await idbRun(db=>new Promise((res, rej)=>{ const r = db.transaction('img').objectStore('img').get(id); r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error); }));
+      if(d && String(d).length > 940000) cloudImgPut(id, d);
+    }catch(e){}
+    await new Promise(r=>setTimeout(r, 400));
+  }
 }
 
 /* ---------- Connexion ---------- */
@@ -4082,6 +4107,7 @@ async function inkLoadDoc(startPos){
     p.sheet = document.createElement('div'); p.sheet.className = 'ne-sheet'; p.img = null; z.doc.appendChild(p.sheet); return p;
   });
   z.cur = Math.max(0, Math.min(z.cur, z.P.length - 1)); inkLayout(); z.loaded = true;
+  setTimeout(()=>{ try{ cloudRepush(z.item); }catch(e){} }, 4000);
   const i = Math.max(0, Math.min(startPos == null ? z.pos : startPos, z.P.length - 1)); z.pos = i;
   inkFit('w', i); inkUpdateUI();
 }
@@ -5062,7 +5088,7 @@ function inkSave(){
     for(const j of jobs){
       try{
         const cur = state.items.find(i=>i.id === id) || z.item; const oldId = (cur.payload.ink || {})[j.key]; let newId = '';
-        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 900000) toast('Cette page est très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); (z.own = z.own || new Set()).add(newId); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
+        if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 11000000) toast('Cette page est vraiment très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); (z.own = z.own || new Set()).add(newId); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
         const saved = await updateItem(id, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[j.key] = newId; else delete it.payload.ink[j.key]; return it; });
         if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
         if(oldId) imgDel(oldId);
@@ -6076,11 +6102,12 @@ async function prepareOffline(silent){
     for(let i = 0; i < missing.length; i += 8) chunks.push(missing.slice(i, i + 8));
     const progress = ()=>{ if(silent || Date.now() - lastT < 1500) return; lastT = Date.now(); const n = done + fail, rate = n / Math.max(1, (Date.now() - t0) / 1000), left = Math.round((missing.length - n) / Math.max(0.1, rate)); toast('Préparation hors ligne : ' + n + ' / ' + missing.length + (left > 3 ? ' (environ ' + (left > 90 ? Math.round(left / 60) + ' min' : left + ' s') + ')' : '') + '…'); };
     const fetchChunk = async ids=>{
-      let docs = null;
-      try{ const q = await state.imgCol.where(firebase.firestore.FieldPath.documentId(), 'in', ids).get(); docs = {}; q.forEach(d=>{ docs[d.id] = d.data().data; }); }catch(e){ docs = null; }
+      let docs = null; const ns = {};
+      try{ const q = await state.imgCol.where(firebase.firestore.FieldPath.documentId(), 'in', ids).get(); docs = {}; q.forEach(d=>{ docs[d.id] = d.data().data; ns[d.id] = d.data().n || 1; }); }catch(e){ docs = null; }
       for(const id of ids){
         let d = docs ? docs[id] : undefined;
-        if(docs === null){ try{ const sn = await state.imgCol.doc(id).get(); d = sn.exists ? sn.data().data : null; }catch(e){ d = undefined; } }
+        if(docs === null){ try{ const sn = await state.imgCol.doc(id).get(); d = sn.exists ? sn.data().data : null; ns[id] = sn.exists ? (sn.data().n || 1) : 1; }catch(e){ d = undefined; } }
+        if(d && ns[id] > 1){ try{ d = await cloudJoin(id, d, ns[id]); }catch(e){ d = null; } }
         if(d){ await imgPutLocal(id, d); delete state.imgCache[id]; done++; bytes += d.length; } else fail++;
       }
       progress();
