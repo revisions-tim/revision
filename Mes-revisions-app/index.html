@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.38">
+<meta name="app-version" content="3.18.39">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -645,6 +645,8 @@ body.sch-ref-on .wrap{margin:0 0 0 var(--sref-w);max-width:calc(100% - var(--sre
 .scr2-h select{flex:1;min-width:0;max-width:640px;font:inherit;font-size:15px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
 .scr2-m{margin:auto;padding:24px;color:#fff;text-align:center;font-size:16px}
 .scr2-in{max-width:none}
+.ne-exp{background:var(--surface)}
+.ne-exp-ta{flex:1;width:100%;border:0;outline:none;resize:none;padding:14px 16px 90px;font:inherit;font-size:16px;line-height:1.55;background:var(--surface);color:var(--ink);touch-action:pan-y;-webkit-user-select:text;user-select:text}
 .ne-ref-r{position:absolute;right:-9px;top:0;bottom:0;width:18px;cursor:col-resize;touch-action:none;z-index:2}
 .ne-ref-r::after{content:'';position:absolute;left:7px;top:50%;width:4px;height:54px;margin-top:-27px;border-radius:3px;background:var(--accent)}
 .ne-rect{color:#e53935;font-weight:700;font-size:13px;white-space:nowrap}
@@ -900,7 +902,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.38';
+const APP_VERSION = '3.18.39';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4192,7 +4194,7 @@ function inkSbUpdate(){
   const tr = sh - 16, h = Math.max(52, tr * sh / ph), f = Math.min(1, Math.max(0, (40 - z.ty) / (ph - sh + 80))), th = sb.firstChild;
   th.style.height = h + 'px'; th.style.top = (8 + f * (tr - h)) + 'px';
 }
-function inkPosUI(){ const e = document.getElementById('nePos'); if(e && ink) e.textContent = (ink.pos + 1) + ' / ' + ink.P.length; const b = document.getElementById('neImpBtn'); if(b && ink && ink.P[ink.pos]) b.classList.toggle('on', !!((ink.item.payload.imp || {})[ink.P[ink.pos].key])); }
+function inkPosUI(){ const e = document.getElementById('nePos'); if(e && ink) e.textContent = (ink.pos + 1) + ' / ' + ink.P.length; if(ink && ink.exp) inkExpSync(); const b = document.getElementById('neImpBtn'); if(b && ink && ink.P[ink.pos]) b.classList.toggle('on', !!((ink.item.payload.imp || {})[ink.P[ink.pos].key])); }
 function inkPageT(g, i){ const z = ink, d = z.dpr; g.setTransform(d*z.s, 0, 0, d*z.s, d*z.tx, d*(z.ty + z.s * z.P[i].y0)); }
 function inkImgEl(id){
   const z = ink; const el = z.imgEls[id]; if(el && el !== 1) return el; if(el === 1) return null;
@@ -4941,6 +4943,10 @@ function inkClick(e){
   else if(a === 'beaut') inkBeautify(false);
   else if(a === 'beautp') inkBeautify(true);
   else if(a === 'mref'){ if(z.ref) inkRefClose(); else openRefChooser(); }
+  else if(a === 'mexp'){ if(z.exp) inkExpClose(); else inkExpOpen(); }
+  else if(a === 'expx') inkExpClose();
+  else if(a === 'expclear'){ const ta = document.getElementById('neExpTa'); if(ta && ta.value && confirm('Effacer l\'explication de cette page ?')){ ta.value = ''; z.exp.dirty = true; inkExpFlush(); } }
+  else if(a === 'expcopy') inkExpPaste();
   else if(a === 'refpick') openRefChooser();
   else if(a === 'refundo') inkRefUndo();
   else if(a === 'refwin') inkRefPopOut();
@@ -5033,7 +5039,7 @@ function inkUpdateUI(){
   el.querySelector('#neDock').hidden = !z.dockOpen; el.querySelector('#neDockBtn').classList.toggle('on', z.dockOpen);
   el.querySelector('#neTMenuBtn').classList.toggle('on', z.tool === 'hand' || z.tool === 'shape');
   const on = (id, v)=>{ const x = el.querySelector('#'+id); if(x) x.classList.toggle('on', !!v); };
-  on('neMImp', z.improve); on('neImpTop', z.improve); on('neMRef', !!z.ref); on('neRecBtn', !!z.rec);
+  on('neMImp', z.improve); on('neImpTop', z.improve); on('neMRef', !!z.ref); on('neMExp', !!z.exp); on('neRecBtn', !!z.rec); if(z.exp) inkExpSync();
   { const rt = el.querySelector('#neRecT'); if(rt){ rt.hidden = !z.rec; if(z.rec) rt.textContent = '● ' + fmtDur((Date.now() - z.rec.t0) / 1000); } }
   { const so = z.sel.length === 1 ? z.objs[z.sel[0]] : null, hb = el.querySelector('#neHear'); if(hb) hb.hidden = !(so && so.ar); }
   on('neMRuler', z.ruler.on); on('neMSnap', z.snap); on('neMFinger', z.finger); on('neMHand', z.tool === 'hand'); on('neDictTop', z.dict);
@@ -5353,6 +5359,7 @@ async function inkRefOpen(id){
   const z = ink; if(!z) return; const it = state.items.find(i=>i.id === id); if(!it) return;
   if(window.innerWidth < 760){ toast('Écran trop étroit pour afficher deux pages côte à côte.'); return; }
   await preloadImages(imageIds(it)); if(ink !== z) return;
+  if(z.exp) inkExpClose();
   z.ref = { id, w:z.refW || 0.5, zoom:1 }; inkRefBuild(); inkRefSavePref(); inkUpdateUI();
 }
 function inkRefClose(){
@@ -5363,6 +5370,58 @@ function inkRefSavePref(){
   const z = ink; if(!z) return; let m = {}; try{ m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}; }catch(e){}
   if(z.ref) m[z.item.id] = z.ref.id; else delete m[z.item.id];
   try{ localStorage.setItem('revisions:refby', JSON.stringify(m)); localStorage.setItem('revisions:refw', String(z.refW || 0.5)); }catch(e){}
+}
+/* ---- Explication à côté : un texte collé (par exemple l'explication de Claude), lié à la page affichée ---- */
+function inkExpKey(z){ const p = z.P[z.pos]; return p ? p.key : ''; }
+function inkExpText(z, key){ const e = (z.item.payload.exp || {})[key]; return typeof e === 'string' ? e : ''; }
+function inkExpOpen(){
+  const z = ink; if(!z) return;
+  if(window.innerWidth < 760){ toast('Écran trop étroit pour afficher la page et l\'explication côte à côte.'); return; }
+  if(z.ref) inkRefClose();
+  z.exp = { key:inkExpKey(z), w:z.refW || 0.4 }; inkExpBuild(); inkUpdateUI();
+}
+function inkExpClose(){
+  const z = ink; if(!z || !z.exp) return; inkExpFlush();
+  z.exp = null; const b = document.getElementById('neRef'); if(b) b.remove();
+  z.el.classList.remove('has-ref'); z.el.style.removeProperty('--ref-w'); inkUpdateUI();
+}
+function inkExpBuild(){
+  const z = ink, e = z && z.exp; if(!e) return;
+  let box = document.getElementById('neRef'); if(!box){ box = document.createElement('div'); box.id = 'neRef'; z.el.appendChild(box); }
+  box.className = 'ne-ref ne-exp'; box.style.top = z.stage.offsetTop + 'px'; z.el.classList.add('has-ref'); z.el.style.setProperty('--ref-w', (e.w * 100).toFixed(1) + '%');
+  box.innerHTML = '<div class="ne-ref-h"><b id="neExpT"></b><span class="ne-ref-c"><button class="btn sm" data-ne="expcopy">Coller</button><button class="btn sm" data-ne="expclear">Effacer</button><button class="btn sm" data-ne="expx" aria-label="Fermer l\'explication">✕</button></span></div>'+
+    '<textarea id="neExpTa" class="ne-exp-ta" spellcheck="false" placeholder="Colle ici l\'explication (Cmd + V). Elle reste liée à cette page."></textarea><div class="ne-ref-r" id="neRefR"></div>';
+  const ta = box.querySelector('#neExpTa');
+  ta.addEventListener('input', ()=>{ e.dirty = true; clearTimeout(e.t); e.t = setTimeout(inkExpFlush, 900); });
+  ta.addEventListener('blur', inkExpFlush);
+  const rz = box.querySelector('#neRefR');
+  rz.addEventListener('pointerdown', ev=>{ ev.preventDefault(); try{ rz.setPointerCapture(ev.pointerId); }catch(_){} rz._d = true; });
+  rz.addEventListener('pointermove', ev=>{ if(!rz._d) return; const w = Math.max(0.2, Math.min(0.75, ev.clientX / z.el.clientWidth)); e.w = w; z.refW = w; z.el.style.setProperty('--ref-w', (w * 100).toFixed(1) + '%'); });
+  rz.addEventListener('pointerup', ev=>{ rz._d = false; try{ rz.releasePointerCapture(ev.pointerId); }catch(_){} });
+  inkExpSync(true);
+}
+function inkExpSync(force){
+  const z = ink, e = z && z.exp; if(!e) return; const key = inkExpKey(z);
+  const t = document.getElementById('neExpT'); if(t) t.textContent = 'Explication · page ' + (z.pos + 1);
+  if(!force && key === e.key) return;
+  if(key !== e.key) inkExpFlush();
+  e.key = key; const ta = document.getElementById('neExpTa'); if(ta) ta.value = inkExpText(z, key);
+}
+function inkExpFlush(){
+  const z = ink, e = z && z.exp; if(!e || !e.dirty) return; clearTimeout(e.t); e.dirty = false;
+  const ta = document.getElementById('neExpTa'); if(!ta) return;
+  const key = e.key, text = ta.value.slice(0, 30000), id = z.item.id;
+  z.saving = (z.saving || Promise.resolve()).then(async ()=>{
+    try{
+      const saved = await updateItem(id, it=>{ it.payload.exp = Object.assign({}, it.payload.exp || {}); if(text.trim()) it.payload.exp[key] = text; else delete it.payload.exp[key]; return it; });
+      if(saved && ink === z){ z.item = saved; if(state.notes) state.notes.item = saved; }
+    }catch(err){ toast('Explication non enregistrée : ' + (err.message || 'erreur')); }
+  });
+}
+async function inkExpPaste(){
+  const z = ink, ta = document.getElementById('neExpTa'); if(!z || !z.exp || !ta) return;
+  try{ const t = await navigator.clipboard.readText(); if(!t){ toast('Le presse-papiers est vide.'); return; } ta.value = ta.value ? ta.value + '\n\n' + t : t; z.exp.dirty = true; inkExpFlush(); }
+  catch(e){ ta.focus(); toast('Clique dans la zone de texte puis fais Cmd + V pour coller.'); }
 }
 /* écrire sur le cours affiché à côté, avec les outils du volet de droite (stylos, surligneur, gomme) */
 function inkRefCanDraw(z){ return !!z.dockOpen && (z.tool === 'eraser' || INK_STROKE.indexOf(inkBase(z.tool)) >= 0); }
@@ -5514,7 +5573,7 @@ function inkPagesRefresh(){
   z.pgT = setTimeout(function again(){ const zz = ink; if(!zz) return; const box = document.getElementById('nePages'); if(!box || box.hidden) return; if(inkUserBusy(zz)){ zz.pgT = setTimeout(again, 1500); return; } inkPagesBuild(); }, 3000);
 }
 async function inkClose(){
-  const z = ink; if(!z) return; if(z.rec) await inkRecStop(); inkCloseActs(); inkSavePrefs(); await inkSave();
+  const z = ink; if(!z) return; if(z.rec) await inkRecStop(); inkCloseActs(); inkSavePrefs(); try{ inkExpFlush(); }catch(e){} await inkSave(); try{ await z.saving; }catch(e){}
   if(z.gp) ['gesturestart','gesturechange','gestureend'].forEach(t=>document.removeEventListener(t, z.gp, true));
   clearInterval(z.wd); clearInterval(z.hb); clearInterval(z.dbgT); if(z.dbgL) ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture','touchstart','touchend','touchcancel','gesturestart','gestureend'].forEach(t=>window.removeEventListener(t, z.dbgL, true)); z.dbg = null; clearTimeout(z.ignTm); clearTimeout(z.pgT);
   if(z.ro) z.ro.disconnect(); window.removeEventListener('resize', z.onResize); document.removeEventListener('keydown', z.onKey); document.removeEventListener('visibilitychange', z.onHide); window.removeEventListener('pagehide', inkSave);
@@ -5569,7 +5628,7 @@ async function inkOpen(){
     '<div class="ne-pop" id="nePop" hidden></div>'+
     '<div class="ne-cfg" id="neCfg" hidden></div>'+
     '<div class="ne-menu" id="neMenu" hidden>'+
-      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.filter(t=>t[0] !== 'big').map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+mi('mclaude','share','Préparer pour Claude (PDF)')+mi('mref','pages','Cours à côté…','neMRef')+mi('mrecs','mic','Enregistrements audio…')+
+      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.filter(t=>t[0] !== 'big').map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+mi('mclaude','share','Préparer pour Claude (PDF)')+mi('mref','pages','Cours à côté…','neMRef')+mi('mexp','text','Explication à côté','neMExp')+mi('mrecs','mic','Enregistrements audio…')+
       '<div class="ne-mh">Affichage</div>'+mi('fitw','fit','Ajuster à la largeur')+mi('fitp','fit','Page entière')+
       '<div class="ne-mrow"><button class="btn sm" data-ne="zout">− Zoom</button><span id="neZoomLbl">100 %</span><button class="btn sm" data-ne="zin">＋ Zoom</button></div>'+
     '</div>'+
@@ -5625,7 +5684,7 @@ async function inkOpen(){
   z.onResize = ()=>{ inkResize(); }; window.addEventListener('resize', z.onResize);
   if(window.ResizeObserver){ z.ro = new ResizeObserver(()=>inkResize()); z.ro.observe(z.stage); }
   z.onKey = inkKey2; document.addEventListener('keydown', z.onKey);
-  z.onHide = ()=>{ if(document.visibilityState === 'hidden') inkSave(); else { try{ if(IMG.db) IMG.db.close(); }catch(e){} IMG.db = null; if(ink === z){ z.ptrs.clear(); z.gest = null; z.pan = null; z.penDown = false; inkCancelAct(); } } }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
+  z.onHide = ()=>{ if(document.visibilityState === 'hidden'){ try{ inkExpFlush(); }catch(e){} inkSave(); } else { try{ if(IMG.db) IMG.db.close(); }catch(e){} IMG.db = null; if(ink === z){ z.ptrs.clear(); z.gest = null; z.pan = null; z.penDown = false; inkCancelAct(); } } }; document.addEventListener('visibilitychange', z.onHide); window.addEventListener('pagehide', inkSave);
   inkBuildTools(); inkResize(); await inkLoadDoc(pos0); inkUpdateUI();
   try{ const m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}, rid = m[z.item.id]; if(rid && state.items.some(i=>i.id === rid) && ink === z) inkRefOpen(rid); }catch(e){}
 }
