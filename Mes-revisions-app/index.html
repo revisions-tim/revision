@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.39">
+<meta name="app-version" content="3.18.40">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -645,6 +645,9 @@ body.sch-ref-on .wrap{margin:0 0 0 var(--sref-w);max-width:calc(100% - var(--sre
 .scr2-h select{flex:1;min-width:0;max-width:640px;font:inherit;font-size:15px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
 .scr2-m{margin:auto;padding:24px;color:#fff;text-align:center;font-size:16px}
 .scr2-in{max-width:none}
+.lost-row{display:flex;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0}
+.lost-v{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:12px}
+.lost-v canvas{border:1px solid var(--line);border-radius:4px;background:#fff;max-width:150px}
 .ne-exp{background:var(--surface)}
 .ne-exp-ta{flex:1;width:100%;border:0;outline:none;resize:none;padding:14px 16px 90px;font:inherit;font-size:16px;line-height:1.55;background:var(--surface);color:var(--ink);touch-action:pan-y;-webkit-user-select:text;user-select:text}
 .ne-ref-r{position:absolute;right:-9px;top:0;bottom:0;width:18px;cursor:col-resize;touch-action:none;z-index:2}
@@ -902,7 +905,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.39';
+const APP_VERSION = '3.18.40';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4944,6 +4947,7 @@ function inkClick(e){
   else if(a === 'beautp') inkBeautify(true);
   else if(a === 'mref'){ if(z.ref) inkRefClose(); else openRefChooser(); }
   else if(a === 'mexp'){ if(z.exp) inkExpClose(); else inkExpOpen(); }
+  else if(a === 'mlost') inkLostOpen();
   else if(a === 'expx') inkExpClose();
   else if(a === 'expclear'){ const ta = document.getElementById('neExpTa'); if(ta && ta.value && confirm('Effacer l\'explication de cette page ?')){ ta.value = ''; z.exp.dirty = true; inkExpFlush(); } }
   else if(a === 'expcopy') inkExpPaste();
@@ -5175,16 +5179,19 @@ async function inkRotate(all, dir){
   try{
     for(const i of idx){
       const p = z.P[i]; if(!p) continue;
-      await inkEnsureInk(i); for(let k = 0; k < 20 && !p.objs; k++) await new Promise(r=>setTimeout(r, 150));
+      await inkEnsureInk(i); for(let k = 0; k < 100 && !p.objs; k++) await new Promise(r=>setTimeout(r, 150));
+      if(!p.objs){ toast('La page ' + (i + 1) + ' n\'est pas encore chargée : rien n\'a été pivoté. Réessaie dans un instant.'); return; }
+      const oldInk = (z.item.payload.ink || {})[p.key];
+      if(oldInk && !p.objs.length && !(await imgGet(oldInk))){ toast('L\'écriture de la page ' + (i + 1) + ' n\'est pas disponible sur cet appareil : rien n\'a été pivoté, ton écriture est protégée.'); return; }
       const old = p.key, data = state.imgCache[old] || await imgGet(old); if(!data) continue;
       const rot = await inkRotateImage(data, dir); if(!rot) continue;
       const nk = uid('i'); await imgPut(nk, rot); const H = p.H, s = 1000 / H, d2 = inkImgDims(rot);
       changes.push({ i, old, nk, objs:(p.objs || []).map(o=>inkRotObj(o, dir, H, s)), H:d2 && d2[0] ? Math.round(1000 * d2[1] / d2[0]) : Math.round(1000000 / H) });
     }
     if(!changes.length){ toast('Rien à pivoter.'); return; }
-    const saved = await updateItem(z.item.id, it=>{ changes.forEach(c=>{ it.payload.pages[c.i] = c.nk; const m = Object.assign({}, it.payload.ink || {}); if(m[c.old]){ imgDel(m[c.old]); delete m[c.old]; } it.payload.ink = m; }); return it; });
+    const saved = await updateItem(z.item.id, it=>{ changes.forEach(c=>{ it.payload.pages[c.i] = c.nk; const m = Object.assign({}, it.payload.ink || {}); if(m[c.old]){ delete m[c.old]; } it.payload.ink = m; }); return it; });
     changes.forEach(c=>{ const p = z.P[c.i]; p.key = c.nk; p.objs = c.objs; p.H = c.H; p.undo = []; p.redo = []; p.dirty = c.objs.length > 0; p.img = null; });
-    z.item = saved; if(state.notes) state.notes.item = saved; changes.forEach(c=>imgDel(c.old));
+    z.item = saved; if(state.notes) state.notes.item = saved;
     await inkLoadDoc(z.pos); await inkSave(); inkPagesRefresh(); toast(all ? 'Pages pivotées.' : 'Page pivotée.');
   }catch(err){ toast('Rotation impossible : ' + (err.message || 'erreur')); }
 }
@@ -5370,6 +5377,51 @@ function inkRefSavePref(){
   const z = ink; if(!z) return; let m = {}; try{ m = JSON.parse(localStorage.getItem('revisions:refby') || '{}') || {}; }catch(e){}
   if(z.ref) m[z.item.id] = z.ref.id; else delete m[z.item.id];
   try{ localStorage.setItem('revisions:refby', JSON.stringify(m)); localStorage.setItem('revisions:refw', String(z.refW || 0.5)); }catch(e){}
+}
+/* ---- Retrouver une écriture perdue : cherche, dans les données de cet appareil, des écritures qui ne sont plus rattachées à aucune page ---- */
+async function inkLostScan(){
+  const db = await idbOpen();
+  const keys = await new Promise(res=>{ const r = db.transaction('img').objectStore('img').getAllKeys(); r.onsuccess = ()=>res(r.result); r.onerror = ()=>res([]); });
+  const used = new Set();
+  state.items.forEach(it=>{ if(!it.payload) return; imageIds(it).forEach(id=>used.add(id)); (it.payload.pages || []).forEach(p=>used.add(p)); const ik = it.payload.ink || {}; Object.keys(ik).forEach(k=>used.add(ik[k])); });
+  const out = [];
+  for(const k of keys){
+    if(typeof k !== 'string' || used.has(k) || !/^i_/.test(k)) continue;
+    const v = await new Promise(res=>{ const r = db.transaction('img').objectStore('img').get(k); r.onsuccess = ()=>res(r.result); r.onerror = ()=>res(null); });
+    if(typeof v !== 'string' || v.charAt(0) !== '[' || v.length > 8000000) continue;
+    let a; try{ a = JSON.parse(v); }catch(e){ continue; }
+    if(!Array.isArray(a) || !a.length || !a.every(o=>o && typeof o === 'object' && Array.isArray(o.p))) continue;
+    out.push({ id:k, arr:a, n:a.length, size:v.length });
+  }
+  return out;
+}
+function inkLostDraw(cv, arr, H){
+  const W = 150, sc = W / 1000; cv.width = W; cv.height = Math.max(40, Math.round(H * sc)); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.lineJoin = 'round'; g.lineCap = 'round';
+  arr.forEach(o=>{
+    g.strokeStyle = o.c || '#222'; g.lineWidth = Math.max(1, (o.w || 3) * sc * 1.2); const p = o.p;
+    if(o.k === 's' && p.length >= 4){ g.beginPath(); g.moveTo(p[0] / 10 * sc, p[1] / 10 * sc); for(let i = 2; i < p.length; i += 2) g.lineTo(p[i] / 10 * sc, p[i+1] / 10 * sc); g.stroke(); }
+    else if(p.length >= 4){ g.strokeRect(Math.min(p[0], p[2]) / 10 * sc, Math.min(p[1], p[3]) / 10 * sc, Math.abs(p[2] - p[0]) / 10 * sc, Math.abs(p[3] - p[1]) / 10 * sc); }
+  });
+}
+function inkLostVariant(arr, mode, H){ if(!mode) return arr; const Ho = Math.round(1000000 / H), sc = 1000 / Ho; return arr.map(o=>inkRotObj(o, mode, Ho, sc)); }
+async function inkLostOpen(){
+  const z = ink; if(!z) return; const p = z.P[z.cur]; if(!p || !p.objs){ toast('Attends que la page soit chargée, puis réessaie.'); return; }
+  toast('Recherche sur cet appareil…'); let list = [];
+  try{ list = await inkLostScan(); }catch(e){}
+  if(!list.length){ openModal('Écriture perdue', '<p>Je n\'ai trouvé aucune écriture détachée sur cet appareil. Essaie sur l\'autre appareil (celui où tu n\'as pas fait la rotation), sans ouvrir la note avant.</p>', null); return; }
+  const H = p.H, rows = list.map((c, i)=>'<div class="lost-row"><div style="flex:1 1 100%"><b>' + plural(c.n, 'élément') + '</b> · ' + Math.max(1, Math.round(c.size / 1024)) + ' Ko</div>' +
+    [[0, 'Tel quel', Math.round(1000000 / H)], [1, 'Pivoté ↻', H], [-1, 'Pivoté ↺', H]].map(v=>'<div class="lost-v" data-i="' + i + '" data-mode="' + v[0] + '"><canvas></canvas><span>' + v[1] + '</span></div>').join('') + '</div>').join('');
+  openModal('Écritures retrouvées', '<p class="hint">Choisis l\'aperçu qui ressemble à ce que tu avais écrit : il sera ajouté à la page affichée.</p>' + rows, null);
+  setTimeout(()=>{
+    document.querySelectorAll('#modalRoot .lost-v').forEach(el=>{
+      const c = list[Number(el.dataset.i)], mode = Number(el.dataset.mode), Hn = mode ? H : Math.round(1000000 / H);
+      inkLostDraw(el.querySelector('canvas'), inkLostVariant(c.arr, mode, H), Hn);
+      el.addEventListener('click', ()=>{
+        const z2 = ink; if(!z2) return; const arr = inkLostVariant(c.arr, mode, z2.P[z2.cur].H).map(o=>Object.assign({}, o)); const base = z2.objs;
+        z2.undo.push(base); z2.redo = []; z2.objs = base.concat(arr); z2.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); closeModal(); toast('Écriture ajoutée à la page (' + plural(arr.length, 'élément') + ').');
+      });
+    });
+  }, 30);
 }
 /* ---- Explication à côté : un texte collé (par exemple l'explication de Claude), lié à la page affichée ---- */
 function inkExpKey(z){ const p = z.P[z.pos]; return p ? p.key : ''; }
@@ -5628,7 +5680,7 @@ async function inkOpen(){
     '<div class="ne-pop" id="nePop" hidden></div>'+
     '<div class="ne-cfg" id="neCfg" hidden></div>'+
     '<div class="ne-menu" id="neMenu" hidden>'+
-      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.filter(t=>t[0] !== 'big').map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+mi('mclaude','share','Préparer pour Claude (PDF)')+mi('mref','pages','Cours à côté…','neMRef')+mi('mexp','text','Explication à côté','neMExp')+mi('mrecs','mic','Enregistrements audio…')+
+      '<div class="ne-mh">Pages</div>'+mi('blank','plus','Nouvelle page')+'<div class="ne-mrow ne-mtpl"><span>Modèle</span>'+PAGE_TPLS.filter(t=>t[0] !== 'big').map(t=>'<button class="btn sm" data-ne="tpl-'+t[0]+'" title="'+t[1]+'">'+t[1].replace('Petits carreaux','Carreaux').replace('Grands carreaux','Seyès')+'</button>').join('')+'</div>'+mi('addfiles','file','Importer un PDF ou des images')+mi('mrotr','rot','Pivoter la page')+mi('rmpage','trash','Supprimer cette page')+mi('mprint','print','Imprimer cette note')+mi('mclaude','share','Préparer pour Claude (PDF)')+mi('mref','pages','Cours à côté…','neMRef')+mi('mexp','text','Explication à côté','neMExp')+mi('mlost','undo','Retrouver une écriture perdue…')+mi('mrecs','mic','Enregistrements audio…')+
       '<div class="ne-mh">Affichage</div>'+mi('fitw','fit','Ajuster à la largeur')+mi('fitp','fit','Page entière')+
       '<div class="ne-mrow"><button class="btn sm" data-ne="zout">− Zoom</button><span id="neZoomLbl">100 %</span><button class="btn sm" data-ne="zin">＋ Zoom</button></div>'+
     '</div>'+
