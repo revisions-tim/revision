@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.41">
+<meta name="app-version" content="3.18.42">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -905,7 +905,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.41';
+const APP_VERSION = '3.18.42';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1100,6 +1100,7 @@ async function histPurge(){
   const h = histLoad(), cut = Date.now() - HIST_DAYS * 86400000, old = h.filter(e=>e.t < cut); if(!old.length) return;
   histSave(h.filter(e=>e.t >= cut)); for(const e of old) await imgDelLocal(e.id);
 }
+function histDate(t){ try{ return new Date(t).toLocaleString('fr-FR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); }catch(e){ return ''; } }
 function histAgo(t){ const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'à l\'instant'; if(m < 60) return 'il y a ' + m + ' min'; const hh = Math.round(m / 60); if(hh < 24) return 'il y a ' + hh + ' h'; const d = Math.round(hh / 24); return 'il y a ' + d + ' jour' + (d > 1 ? 's' : ''); }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
 function imageIds(it){
@@ -5415,7 +5416,8 @@ async function inkLostScan(){
     if(typeof v !== 'string' || v.charAt(0) !== '[' || v.length > 8000000) continue;
     let a; try{ a = JSON.parse(v); }catch(e){ continue; }
     if(!Array.isArray(a) || !a.length || !a.every(o=>o && typeof o === 'object' && Array.isArray(o.p))) continue;
-    const hm = histLoad().filter(e=>e.id === k)[0]; out.push({ id:k, arr:a, n:a.length, size:v.length, t:hm ? hm.t : 0, it:hm ? hm.it : '' });
+    const hm = histLoad().filter(e=>e.id === k)[0]; let tt = hm ? hm.t : 0; if(!tt){ const q = parseInt(k.slice(2, 10), 36); if(q > 1.6e12 && q < Date.now() + 864e5) tt = q; }
+    out.push({ id:k, arr:a, n:a.length, size:v.length, t:tt, it:hm ? hm.it : '' });
   }
   out.sort((a, b)=>b.t - a.t);
   return out;
@@ -5434,7 +5436,7 @@ async function inkLostOpen(){
   toast('Recherche sur cet appareil…'); let list = [];
   try{ list = await inkLostScan(); }catch(e){}
   if(!list.length){ openModal('Écriture perdue', '<p>Je n\'ai trouvé aucune écriture détachée sur cet appareil. Essaie sur l\'autre appareil (celui où tu n\'as pas fait la rotation), sans ouvrir la note avant.</p>', null); return; }
-  const H = p.H, rows = list.map((c, i)=>'<div class="lost-row"><div style="flex:1 1 100%"><b>' + (c.t ? histAgo(c.t) + '</b> · ' + plural(c.n, 'élément') : plural(c.n, 'élément') + '</b>') + ' · ' + Math.max(1, Math.round(c.size / 1024)) + ' Ko</div>' +
+  const H = p.H, rows = list.map((c, i)=>'<div class="lost-row"><div style="flex:1 1 100%"><b>' + (c.t ? histDate(c.t) + '</b> (' + histAgo(c.t) + ') · ' + plural(c.n, 'élément') : plural(c.n, 'élément') + '</b>') + ' · ' + Math.max(1, Math.round(c.size / 1024)) + ' Ko</div>' +
     [[0, 'Tel quel', Math.round(1000000 / H)], [1, 'Pivoté ↻', H], [-1, 'Pivoté ↺', H]].map(v=>'<div class="lost-v" data-i="' + i + '" data-mode="' + v[0] + '"><canvas></canvas><span>' + v[1] + '</span></div>').join('') + '</div>').join('');
   openModal('Écritures retrouvées', '<p class="hint">Choisis l\'aperçu qui ressemble à ce que tu avais écrit. Les plus récentes sont en haut.</p><div class="fm-row" style="border:0;padding:2px 0"><label><input type="radio" name="lostMode" value="add" checked> Ajouter à la page</label> &nbsp; <label><input type="radio" name="lostMode" value="rep"> Remplacer le contenu de la page</label></div>' + rows, null);
   setTimeout(()=>{
