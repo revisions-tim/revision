@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="app-version" content="3.18.40">
+<meta name="app-version" content="3.18.41">
 <title>Mes révisions</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -905,7 +905,7 @@ svg.pen{display:block}
 'use strict';
 
 /* ---------- Utilitaires ---------- */
-const APP_VERSION = '3.18.40';
+const APP_VERSION = '3.18.41';
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1078,6 +1078,29 @@ async function imgDel(id){
     await idbRun(db=>new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').delete(id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); }));
   }catch(e){}
 }
+/* ---- Historique de sécurité des pages d'écriture : sur cet appareil, on garde des versions d'avant (une toutes les 15 min, 8 récentes, puis une par jour pendant 7 jours) ---- */
+const HIST_KEY = 'revisions:inkhist', HIST_GAP = 15 * 60000, HIST_RECENT = 8, HIST_DAYS = 7;
+function histLoad(){ try{ const a = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function histSave(a){ try{ localStorage.setItem(HIST_KEY, JSON.stringify(a)); }catch(e){} }
+async function imgDelLocal(id){ delete state.imgCache[id]; try{ await idbRun(db=>new Promise((res, rej)=>{ const tx = db.transaction('img','readwrite'); tx.objectStore('img').delete(id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); })); }catch(e){} }
+function cloudImgDel(id){ if(!state.imgCol) return; try{ state.imgCol.doc(id).delete().catch(()=>{}); const n = (state.imgN || {})[id] || 1; for(let k = 1; k < n; k++) state.imgCol.doc(id + '~' + k).delete().catch(()=>{}); }catch(e){} }
+/* À appeler quand une écriture est remplacée par une nouvelle version : garde l'ancienne dans l'historique ou la supprime. force = on la garde toujours (page vidée, rotation). */
+async function inkOldVersion(itemId, pageKey, oldId, force){
+  if(!oldId) return;
+  const now = Date.now(); let h = histLoad();
+  const mine = h.filter(e=>e.it === itemId && e.k === pageKey && !e.d).sort((a, b)=>b.t - a.t);
+  if(!(force || !mine.length || now - mine[0].t >= HIST_GAP)){ await imgDel(oldId); return; }
+  h.push({ id:oldId, t:now, it:itemId, k:pageKey, d:0 }); delete state.imgCache[oldId]; cloudImgDel(oldId);
+  const rec = h.filter(e=>e.it === itemId && e.k === pageKey && !e.d).sort((a, b)=>b.t - a.t), drop = [];
+  rec.slice(HIST_RECENT).forEach(e=>{ const day = new Date(e.t).toDateString(); if(h.some(x=>x.it === itemId && x.k === pageKey && x.d && new Date(x.t).toDateString() === day)) drop.push(e); else e.d = 1; });
+  h.forEach(e=>{ if(e.t < now - HIST_DAYS * 86400000 && drop.indexOf(e) < 0) drop.push(e); });
+  h = h.filter(e=>drop.indexOf(e) < 0); histSave(h); for(const e of drop) await imgDelLocal(e.id);
+}
+async function histPurge(){
+  const h = histLoad(), cut = Date.now() - HIST_DAYS * 86400000, old = h.filter(e=>e.t < cut); if(!old.length) return;
+  histSave(h.filter(e=>e.t >= cut)); for(const e of old) await imgDelLocal(e.id);
+}
+function histAgo(t){ const m = Math.round((Date.now() - t) / 60000); if(m < 1) return 'à l\'instant'; if(m < 60) return 'il y a ' + m + ' min'; const hh = Math.round(m / 60); if(hh < 24) return 'il y a ' + hh + ' h'; const d = Math.round(hh / 24); return 'il y a ' + d + ' jour' + (d > 1 ? 's' : ''); }
 async function preloadImages(ids){ await Promise.all(ids.map(imgGet)); }
 function imageIds(it){
   if(it.type==='notes') return (it.payload.pages || []).filter(p=>p && !/^data:/.test(p)).concat(Object.keys(it.payload.ink || {}).map(k=>it.payload.ink[k]).filter(Boolean), (it.payload.imgs || []).filter(Boolean));
@@ -4119,7 +4142,7 @@ async function inkLoadDoc(startPos){
     p.sheet = document.createElement('div'); p.sheet.className = 'ne-sheet'; p.img = null; z.doc.appendChild(p.sheet); return p;
   });
   z.cur = Math.max(0, Math.min(z.cur, z.P.length - 1)); inkLayout(); z.loaded = true;
-  setTimeout(()=>{ try{ cloudRepush(z.item); }catch(e){} }, 4000);
+  setTimeout(()=>{ try{ cloudRepush(z.item); }catch(e){} }, 4000); setTimeout(()=>{ try{ histPurge(); }catch(e){} }, 9000);
   const i = Math.max(0, Math.min(startPos == null ? z.pos : startPos, z.P.length - 1)); z.pos = i;
   inkFit('w', i); inkUpdateUI();
 }
@@ -5108,7 +5131,7 @@ function inkSave(){
         if(j.objs.length){ const json = JSON.stringify(j.objs); if(json.length > 11000000) toast('Cette page est vraiment très chargée : elle risque de ne pas se synchroniser.'); newId = uid('i'); (z.own = z.own || new Set()).add(newId); const pr = z.P.filter(x=>x.key === j.key)[0]; if(pr) pr.inkId = newId; await imgPut(newId, json); } else { const pr0 = z.P.filter(x=>x.key === j.key)[0]; if(pr0) pr0.inkId = ''; }
         const saved = await updateItem(id, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[j.key] = newId; else delete it.payload.ink[j.key]; return it; });
         if(saved && ink){ ink.item = saved; if(state.notes) state.notes.item = saved; }
-        if(oldId) imgDel(oldId);
+        if(oldId) await inkOldVersion(id, j.key, oldId, !j.objs.length);
       }catch(err){ toast('Enregistrement impossible : ' + (err.message || 'erreur')); }
     }
     const s = document.getElementById('neSave'); if(s) s.textContent = 'Enregistré';
@@ -5186,12 +5209,13 @@ async function inkRotate(all, dir){
       const old = p.key, data = state.imgCache[old] || await imgGet(old); if(!data) continue;
       const rot = await inkRotateImage(data, dir); if(!rot) continue;
       const nk = uid('i'); await imgPut(nk, rot); const H = p.H, s = 1000 / H, d2 = inkImgDims(rot);
-      changes.push({ i, old, nk, objs:(p.objs || []).map(o=>inkRotObj(o, dir, H, s)), H:d2 && d2[0] ? Math.round(1000 * d2[1] / d2[0]) : Math.round(1000000 / H) });
+      changes.push({ i, old, nk, oi:oldInk || '', objs:(p.objs || []).map(o=>inkRotObj(o, dir, H, s)), H:d2 && d2[0] ? Math.round(1000 * d2[1] / d2[0]) : Math.round(1000000 / H) });
     }
     if(!changes.length){ toast('Rien à pivoter.'); return; }
     const saved = await updateItem(z.item.id, it=>{ changes.forEach(c=>{ it.payload.pages[c.i] = c.nk; const m = Object.assign({}, it.payload.ink || {}); if(m[c.old]){ delete m[c.old]; } it.payload.ink = m; }); return it; });
     changes.forEach(c=>{ const p = z.P[c.i]; p.key = c.nk; p.objs = c.objs; p.H = c.H; p.undo = []; p.redo = []; p.dirty = c.objs.length > 0; p.img = null; });
     z.item = saved; if(state.notes) state.notes.item = saved;
+    for(const c of changes) if(c.oi) await inkOldVersion(z.item.id, c.old, c.oi, true);
     await inkLoadDoc(z.pos); await inkSave(); inkPagesRefresh(); toast(all ? 'Pages pivotées.' : 'Page pivotée.');
   }catch(err){ toast('Rotation impossible : ' + (err.message || 'erreur')); }
 }
@@ -5391,8 +5415,9 @@ async function inkLostScan(){
     if(typeof v !== 'string' || v.charAt(0) !== '[' || v.length > 8000000) continue;
     let a; try{ a = JSON.parse(v); }catch(e){ continue; }
     if(!Array.isArray(a) || !a.length || !a.every(o=>o && typeof o === 'object' && Array.isArray(o.p))) continue;
-    out.push({ id:k, arr:a, n:a.length, size:v.length });
+    const hm = histLoad().filter(e=>e.id === k)[0]; out.push({ id:k, arr:a, n:a.length, size:v.length, t:hm ? hm.t : 0, it:hm ? hm.it : '' });
   }
+  out.sort((a, b)=>b.t - a.t);
   return out;
 }
 function inkLostDraw(cv, arr, H){
@@ -5409,16 +5434,16 @@ async function inkLostOpen(){
   toast('Recherche sur cet appareil…'); let list = [];
   try{ list = await inkLostScan(); }catch(e){}
   if(!list.length){ openModal('Écriture perdue', '<p>Je n\'ai trouvé aucune écriture détachée sur cet appareil. Essaie sur l\'autre appareil (celui où tu n\'as pas fait la rotation), sans ouvrir la note avant.</p>', null); return; }
-  const H = p.H, rows = list.map((c, i)=>'<div class="lost-row"><div style="flex:1 1 100%"><b>' + plural(c.n, 'élément') + '</b> · ' + Math.max(1, Math.round(c.size / 1024)) + ' Ko</div>' +
+  const H = p.H, rows = list.map((c, i)=>'<div class="lost-row"><div style="flex:1 1 100%"><b>' + (c.t ? histAgo(c.t) + '</b> · ' + plural(c.n, 'élément') : plural(c.n, 'élément') + '</b>') + ' · ' + Math.max(1, Math.round(c.size / 1024)) + ' Ko</div>' +
     [[0, 'Tel quel', Math.round(1000000 / H)], [1, 'Pivoté ↻', H], [-1, 'Pivoté ↺', H]].map(v=>'<div class="lost-v" data-i="' + i + '" data-mode="' + v[0] + '"><canvas></canvas><span>' + v[1] + '</span></div>').join('') + '</div>').join('');
-  openModal('Écritures retrouvées', '<p class="hint">Choisis l\'aperçu qui ressemble à ce que tu avais écrit : il sera ajouté à la page affichée.</p>' + rows, null);
+  openModal('Écritures retrouvées', '<p class="hint">Choisis l\'aperçu qui ressemble à ce que tu avais écrit. Les plus récentes sont en haut.</p><div class="fm-row" style="border:0;padding:2px 0"><label><input type="radio" name="lostMode" value="add" checked> Ajouter à la page</label> &nbsp; <label><input type="radio" name="lostMode" value="rep"> Remplacer le contenu de la page</label></div>' + rows, null);
   setTimeout(()=>{
     document.querySelectorAll('#modalRoot .lost-v').forEach(el=>{
       const c = list[Number(el.dataset.i)], mode = Number(el.dataset.mode), Hn = mode ? H : Math.round(1000000 / H);
       inkLostDraw(el.querySelector('canvas'), inkLostVariant(c.arr, mode, H), Hn);
       el.addEventListener('click', ()=>{
         const z2 = ink; if(!z2) return; const arr = inkLostVariant(c.arr, mode, z2.P[z2.cur].H).map(o=>Object.assign({}, o)); const base = z2.objs;
-        z2.undo.push(base); z2.redo = []; z2.objs = base.concat(arr); z2.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); closeModal(); toast('Écriture ajoutée à la page (' + plural(arr.length, 'élément') + ').');
+        const rm = document.querySelector('input[name="lostMode"]:checked'); z2.undo.push(base); z2.redo = []; z2.objs = rm && rm.value === 'rep' ? arr : base.concat(arr); z2.dirty = true; inkSchedSave(); inkRender(); inkUpdateUI(); closeModal(); toast((rm && rm.value === 'rep' ? 'Page remplacée par cette version' : 'Écriture ajoutée à la page') + ' (' + plural(arr.length, 'élément') + '). Tu peux annuler avec ↶.');
       });
     });
   }, 30);
@@ -5538,7 +5563,7 @@ function inkRefApply(itemId, i, mut, cv, noHist){
       const out = mut(arr); if(!out){ clearOv(); return; }
       const newId = out.length ? uid('i') : ''; if(newId) await imgPut(newId, JSON.stringify(out));
       const saved = await updateItem(itemId, it=>{ it.payload.ink = Object.assign({}, it.payload.ink || {}); if(newId) it.payload.ink[key] = newId; else delete it.payload.ink[key]; return it; });
-      if(oldId) imgDel(oldId);
+      if(oldId) await inkOldVersion(itemId, key, oldId, !out.length);
       if(!noHist) r.hist = (r.hist || []).concat({ id:itemId, i, prev }).slice(-30);
       const upd = saved || state.items.find(x=>x.id === itemId); const s = await notePageImage(upd, i, true);
       const el = document.querySelector('#neRef .ne-ref-p[data-i="' + i + '"]'); if(el){ if(s) el.firstChild.src = s; const c2 = el.querySelector('.ne-ref-ov'); if(c2) c2.getContext('2d').clearRect(0, 0, c2.width, c2.height); }
